@@ -2,14 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Pasien;
+use App\Models\RekamMedis;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
@@ -26,5 +24,11 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin2@example.com',
             'role' => User::ROLE_ADMIN,
         ]);
+        Pasien::factory(50)->create()->each(function ($pasien) {
+            RekamMedis::factory(rand(1, 4))->create([
+                'no_reg' => $pasien->no_reg,
+                'kpusk' => $pasien->kpusk
+            ]);
+        });
     }
 }
