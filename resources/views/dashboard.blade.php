@@ -86,7 +86,7 @@
         <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden">
             <div class="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
                 <h3 class="text-base font-semibold text-slate-900">Pasien Terbaru</h3>
-                <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">
                     Lihat semua &rarr;
                 </a>
             </div>
@@ -107,10 +107,10 @@
 
     <!-- Sidebar actions -->
     <div class="lg:col-span-1 space-y-6">
-        <div class="bg-indigo-600 rounded-2xl p-6 shadow-md text-white">
+        <div class="bg-[#d2282f] rounded-2xl p-6 shadow-md text-white">
             <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
-            <p class="mt-2 text-indigo-100 text-sm">Daftarkan pasien baru yang datang hari ini.</p>
-            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-slate-50 transition-all">
+            <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
+            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#d2282f] shadow-sm hover:bg-slate-50 transition-all">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Daftar Pasien Baru
             </a>
