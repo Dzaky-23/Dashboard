@@ -4,12 +4,8 @@
 
 @section('content')
 <div class="mb-8">
-    <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang, Admin!</h1>
-    @isset($message)
-        <p class="mt-2 text-base text-indigo-600">{{ $message }}</p>
-    @else
-        <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien.</p>
-    @endisset
+    <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang, {{ Auth::user()->name }}!</h1>
+    <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien.</p>
 </div>
 
 <!-- Stats Overview -->
