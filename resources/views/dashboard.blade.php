@@ -13,7 +13,7 @@
     <!-- Stat 1: Total -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
-            <div class="rounded-xl bg-blue-50 p-3 text-blue-600">
+            <div class="rounded-xl bg-orange-50 p-3 text-orange-600">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                 </svg>
@@ -107,10 +107,10 @@
 
     <!-- Sidebar actions -->
     <div class="lg:col-span-1 space-y-6">
-        <div class="bg-[#d2282f] rounded-2xl p-6 shadow-md text-white">
+        <div class="bg-red-600 rounded-2xl p-6 shadow-md text-white">
             <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
             <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
-            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#d2282f] shadow-sm hover:bg-slate-50 transition-all">
+            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-sm hover:bg-slate-50 transition-all">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Daftar Pasien Baru
             </a>

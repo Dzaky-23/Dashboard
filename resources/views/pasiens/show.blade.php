@@ -16,7 +16,7 @@
     
     <div class="flex flex-col md:flex-row md:items-start lg:items-center justify-between mt-4 gap-4">
         <div class="flex items-center gap-4">
-            <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex shrink-0 items-center justify-center text-white text-2xl font-bold shadow-md">
+            <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 flex shrink-0 items-center justify-center text-white text-2xl font-bold shadow-md">
                 {{ substr($pasien->nama, 0, 1) }}
             </div>
             <div>
@@ -28,7 +28,7 @@
                         No Reg: {{ $pasien->no_reg }}
                     </span>
                     @if($pasien->status == 'Baru')
-                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 whitespace-nowrap">Pasien Baru</span>
+                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10 whitespace-nowrap">Pasien Baru</span>
                     @else
                         <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 whitespace-nowrap">Pasien Lama</span>
                     @endif
@@ -57,7 +57,7 @@
 <div class="border-b border-slate-200 mb-8 overflow-x-auto">
     <nav class="-mb-px flex space-x-8 min-w-max" aria-label="Tabs">
         <!-- Tab 1: Active -->
-        <a href="{{ route('pasiens.show', $pasien->id) }}" class="border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">
+        <a href="{{ route('pasiens.show', $pasien->id) }}" class="border-red-500 text-red-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             Data Pasien
         </a>
@@ -76,7 +76,7 @@
     <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden lg:col-span-1">
         <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/50">
             <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
                 Identitas Pribadi
             </h3>
         </div>
@@ -122,7 +122,7 @@
     <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden lg:col-span-1">
         <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/50">
             <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                 Alamat & Keluarga
             </h3>
         </div>
@@ -167,7 +167,7 @@
         <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
             <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/50">
                 <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Administrasi & Asuransi
                 </h3>
             </div>
@@ -219,7 +219,7 @@
                     </div>
                     <div class="flex items-center justify-between">
                         <dt class="font-medium text-amber-800">Peserta Prolanis</dt>
-                        <dd class="text-indigo-800 font-bold bg-indigo-100 px-2 py-0.5 rounded">{{ $pasien->prolanis ? 'YA' : 'TIDAK' }}</dd>
+                        <dd class="text-red-800 font-bold bg-red-100 px-2 py-0.5 rounded">{{ $pasien->prolanis ? 'YA' : 'TIDAK' }}</dd>
                     </div>
                     
                     @if($pasien->alergi)

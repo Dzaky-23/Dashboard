@@ -18,7 +18,7 @@
         </div>
 
         <div class="pt-2 flex justify-end">
-            <button type="submit" class="inline-flex justify-center rounded-xl bg-[#fa302e] py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors">
+            <button type="submit" class="inline-flex justify-center rounded-xl bg-red-600 py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors">
                 Konfirmasi
             </button>
         </div>

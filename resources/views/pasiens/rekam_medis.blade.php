@@ -16,7 +16,7 @@
     
     <div class="flex flex-col md:flex-row md:items-start lg:items-center justify-between mt-4 gap-4">
         <div class="flex items-center gap-4">
-            <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex shrink-0 items-center justify-center text-white text-2xl font-bold shadow-md">
+            <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 flex shrink-0 items-center justify-center text-white text-2xl font-bold shadow-md">
                 {{ substr($pasien->nama, 0, 1) }}
             </div>
             <div>
@@ -28,7 +28,7 @@
                         No Reg: {{ $pasien->no_reg }}
                     </span>
                     @if($pasien->status == 'Baru')
-                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 whitespace-nowrap">Pasien Baru</span>
+                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10 whitespace-nowrap">Pasien Baru</span>
                     @else
                         <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 whitespace-nowrap">Pasien Lama</span>
                     @endif
@@ -38,8 +38,8 @@
         
         <!-- Actions -->
         <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
-                <svg class="h-4 w-4 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
+                <svg class="h-4 w-4 text-red-100" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
                 </svg>
                 Tambah Rekam Medis
@@ -58,10 +58,10 @@
         </a>
         
         <!-- Tab 2: Active -->
-        <a href="{{ route('pasiens.rekam_medis', $pasien->id) }}" class="border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">
+        <a href="{{ route('pasiens.rekam_medis', $pasien->id) }}" class="border-red-500 text-red-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"></path></svg>
             Rekam Medis Khusus
-            <span class="ml-1 bg-indigo-100 text-indigo-700 py-0.5 px-2 rounded-full text-xs">{{ $pasien->rekamMedis->count() }}</span>
+            <span class="ml-1 bg-red-100 text-red-700 py-0.5 px-2 rounded-full text-xs">{{ $pasien->rekamMedis->count() }}</span>
         </a>
     </nav>
 </div>
@@ -72,7 +72,7 @@
         <!-- RM Card Header -->
         <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="bg-indigo-100 text-indigo-700 h-10 w-10 rounded-full flex items-center justify-center">
+                <div class="bg-red-100 text-red-700 h-10 w-10 rounded-full flex items-center justify-center">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 </div>
                 <div>
@@ -86,9 +86,9 @@
             
             <div class="flex items-center gap-2">
                 @if($rm->status)
-                    <span class="inline-flex rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ $rm->status }}</span>
+                    <span class="inline-flex rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10">{{ $rm->status }}</span>
                 @endif
-                <button type="button" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium">Edit Data</button>
+                <button type="button" class="text-red-600 hover:text-indigo-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium">Edit Data</button>
             </div>
         </div>
 
@@ -175,14 +175,14 @@
 
                         <div>
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <svg class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3M15 12v5.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
+                                <svg class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3M15 12v5.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
                                 Pemberian Terapi / Obat (Rx)
                             </h4>
                             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                 <ul class="space-y-3">
                                     <li class="flex items-start justify-between">
                                         <div>
-                                            <span class="font-semibold text-indigo-700 block text-sm">{{ $rm->kode_obat ?: 'Pemberian Resep' }}</span>
+                                            <span class="font-semibold text-red-700 block text-sm">{{ $rm->kode_obat ?: 'Pemberian Resep' }}</span>
                                             <span class="text-xs text-slate-500">{{ $rm->racikan ? 'Racikan: ' . $rm->racikan : 'Non-racikan' }}</span>
                                         </div>
                                         <div class="text-right">
@@ -238,7 +238,7 @@
         <h3 class="mt-4 text-sm font-semibold text-slate-900">Belum Ada Rekam Medis Khusus</h3>
         <p class="mt-1 text-sm text-slate-500">Pasien ini belum memiliki riwayat keluhan, tindakan, atau resep yang dicatat.</p>
         <div class="mt-6">
-            <button type="button" class="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">
+            <button type="button" class="inline-flex items-center rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500">
                 + Tambah Kunjungan Pertama
             </button>
         </div>
