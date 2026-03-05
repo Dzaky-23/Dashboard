@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Pasien;
 use App\Models\RekamMedis;
+use App\Models\User;
 
 class DatabaseSeeder extends Seeder
 {

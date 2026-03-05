@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pasien extends Model
 {
+    use HasFactory;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -48,12 +50,11 @@ class Pasien extends Model
             'submited_at' => 'datetime',
             'berat' => 'integer',
         ];
-    use HasFactory;
+    }
 
     protected $guarded = ['id'];
     
     // Disable timestamps if not using created_at/updated_at, but we have submited_at
-    public $timestamps = false;
 
     public function rekamMedis()
     {

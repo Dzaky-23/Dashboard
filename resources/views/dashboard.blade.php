@@ -1,16 +1,3 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ $title ?? __('Dashboard') }}
-        </h2>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <p>{{ $message ?? __("You're logged in!") }}</p>
-                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Role: {{ auth()->user()->role }}</p>
 @extends('layouts.app')
 
 @section('title', 'Dashboard - RekamPasien')
@@ -18,7 +5,11 @@
 @section('content')
 <div class="mb-8">
     <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang, Admin!</h1>
-    <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien.</p>
+    @isset($message)
+        <p class="mt-2 text-base text-indigo-600">{{ $message }}</p>
+    @else
+        <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien.</p>
+    @endisset
 </div>
 
 <!-- Stats Overview -->
@@ -34,7 +25,7 @@
             <div>
                 <p class="text-sm font-medium text-slate-500">Total Pasien</p>
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalPasien) }}</p>
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalPasien ?? 0) }}</p>
                 </div>
             </div>
         </div>
@@ -51,7 +42,7 @@
             <div>
                 <p class="text-sm font-medium text-slate-500">Pasien Hari Ini</p>
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-slate-900">{{ number_format($pasienBaruToday) }}</p>
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($pasienBaruToday ?? 0) }}</p>
                 </div>
             </div>
         </div>
@@ -68,7 +59,7 @@
             <div>
                 <p class="text-sm font-medium text-slate-500">Pasien BPJS</p>
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalBPJS) }}</p>
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalBPJS ?? 0) }}</p>
                 </div>
             </div>
         </div>
@@ -85,7 +76,7 @@
             <div>
                 <p class="text-sm font-medium text-slate-500">Pasien Umum</p>
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalUmum) }}</p>
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalUmum ?? 0) }}</p>
                 </div>
             </div>
         </div>
@@ -141,11 +132,10 @@
                 </div>
                 <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                     <span>Sinkronisasi Data</span>
-                    <span class="text-slate-800 font-medium">Hari ini, 08:00 AM</span>
+                    <span class="text-slate-800 font-medium">Hari ini, {{ date('H:i') }}</span>
                 </div>
             </div>
         </div>
     </div>
-</x-app-layout>
 </div>
 @endsection
