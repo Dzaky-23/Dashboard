@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class RekamMedis extends Model
 {
+    use HasFactory;
+
     protected $table = 'rekam_medis';
 
     protected $fillable = [
@@ -57,7 +59,7 @@ class RekamMedis extends Model
             'diisi_pada' => 'datetime',
             'lingkarPerut' => 'integer',
         ];
-    use HasFactory;
+    }
 
     protected $guarded = ['id'];
 

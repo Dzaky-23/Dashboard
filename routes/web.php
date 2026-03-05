@@ -1,13 +1,14 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Api\PasienController;
-use App\Http\Controllers\Api\RekamMedisController;
+use App\Http\Controllers\Api\PasienController as ApiPasienController;
+use App\Http\Controllers\Api\RekamMedisController as ApiRekamMedisController;
+use App\Http\Controllers\PasienController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// This was added from default Laravel setup, but the old Dashboard is what the user was using.
+Route::get('/', [DashboardController::class, 'index'])->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
@@ -23,8 +24,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('admin.dashboard');
 
         Route::prefix('/admin/api')->group(function () {
-            Route::apiResource('pasiens', PasienController::class);
-            Route::apiResource('rekam-medis', RekamMedisController::class);
+            Route::apiResource('pasiens', ApiPasienController::class);
+            Route::apiResource('rekam-medis', ApiRekamMedisController::class);
         });
     });
 });
@@ -35,10 +36,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
-use App\Http\Controllers\PasienController;
-use App\Http\Controllers\DashboardController;
-
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+// Original Web Routes
 Route::get('pasiens/{pasien}/rekam-medis', [PasienController::class, 'rekamMedis'])->name('pasiens.rekam_medis');
 Route::resource('pasiens', PasienController::class);
+
+require __DIR__.'/auth.php';
