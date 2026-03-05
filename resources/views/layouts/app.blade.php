@@ -47,10 +47,10 @@
                             
                             <!-- Main Menu Desktop -->
                             <div class="hidden space-x-6 sm:-my-px sm:ml-10 sm:flex">
-                                <a href="{{ route('home') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('home') ? 'border-indigo-600 text-slate-900 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} text-sm transition-all duration-200">
+                                <a href="{{ route('home') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('home') ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-slate-600 hover:text-blue-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Dashboard
                                 </a>
-                                <a href="{{ route('pasiens.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('pasiens.*') ? 'border-indigo-600 text-slate-900 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} text-sm transition-all duration-200">
+                                <a href="{{ route('pasiens.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('pasiens.*') ? 'border-indigo-600 text-indigo-600 font-semibold' : 'border-transparent text-slate-600 hover:text-blue-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Daftar Pasien
                                 </a>
                             </div>
@@ -58,11 +58,37 @@
                         
                         <!-- User Profile / Actions -->
                         <div class="hidden sm:ml-6 sm:flex sm:items-center">
-                            @auth
-                            <a href="{{ route('profile.edit') }}" class="text-sm font-medium text-slate-600 hover:text-indigo-600 mr-4">Profile</a>
-                            @endauth
                             <div class="ml-4 flex items-center gap-3">
-                                <img class="h-8 w-8 rounded-full border border-slate-200 object-cover" src="https://ui-avatars.com/api/?name={{ Auth::user()->name ?? 'Admin' }}&background=eff6ff&color=4f46e5" alt="Avatar">
+                                <x-dropdown align="right" width="48">
+                                    <x-slot name="trigger">
+                                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-black bg-white hover:text-blue-600 focus:outline-none transition ease-in-out duration-150 ">
+                                            <img class="h-8 w-8 rounded-full border border-slate-200 object-cover" src="https://ui-avatars.com/api/?name={{ Auth::user()->name ?? 'Admin' }}&background=eff6ff&color=4f46e5" alt="Avatar">
+
+                                            <div class="ms-1">
+                                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        </button>
+                                    </x-slot>
+
+                                    <x-slot name="content">
+                                        <x-dropdown-link :href="route('profile.edit')">
+                                            {{ __('Profile') }}
+                                        </x-dropdown-link>
+
+                                        <!-- Authentication -->
+                                        <form method="POST" action="{{ route('logout') }}">
+                                            @csrf
+
+                                            <x-dropdown-link :href="route('logout')"
+                                                    onclick="event.preventDefault();
+                                                                this.closest('form').submit();">
+                                                {{ __('Log Out') }}
+                                            </x-dropdown-link>
+                                        </form>
+                                    </x-slot>
+                                </x-dropdown>
                             </div>
                         </div>
                     </div>
