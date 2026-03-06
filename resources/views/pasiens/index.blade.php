@@ -6,7 +6,7 @@
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">Data Pasien</h1>
-        <p class="mt-1 text-sm text-slate-500">Daftar seluruh pasien yang pernah mendaftar di klinik Anda.</p>
+        <p class="mt-1 text-sm text-slate-500">Daftar seluruh pasien yang terdapat pada database.</p>
     </div>
     <div class="mt-4 sm:mt-0">
         <a href="{{ route('pasiens.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-all">
@@ -19,7 +19,7 @@
 </div>
 
 <!-- Table Card -->
-<div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+<div class="bg-gray-100 rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50/50">
@@ -36,7 +36,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 bg-white">
                 @forelse($pasiens as $pasien)
-                <tr class="hover:bg-slate-50/80 transition-colors group">
+                <tr class="hover:bg-rose-50/80 transition-colors group">
                     <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm font-medium text-slate-900">
                         <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 ring-1 ring-inset ring-slate-200">
                             {{ $pasien->no_reg }}

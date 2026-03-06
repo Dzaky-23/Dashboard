@@ -5,13 +5,13 @@
 @section('content')
 <!-- Header Section -->
 <div class="mb-8">
-    <div class="flex items-center gap-3 mb-2">
-        <a href="{{ route('pasiens.index') }}" class="text-slate-400 hover:text-slate-600 transition-colors">
+    <div class="mb-2">
+        <a href="{{ route('pasiens.index') }}" class="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors group">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
+            <span class="text-sm font-medium text-slate-500 group-hover:text-slate-600 transition-colors">Kembali ke Daftar</span>
         </a>
-        <span class="text-sm font-medium text-slate-500">Kembali ke Daftar</span>
     </div>
     
     <div class="flex flex-col md:flex-row md:items-start lg:items-center justify-between mt-4 gap-4">
@@ -224,8 +224,8 @@
                     
                     @if($pasien->alergi)
                     <div class="pt-3 border-t border-amber-200/50">
-                        <dt class="font-bold text-rose-700">Alergi Terdaftar</dt>
-                        <dd class="text-rose-600 mt-1 bg-white p-2 rounded-lg border border-rose-100 italic">{{ $pasien->alergi }}</dd>
+                        <dt class="font-bold text-rose-800">Alergi Terdaftar</dt>
+                        <dd class="text-black mt-1 bg-white p-2 rounded-lg border border-rose-100 italic">{{ $pasien->alergi }}</dd>
                     </div>
                     @endif
                     

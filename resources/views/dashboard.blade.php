@@ -107,13 +107,25 @@
 
     <!-- Sidebar actions -->
     <div class="lg:col-span-1 space-y-6">
-        <div class="bg-red-600 rounded-2xl p-6 shadow-md text-white">
-            <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
-            <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
-            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-sm hover:bg-slate-50 transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Daftar Pasien Baru
-            </a>
+        <div 
+            id="tindakan-cepat-card"
+            class="relative overflow-hidden bg-[#ff0000] rounded-2xl p-6 shadow-md text-white transition-colors duration-300"
+        >
+            <!-- Cursor Glow Effect -->
+            <div 
+                id="tindakan-cepat-glow"
+                class="pointer-events-none absolute -inset-px opacity-0 transition duration-300"
+                style="background: radial-gradient(400px circle at var(--x, 0) var(--y, 0), rgba(121, 4, 4, 0.4), transparent 60%);"
+            ></div>
+            
+            <div class="relative z-10">
+                <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
+                <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
+                <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-sm hover:bg-slate-50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Daftar Pasien Baru
+                </a>
+            </div>
         </div>
         
         <!-- Helpful Info Card -->
@@ -134,4 +146,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const card = document.getElementById('tindakan-cepat-card');
+        const glow = document.getElementById('tindakan-cepat-glow');
+
+        if(card && glow) {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                glow.style.setProperty('--x', `${x}px`);
+                glow.style.setProperty('--y', `${y}px`);
+            });
+
+            card.addEventListener('mouseenter', () => {
+                glow.style.opacity = '1';
+            });
+
+            card.addEventListener('mouseleave', () => {
+                glow.style.opacity = '0';
+            });
+        }
+    });
+</script>
 @endsection
