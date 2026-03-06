@@ -6,10 +6,10 @@
 <div class="sm:flex sm:items-center sm:justify-between mb-8">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">Data Pasien</h1>
-        <p class="mt-1 text-sm text-slate-500">Daftar seluruh pasien yang pernah mendaftar di klinik Anda.</p>
+        <p class="mt-1 text-sm text-slate-500">Daftar seluruh pasien yang terdapat pada database.</p>
     </div>
     <div class="mt-4 sm:mt-0">
-        <a href="{{ route('pasiens.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all">
+        <a href="{{ route('pasiens.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-all">
             <svg class="-ml-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
             </svg>
@@ -19,7 +19,7 @@
 </div>
 
 <!-- Table Card -->
-<div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+<div class="bg-gray-100 rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50/50">
@@ -36,7 +36,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 bg-white">
                 @forelse($pasiens as $pasien)
-                <tr class="hover:bg-slate-50/80 transition-colors group">
+                <tr class="hover:bg-rose-50/80 transition-colors group">
                     <td class="whitespace-nowrap py-4 pl-6 pr-3 text-sm font-medium text-slate-900">
                         <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 ring-1 ring-inset ring-slate-200">
                             {{ $pasien->no_reg }}
@@ -44,7 +44,7 @@
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm font-medium text-slate-900">
                         <div class="flex items-center gap-3">
-                            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                            <div class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold text-xs">
                                 {{ substr($pasien->nama, 0, 1) }}
                             </div>
                             {{ $pasien->nama }}
@@ -54,13 +54,13 @@
                     <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{{ $pasien->tanggal ? date('d M Y', strtotime($pasien->tanggal)) : '-' }}</td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm">
                         @if($pasien->status == 'Baru')
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">Baru</span>
+                            <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10">Baru</span>
                         @else
                             <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Lama</span>
                         @endif
                     </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
-                        <a href="{{ route('pasiens.show', $pasien->id) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors inline-block opacity-0 group-hover:opacity-100 focus:opacity-100">
+                        <a href="{{ route('pasiens.show', $pasien->id) }}" class="text-red-600 hover:text-indigo-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors inline-block opacity-0 group-hover:opacity-100 focus:opacity-100">
                             Detail &rarr;
                         </a>
                     </td>

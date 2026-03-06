@@ -11,7 +11,7 @@
         <div>
             <label for="name" class="block text-sm font-medium text-slate-700">Nama Lengkap</label>
             <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" 
-                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm transition-colors">
             <x-input-error :messages="$errors->get('name')" class="mt-2 text-red-600 text-sm" />
         </div>
 
@@ -19,7 +19,7 @@
         <div>
             <label for="email" class="block text-sm font-medium text-slate-700">Alamat Email</label>
             <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" 
-                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm transition-colors">
             <x-input-error :messages="$errors->get('email')" class="mt-2 text-red-600 text-sm" />
         </div>
 
@@ -27,7 +27,7 @@
         <div>
             <label for="password" class="block text-sm font-medium text-slate-700">Kata Sandi</label>
             <input id="password" type="password" name="password" required autocomplete="new-password" 
-                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm transition-colors">
             <x-input-error :messages="$errors->get('password')" class="mt-2 text-red-600 text-sm" />
         </div>
 
@@ -35,16 +35,16 @@
         <div>
             <label for="password_confirmation" class="block text-sm font-medium text-slate-700">Konfirmasi Kata Sandi</label>
             <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password" 
-                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm transition-colors">
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2 text-red-600 text-sm" />
         </div>
 
         <div class="pt-2 flex items-center justify-between">
-            <a href="{{ route('login') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+            <a href="{{ route('login') }}" class="text-sm font-medium text-red-600 hover:text-red-500 transition-colors">
                 Sudah punya akun?
             </a>
 
-            <button type="submit" class="inline-flex justify-center rounded-xl bg-indigo-600 py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+            <button type="submit" class="inline-flex justify-center rounded-xl bg-red-600 py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
                 Daftar
             </button>
         </div>

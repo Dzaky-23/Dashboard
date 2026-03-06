@@ -16,12 +16,12 @@
         <div>
             <label for="email" class="block text-sm font-medium text-slate-700">Alamat Email</label>
             <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus 
-                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors">
+                class="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm transition-colors">
             <x-input-error :messages="$errors->get('email')" class="mt-2 text-red-600 text-sm" />
         </div>
 
         <div class="pt-2">
-            <button type="submit" class="w-full flex justify-center rounded-xl bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+            <button type="submit" class="w-full flex justify-center rounded-xl bg-red-600 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
                 Kirim Tautan Reset Kata Sandi
             </button>
         </div>

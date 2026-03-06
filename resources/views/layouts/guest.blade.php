@@ -22,18 +22,10 @@
     <body class="bg-slate-50 text-slate-800 antialiased font-sans">
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
             <!-- Logo Section -->
-            <div class="mb-8 text-center">
+            <div class="mb-6 text-center">
                 <a href="/" class="inline-flex items-center gap-2 group justify-center">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white p-2 rounded-xl group-hover:bg-red-700 transition-colors shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z" />
-                        </svg>
-                    </div>
-                    <span class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
-                        RekamPasien
-                    </span>
+                    <img src="{{ asset('images/dkk_logo.png') }}" alt="Logo" class="h-24 w-auto object-contain">
                 </a>
-                <p class="mt-3 text-slate-500 font-medium">Sistem Informasi Manajemen Pelayanan Pasien</p>
             </div>
 
             <!-- Form Card Wrapper -->

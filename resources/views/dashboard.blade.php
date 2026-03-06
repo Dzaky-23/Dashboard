@@ -13,7 +13,7 @@
     <!-- Stat 1: Total -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
-            <div class="rounded-xl bg-blue-50 p-3 text-blue-600">
+            <div class="rounded-xl bg-orange-50 p-3 text-orange-600">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                 </svg>
@@ -86,7 +86,7 @@
         <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden">
             <div class="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
                 <h3 class="text-base font-semibold text-slate-900">Pasien Terbaru</h3>
-                <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">
                     Lihat semua &rarr;
                 </a>
             </div>
@@ -107,13 +107,25 @@
 
     <!-- Sidebar actions -->
     <div class="lg:col-span-1 space-y-6">
-        <div class="bg-indigo-600 rounded-2xl p-6 shadow-md text-white">
-            <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
-            <p class="mt-2 text-indigo-100 text-sm">Daftarkan pasien baru yang datang hari ini.</p>
-            <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-slate-50 transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Daftar Pasien Baru
-            </a>
+        <div 
+            id="tindakan-cepat-card"
+            class="relative overflow-hidden bg-[#ff0000] rounded-2xl p-6 shadow-md text-white transition-colors duration-300"
+        >
+            <!-- Cursor Glow Effect -->
+            <div 
+                id="tindakan-cepat-glow"
+                class="pointer-events-none absolute -inset-px opacity-0 transition duration-300"
+                style="background: radial-gradient(400px circle at var(--x, 0) var(--y, 0), rgba(121, 4, 4, 0.4), transparent 60%);"
+            ></div>
+            
+            <div class="relative z-10">
+                <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
+                <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
+                <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-sm hover:bg-slate-50 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Daftar Pasien Baru
+                </a>
+            </div>
         </div>
         
         <!-- Helpful Info Card -->
@@ -134,4 +146,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const card = document.getElementById('tindakan-cepat-card');
+        const glow = document.getElementById('tindakan-cepat-glow');
+
+        if(card && glow) {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                glow.style.setProperty('--x', `${x}px`);
+                glow.style.setProperty('--y', `${y}px`);
+            });
+
+            card.addEventListener('mouseenter', () => {
+                glow.style.opacity = '1';
+            });
+
+            card.addEventListener('mouseleave', () => {
+                glow.style.opacity = '0';
+            });
+        }
+    });
+</script>
 @endsection

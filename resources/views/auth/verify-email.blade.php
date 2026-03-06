@@ -15,14 +15,14 @@
     <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <form method="POST" action="{{ route('verification.send') }}" class="w-full sm:w-auto">
             @csrf
-            <button type="submit" class="w-full sm:w-auto inline-flex justify-center rounded-xl bg-indigo-600 py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+            <button type="submit" class="w-full sm:w-auto inline-flex justify-center rounded-xl bg-red-600 py-2.5 px-6 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
                 Kirim Ulang Email Verifikasi
             </button>
         </form>
 
         <form method="POST" action="{{ route('logout') }}">
             @csrf
-            <button type="submit" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors underline underline-offset-2">
+            <button type="submit" class="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors underline underline-offset-2">
                 Keluar
             </button>
         </form>
