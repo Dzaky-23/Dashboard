@@ -7,10 +7,16 @@ use Illuminate\Http\Request;
 
 class PasienController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $pasiens = Pasien::orderBy('submited_at', 'desc')->paginate(10);
-        return view('pasiens.index', compact('pasiens'));
+        $search = $request->input('search');
+        
+        $pasiens = Pasien::when($search, function($query, $search) {
+            return $query->where('nama', 'like', "%{$search}%")
+                         ->orWhere('nik', 'like', "%{$search}%");
+        })->orderBy('submited_at', 'desc')->paginate(10);
+        
+        return view('pasiens.index', compact('pasiens', 'search'));
     }
 
     public function create()
@@ -23,9 +29,24 @@ class PasienController extends Controller
         return view('pasiens.show', compact('pasien'));
     }
 
-    public function rekamMedis(Pasien $pasien)
+    public function rekamMedis(Pasien $pasien, Request $request)
     {
-        return view('pasiens.rekam_medis', compact('pasien'));
+        $searchDate = $request->input('search_date');
+        
+        // Get rekam medis ordered by tanggal descending with optional date filter
+        $rekamMedis = $pasien->rekamMedis()
+            ->when($searchDate, function($query, $searchDate) {
+                return $query->whereDate('tanggal', $searchDate);
+            })
+            ->orderBy('tanggal', 'desc')->get();
+            
+        return view('pasiens.rekam_medis', compact('pasien', 'rekamMedis', 'searchDate'));
+    }
+
+    public function rekamMedisDetail(Pasien $pasien, $rekam_medis_id)
+    {
+        $rm = \App\Models\RekamMedis::where('id', $rekam_medis_id)->where('no_reg', $pasien->no_reg)->firstOrFail();
+        return view('pasiens.rekam_medis_detail', compact('pasien', 'rm'));
     }
 
     public function store(Request $request)
