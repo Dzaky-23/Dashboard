@@ -5,13 +5,13 @@
 @section('content')
 <!-- Header Section -->
 <div class="mb-8">
-    <div class="flex items-center gap-3 mb-2">
-        <a href="{{ route('pasiens.index') }}" class="text-slate-400 hover:text-slate-600 transition-colors">
+    <div class="mb-2">
+        <a href="{{ route('pasiens.index') }}" class="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors group">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
+            <span class="text-sm font-medium text-slate-500 group-hover:text-slate-600 transition-colors">Kembali ke Daftar</span>
         </a>
-        <span class="text-sm font-medium text-slate-500">Kembali ke Daftar</span>
     </div>
     
     <div class="flex flex-col md:flex-row md:items-start lg:items-center justify-between mt-4 gap-4">
@@ -60,7 +60,7 @@
         <!-- Tab 2: Active -->
         <a href="{{ route('pasiens.rekam_medis', $pasien->id) }}" class="border-red-500 text-red-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"></path></svg>
-            Rekam Medis Khusus
+            Rekam Medis
             <span class="ml-1 bg-red-100 text-red-700 py-0.5 px-2 rounded-full text-xs">{{ $pasien->rekamMedis->count() }}</span>
         </a>
     </nav>
@@ -81,7 +81,7 @@
                 </div>
                 <div class="flex flex-wrap text-sm text-slate-500 gap-x-4 gap-y-1 mt-3">
                     <p>Puskesmas: <span class="font-medium text-slate-700">{{ $rm->kpusk ?: '-' }}</span></p>
-                    <p>Cara Bayar: <span class="font-medium text-slate-700">{{ $rm->cara_bayar ?: '-' }} ({{ $rm->kode_pemayaran ?: '-' }})</span></p>
+                    <p>Cara Bayar: <span class="font-medium text-slate-700">{{ $rm->cara_bayar ?: '-' }} ({{ $rm->kode_pemeriksa ?: '-' }})</span></p>
                     <p>Diisi Pada: <span class="font-medium text-slate-700">{{ $rm->diisi_pada ? date('H:i', strtotime($rm->diisi_pada)) : '-' }}</span></p>
                 </div>
             </div>
@@ -296,7 +296,7 @@
         <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <h3 class="mt-4 text-sm font-semibold text-slate-900">Belum Ada Rekam Medis Khusus</h3>
+        <h3 class="mt-4 text-sm font-semibold text-slate-900">Belum Ada Rekam Medis</h3>
         <p class="mt-1 text-sm text-slate-500">Pasien ini belum memiliki riwayat keluhan, tindakan, atau resep yang dicatat.</p>
         <div class="mt-6">
             <button type="button" class="inline-flex items-center rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500">
