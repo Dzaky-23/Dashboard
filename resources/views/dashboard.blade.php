@@ -83,7 +83,7 @@
 <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
     <!-- Main Content Area -->
     <div class="lg:col-span-2">
-        <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden">
+        <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
             <div class="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
                 <h3 class="text-base font-semibold text-slate-900">Pasien Terbaru</h3>
                 <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">

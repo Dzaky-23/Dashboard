@@ -20,7 +20,7 @@
             body { font-family: 'Inter', sans-serif; }
         </style>
     </head>
-    <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+    <body class="bg-[#FCF8F8] text-slate-800 antialiased min-h-screen flex flex-col font-sans">
         
         <!-- Condition to either show custom nav or breeze nav -->
         @if(Auth::check() && request()->routeIs('profile.*'))
@@ -28,7 +28,7 @@
         @else
             <!-- Custom Navigation -->
             <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
                         <div class="flex">
                             <!-- Logo -->
@@ -92,7 +92,7 @@
         <!-- Page Heading (Breeze) -->
         @isset($header)
             <header class="bg-white dark:bg-gray-800 shadow">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-[96%] mx-auto py-6 px-4 sm:px-6 lg:px-8">
                     {{ $header }}
                 </div>
             </header>
@@ -103,7 +103,7 @@
             @if(isset($slot))
                 {{ $slot }}
             @else
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
                     <!-- Notifications -->
                     @if (session('success'))
                         <div class="mb-6 flex items-center p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl shadow-sm animate-fade-in-down">
@@ -118,7 +118,7 @@
         
         <!-- Footer -->
         <footer class="bg-white border-t border-slate-200 mt-auto">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-[96%] mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <p class="text-center text-sm text-slate-500">
                     &copy; {{ date('Y') }} Aplikasi Rekam Medis. All rights reserved.
                 </p>
