@@ -54,7 +54,7 @@
 </div>
 
 <!-- Tabs Navigation -->
-<div class="border-b border-slate-200 mb-8 overflow-x-auto">
+<div class="border-b border-slate-200 mb-8 overflow-x-auto overflow-y-hidden">
     <nav class="-mb-px flex space-x-8 min-w-max" aria-label="Tabs">
         <!-- Tab 1: Active -->
         <a href="{{ route('pasiens.show', $pasien->id) }}" class="border-red-500 text-red-600 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-semibold flex items-center gap-2" aria-current="page">

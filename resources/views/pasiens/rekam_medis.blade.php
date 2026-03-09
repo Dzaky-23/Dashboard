@@ -49,7 +49,7 @@
 </div>
 
 <!-- Tabs Navigation -->
-<div class="border-b border-slate-200 mb-8 overflow-x-auto">
+<div class="border-b border-slate-200 mb-8 overflow-x-auto overflow-y-hidden">
     <nav class="-mb-px flex space-x-8 min-w-max" aria-label="Tabs">
         <!-- Tab 1: Inactive -->
         <a href="{{ route('pasiens.show', $pasien->id) }}" class="border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 whitespace-nowrap border-b-2 py-4 px-2 text-sm font-medium flex items-center gap-2 transition-colors">
@@ -102,7 +102,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 bg-white">
                 @forelse($rekamMedis as $rm)
-                <tr class="hover:bg-slate-50 transition-colors group">
+                <tr class="hover:bg-rose-50/80 transition-colors group">
                     <td class="whitespace-nowrap px-6 py-4">
                         <div class="flex items-center gap-3">
                             <div class="h-10 w-10 shrink-0 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100">
