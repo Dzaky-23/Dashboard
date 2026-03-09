@@ -22,6 +22,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     });
 
     Route::get('pasiens/{pasien}/rekam-medis', [PasienController::class, 'rekamMedis'])->name('pasiens.rekam_medis');
+    Route::get('pasiens/{pasien}/rekam-medis/{rekam_medis}', [PasienController::class, 'rekamMedisDetail'])->name('pasiens.rekam_medis.show');
     Route::resource('pasiens', PasienController::class);
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
