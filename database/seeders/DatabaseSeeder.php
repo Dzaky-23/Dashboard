@@ -3,9 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Pasien;
-use App\Models\RekamMedis;
-use App\Models\User;
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,22 +11,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@example.com',
-            'role' => User::ROLE_ADMIN,
+        $this->call([
+            UserSeeder::class,
+            PasienSeeder::class,
+            RekamMedisSeeder::class,
         ]);
-
-        User::factory()->create([
-            'name' => 'Admin 2',
-            'email' => 'admin2@example.com',
-            'role' => User::ROLE_ADMIN,
-        ]);
-        Pasien::factory(50)->create()->each(function ($pasien) {
-            RekamMedis::factory(rand(1, 4))->create([
-                'no_reg' => $pasien->no_reg,
-                'kpusk' => $pasien->kpusk
-            ]);
-        });
     }
 }
