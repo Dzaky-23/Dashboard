@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-8">
     <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang, {{ Auth::user()->name }}!</h1>
-    <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien.</p>
+    <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien dan rekap penyakit.</p>
 </div>
 
 <!-- Stats Overview -->
@@ -79,97 +79,104 @@
     </div>
 </div>
 
-<!-- Quick Actions & Recent (Layout Split) -->
-<div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-    <!-- Main Content Area -->
-    <div class="lg:col-span-2">
-        <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-            <div class="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
-                <h3 class="text-base font-semibold text-slate-900">Pasien Terbaru</h3>
-                <a href="{{ route('pasiens.index') }}" class="text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors">
-                    Lihat semua &rarr;
-                </a>
+<!-- Disease Stats Overview (Added Section) -->
+<div class="mt-8 mb-4">
+</div>
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Disease Stat 1: Total Cases -->
+    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-red-50 p-3 text-red-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
             </div>
-            <div class="p-6">
-                <!-- Empty state placeholder inside modern card -->
-                <div class="text-center py-10">
-                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                        <svg class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                        </svg>
-                    </div>
-                    <h3 class="mt-4 text-sm font-semibold text-slate-900">Belum Ada Data Terkini</h3>
-                    <p class="mt-1 text-sm text-slate-500">Fitur daftar pasien terkini akan muncul di sini.</p>
+            <div>
+                <p class="text-sm font-medium text-slate-500">Total Kasus Penyakit</p>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalKasusPenyakit ?? 0) }}</p>
+                </div>
+            </div>
+        </div>
+        <p class="mt-4 text-xs font-medium text-slate-500 italic">
+            *jumlah kasus penyakit pertahun {{ date('Y') }}
+        </p>
+    </div>
+
+
+    <!-- Disease Stat 2: Top Disease -->
+    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-indigo-50 p-3 text-indigo-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
+            </div>
+            <div class="overflow-hidden w-full">
+                <p class="text-sm font-medium text-slate-500 whitespace-nowrap">Penyakit Terbanyak</p>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-lg font-bold text-slate-900 truncate" title="{{ $topPenyakitGlobal ?? '-' }}">
+                        {{ $topPenyakitGlobal ?? '-' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <p class="mt-4 text-xs font-medium text-slate-500 italic">
+            *jumlah kasus penyakit terbanyak pertahun {{ date('Y') }}
+        </p>
+    </div>
+
+    <!-- Disease Stat 3: Total Puskesmas -->
+    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-blue-50 p-3 text-blue-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-slate-500">Mencakup Puskesmas</p>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalPuskesmas ?? 0) }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Sidebar actions -->
-    <div class="lg:col-span-1 space-y-6">
-        <div 
-            id="tindakan-cepat-card"
-            class="relative overflow-hidden bg-[#ff0000] rounded-2xl p-6 shadow-md text-white transition-colors duration-300"
-        >
-            <!-- Cursor Glow Effect -->
-            <div 
-                id="tindakan-cepat-glow"
-                class="pointer-events-none absolute -inset-px opacity-0 transition duration-300"
-                style="background: radial-gradient(400px circle at var(--x, 0) var(--y, 0), rgba(121, 4, 4, 0.4), transparent 60%);"
-            ></div>
-            
-            <div class="relative z-10">
-                <h3 class="text-lg font-semibold">Tindakan Cepat</h3>
-                <p class="mt-2 text-white text-sm">Daftarkan pasien baru yang datang hari ini.</p>
-                <a href="{{ route('pasiens.create') }}" class="mt-6 w-full inline-flex justify-center items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-red-600 shadow-sm hover:bg-slate-50 transition-all">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    Daftar Pasien Baru
-                </a>
+    <!-- Disease Stat 4: Total Kecamatan -->
+    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-purple-50 p-3 text-purple-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
             </div>
-        </div>
-        
-        <!-- Helpful Info Card -->
-        <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl p-6">
-            <h4 class="text-sm font-bold text-slate-900 mb-4">Informasi Sistem</h4>
-            <div class="space-y-3 text-sm text-slate-600">
-                <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                    <span>Status Server</span>
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
-                    </span>
-                </div>
-                <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                    <span>Sinkronisasi Data</span>
-                    <span class="text-slate-800 font-medium">Hari ini, {{ date('H:i') }}</span>
+            <div>
+                <p class="text-sm font-medium text-slate-500">Wilayah Kecamatan</p>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-2xl font-bold text-slate-900">{{ number_format($totalKecamatan ?? 0) }}</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const card = document.getElementById('tindakan-cepat-card');
-        const glow = document.getElementById('tindakan-cepat-glow');
+    <!-- Helpful Info Card -->
+    <div class="mt-8 mb-4 bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl p-6 hover:shadow-md transition-shadow">
+        <h4 class="text-sm font-bold text-slate-900 mb-4">Informasi Sistem</h4>
+        <div class="space-y-3 text-sm text-slate-600">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <span>Status Server</span>
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
+                </span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <span>Sinkronisasi Data</span>
+                <span class="text-slate-800 font-medium">Hari ini, {{ date('H:i') }}</span>
+            </div>
+        </div>
+    </div>
+</div>
 
-        if(card && glow) {
-            card.addEventListener('mousemove', (e) => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                glow.style.setProperty('--x', `${x}px`);
-                glow.style.setProperty('--y', `${y}px`);
-            });
-
-            card.addEventListener('mouseenter', () => {
-                glow.style.opacity = '1';
-            });
-
-            card.addEventListener('mouseleave', () => {
-                glow.style.opacity = '0';
-            });
-        }
-    });
-</script>
 @endsection
