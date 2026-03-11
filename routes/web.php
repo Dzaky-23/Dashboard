@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\PasienController as ApiPasienController;
 use App\Http\Controllers\Api\RekamMedisController as ApiRekamMedisController;
 use App\Http\Controllers\PasienController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PenyakitRecapController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    Route::get('/recap-penyakit', [PenyakitRecapController::class, 'index'])->name('recap.index');
+    Route::get('/recap-penyakit/kecamatan/{kecamatan}', [PenyakitRecapController::class, 'showKecamatan'])->name('recap.kecamatan.show');
+    Route::get('/recap-penyakit/{puskesmas}', [PenyakitRecapController::class, 'show'])->name('recap.show');
 });
 
 require __DIR__.'/auth.php';
