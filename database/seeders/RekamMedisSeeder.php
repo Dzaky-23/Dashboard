@@ -14,7 +14,7 @@ class RekamMedisSeeder extends Seeder
     public function run(): void
     {
         Pasien::query()->each(function (Pasien $pasien): void {
-            RekamMedis::factory(rand(1, 4))->create([
+            RekamMedis::factory(5)->create([
                 'no_reg' => $pasien->no_reg,
                 'kpusk' => $pasien->kpusk,
             ]);
