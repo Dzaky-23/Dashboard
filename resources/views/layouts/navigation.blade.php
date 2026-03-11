@@ -18,8 +18,8 @@
                     <x-nav-link :href="route('pasiens.index')" :active="request()->routeIs('pasiens.*')">
                         Daftar Pasien
                     </x-nav-link>
-                    <x-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.*')">
-                        Daftar Puskesmas
+                    <x-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.index', 'recap.show', 'recap.kecamatan.show')">
+                        Daftar Rekapitulasi
                     </x-nav-link>
                 </div>
             </div>
@@ -45,8 +45,8 @@
             <x-responsive-nav-link :href="route('pasiens.index')" :active="request()->routeIs('pasiens.*')">
                 Daftar Pasien
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.*')">
-                Daftar Puskesmas
+            <x-responsive-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.index', 'recap.show', 'recap.kecamatan.show')">
+                Daftar Rekapitulasi
             </x-responsive-nav-link>
         </div>
 

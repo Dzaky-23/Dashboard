@@ -27,11 +27,6 @@
                     <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
                         No Reg: {{ $pasien->no_reg }}
                     </span>
-                    @if($pasien->status == 'Baru')
-                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10 whitespace-nowrap">Pasien Baru</span>
-                    @else
-                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 whitespace-nowrap">Pasien Lama</span>
-                    @endif
                 </div>
             </div>
         </div>
@@ -121,9 +116,6 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-2">
                             <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">ICD: {{ $rm->kode_penyakit ?: '-' }}</span>
-                            @if($rm->status == 'Baru')
-                                <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10 whitespace-nowrap">Baru</span>
-                            @endif
                         </div>
                     </td>
                     <td class="px-6 py-4">

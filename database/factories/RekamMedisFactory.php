@@ -46,7 +46,7 @@ class RekamMedisFactory extends Factory
             // SOAP Tambahan
             'anamnesa' => $this->faker->paragraph(2),
             'fisik' => $this->faker->paragraph(1),
-            'kode_penyakit' => $this->faker->randomElement(['J00', 'A09', 'E11', 'I10', 'K30']),
+            'kode_penyakit' => $this->faker->randomElement(['J00', 'A09', 'E11', 'I10', 'K30', 'A01', 'B15', 'I20', 'J11', 'K29', 'L02', 'M10', 'N04', 'N39', 'R50', 'J02', 'J44', 'E66', 'K21', 'M54']),
             'status' => $status,
             'kode_obat' => 'OBT-' . $this->faker->numberBetween(100, 999),
             'jumlah' => $this->faker->numberBetween(10, 30),
