@@ -22,7 +22,7 @@ class PasienFactory extends Factory
         
         return [
             'tanggal' => $this->faker->dateTimeBetween('-1 month', 'now')->format('Y-m-d'),
-            'kpusk' => 'P' . $this->faker->numberBetween(1000, 9999),
+            'kpusk' => $this->faker->randomElement(array_keys(\App\Services\RecapLogicService::MAPPING_KECAMATAN)),
             'no_reg' => date('Ymd') . $this->faker->unique()->numberBetween(1000, 9999),
             'nik' => $this->faker->numerify('################'),
             'sapaan' => $this->faker->title(),
