@@ -26,9 +26,6 @@
                 <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
                     No Reg: {{ $pasien->no_reg }}
                 </span>
-                @if($rm->status)
-                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10 whitespace-nowrap">{{ $rm->status }}</span>
-                @endif
             </div>
         </div>
         
