@@ -12,19 +12,12 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-2 gap-3 mt-6 relative z-10">
+            <div class="grid grid-cols-1 gap-3 mt-6 relative z-10">
                 <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
                     <span class="text-[10px] text-slate-400 font-bold uppercase block mb-1 tracking-wider">Total Faskes</span>
                     <span class="font-bold text-slate-700 flex items-center text-sm">
                         <svg class="w-3.5 h-3.5 mr-1.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         {{ $kecData['total_puskesmas'] }} Unit
-                    </span>
-                </div>
-                <div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
-                    <span class="text-[10px] text-slate-400 font-bold uppercase block mb-1 tracking-wider">Top Diagnosa</span>
-                    <span class="font-bold text-rose-600 flex items-center text-sm">
-                        <svg class="w-3.5 h-3.5 mr-1.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                        {{ $kecData['top_penyakit']->kode_penyakit ?? '-' }} 
                     </span>
                 </div>
             </div>

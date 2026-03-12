@@ -7,9 +7,24 @@
                 <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 Top 10 Penyakit Global
             </h4>
+            
+            <form id="filterYearForm" action="{{ route('recap.index') }}" method="GET" class="flex items-center gap-2">
+                <label for="year" class="text-xs font-bold text-slate-500 hidden sm:block">Periode:</label>
+                <div class="relative">
+                    <select name="year" id="year" onchange="document.getElementById('filterYearForm').submit()" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-3 pr-8 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
+                        <option value="">Semua Tahun</option>
+                        @foreach($availableYears as $y)
+                            <option value="{{ $y }}" {{ $yearInput == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
+                        @endforeach
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </form>
         </div>
 
-        <div class="px-6 pb-6 pt-16 md:px-8 md:pb-8 md:pt-20 overflow-x-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex items-end justify-start xl:justify-center flex-nowrap w-full gap-4 sm:gap-6 md:gap-8 min-h-[380px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent pb-x">
+        <div class="px-6 pb-6 pt-16 md:px-8 md:pb-8 md:pt-20 overflow-x-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex items-end justify-start xl:justify-center flex-nowrap w-full gap-2 sm:gap-3 lg:gap-5 min-h-[380px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
             @if(isset($chartData) && $chartData->isNotEmpty())
                 @foreach($chartData as $index => $item)
                     @php
@@ -28,16 +43,15 @@
                         </div>
 
                         <!-- Neumorphic Bar Container -->
-                        <div class="h-56 md:h-64 w-12 md:w-16 bg-slate-100/50 rounded-full p-1.5 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] border border-white flex flex-col justify-end">
+                        <div class="h-44 md:h-52 w-10 md:w-12 bg-slate-100/50 rounded-full p-1.5 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] border border-white flex flex-col justify-end">
                             <div class="w-full bg-gradient-to-t {{ $color }} rounded-full relative transition-[height] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_4px_10px_rgba(0,0,0,0.1)] group-hover:brightness-110" style="height: {{ max($heightPercentage, 8) }}%">
                                 <div class="absolute top-1 left-1.5 right-1.5 h-1/4 bg-white/40 rounded-full blur-[1px]"></div>
                             </div>
                         </div>
 
                         <!-- Bottom Labels -->
-                        <div class="mt-5 flex flex-col items-center justify-start h-16 w-16 md:w-20">
-                            <span class="block text-xs md:text-sm font-bold text-slate-700 truncate w-full px-1" title="{{ $item->label }}">{{ $item->label }}</span>
-                            
+                        <div class="mt-4 flex flex-col items-center justify-start h-12 w-12 md:w-14">
+                            <span class="block text-[11px] md:text-xs font-bold text-slate-700 truncate w-full px-1 text-center" title="{{ $item->label }}">{{ $item->label }}</span>
                         </div>
                     </div>
                 @endforeach

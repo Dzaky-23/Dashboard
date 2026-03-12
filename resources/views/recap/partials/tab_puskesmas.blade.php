@@ -10,18 +10,12 @@
                 <h4 class="font-bold text-slate-800 text-base group-hover:text-red-700 transition-colors duration-200 pr-2 truncate">
                     {{ $puskesmas ?? 'Tidak Diketahui' }}
                 </h4>
-                <span class="inline-flex items-center justify-center px-2 py-1 flex-shrink-0 text-xs font-bold leading-none text-red-700 bg-red-50 border border-red-100 rounded-full">
-                    {{ number_format($totalKasusPusk) }} Kasus
-                </span>
             </div>
             <p class="text-[11px] font-bold text-slate-400 mb-4 flex items-center uppercase tracking-wider">
                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Kec. {{ $mapping[$puskesmas] ?? 'Tidak Terdaftar' }}
             </p>
-            <div class="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                <span class="font-medium text-slate-500 text-xs uppercase tracking-wide block mb-0.5">ICD-X Terbanyak</span>
-                <span class="font-semibold text-slate-800">{{ $topPenyakitPusk->kode_penyakit ?? '-' }}</span> 
-                <span class="text-red-600 font-semibold text-[11px] text-right float-right mt-1.5 group-hover:underline flex items-center justify-end gap-1">Detail <span>&rarr;</span></span>
+            <div class="text-red-600 font-semibold text-[11px] text-right float-right mt-1.5 group-hover:underline flex items-center justify-end gap-1">Detail <span>&rarr;</span></span>
             </div>
         </a>
     @endforeach

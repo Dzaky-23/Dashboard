@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RekamMedis;
 use App\Services\RecapLogicService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +13,15 @@ class PenyakitRecapController extends Controller
     public function index(Request $request)
     {
         $limit = 10;
+        $yearInput = $request->input('year');
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
+
+        // Ambil daftar tahun unik yang ada datanya
+        $availableYears = RekamMedis::selectRaw('YEAR(tanggal) as year')
+            ->whereNotNull('tanggal')
+            ->groupBy('year')
+            ->orderByDesc('year')
+            ->pluck('year');
 
         $queryRekap = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit');
@@ -59,20 +68,35 @@ class PenyakitRecapController extends Controller
         sort($listKecamatan);
         
         // Data Global Stats Overview untuk Recap.Index
-        $totalKasus = RekamMedis::whereNotNull('kode_penyakit')->count();
-        $topPenyakitData = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
+        // Data Global Stats Overview untuk Recap.Index
+        $queryTotalKasus = RekamMedis::whereNotNull('kode_penyakit');
+        $queryTopPenyakit = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
             ->groupBy('kode_penyakit')
-            ->orderByDesc('count')
-            ->first();
+            ->orderByDesc('count');
+
+        if ($yearInput) {
+            $queryTotalKasus->whereYear('tanggal', $yearInput);
+            $queryTopPenyakit->whereYear('tanggal', $yearInput);
+        }
+
+        $totalKasus = $queryTotalKasus->count();
+        $topPenyakitData = $queryTopPenyakit->first();
         $topPenyakit = $topPenyakitData ? $topPenyakitData->kode_penyakit . ' (' . $topPenyakitData->count . ' Kasus)' : 'Tidak Ada';
 
         $totalPuskesmas = count(array_keys($mapping));
         $totalKecamatan = count(array_unique(array_values($mapping)));
 
         // --- GRAFIK GLOBAL UMUM & SMART ANALYSIS ---
-        $rawDataSemua = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
-            ->whereNotNull('kode_penyakit')->groupBy('kpusk', 'kode_penyakit')->get()
+        $queryRawData = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
+            ->whereNotNull('kode_penyakit')
+            ->groupBy('kpusk', 'kode_penyakit');
+
+        if ($yearInput) {
+            $queryRawData->whereYear('tanggal', $yearInput);
+        }
+
+        $rawDataSemua = $queryRawData->get()
             ->map(function ($item) use ($mapping) {
                 return [
                     'Puskesmas' => $item->kpusk,
@@ -98,7 +122,8 @@ class PenyakitRecapController extends Controller
         return view('recap.index', compact(
             'groupedByPusk', 'mapping', 'listPuskesmas', 'listKecamatan', 
             'kecamatanDataList', 'totalKasus', 'topPenyakit', 
-            'totalPuskesmas', 'totalKecamatan', 'chartData', 'maxChartWidth'
+            'totalPuskesmas', 'totalKecamatan', 'chartData', 'maxChartWidth',
+            'availableYears', 'yearInput'
         ));
     }
 
@@ -109,10 +134,51 @@ class PenyakitRecapController extends Controller
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
         $kecamatan = $mapping[$puskesmas] ?? 'Tidak Diketahui';
 
-        $rekapData = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
+        $periodType = $request->input('period_type', 'all');
+        $year = $request->input('year', date('Y'));
+        $month = $request->input('month', date('n'));
+        $semester = $request->input('semester', 1);
+        $quarter = $request->input('quarter', 1);
+
+        $startDate = null;
+        $endDate = null;
+        $isNotFinished = false;
+
+        if ($periodType !== 'all') {
+            if ($periodType === 'year') {
+                $startDate = Carbon::create($year)->startOfYear();
+                $endDate = Carbon::create($year)->endOfYear();
+            } elseif ($periodType === 'semester') {
+                if ($semester == 1) {
+                    $startDate = Carbon::create($year, 1, 1)->startOfMonth();
+                    $endDate = Carbon::create($year, 6, 1)->endOfMonth();
+                } else {
+                    $startDate = Carbon::create($year, 7, 1)->startOfMonth();
+                    $endDate = Carbon::create($year, 12, 1)->endOfMonth();
+                }
+            } elseif ($periodType === 'quarter') {
+                $startMonth = ($quarter - 1) * 3 + 1;
+                $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+                $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+            } elseif ($periodType === 'month') {
+                $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+                $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+            }
+
+            if ($endDate && $endDate->isFuture()) {
+                $isNotFinished = true;
+            }
+        }
+
+        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
-            ->where('kpusk', $puskesmas)
-            ->groupBy('kode_penyakit')
+            ->where('kpusk', $puskesmas);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('tanggal', [$startDate, $endDate]);
+        }
+
+        $rekapData = $query->groupBy('kode_penyakit')
             ->orderByDesc('count')
             ->get();
             
@@ -127,7 +193,7 @@ class PenyakitRecapController extends Controller
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
 
-        return view('recap.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit'));
+        return view('recap.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
     }
 
     public function showKecamatan(Request $request, $kecamatan)
@@ -136,6 +202,42 @@ class PenyakitRecapController extends Controller
         $limit = $limitInput === null ? 10 : (int) $limitInput;
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
         
+        $periodType = $request->input('period_type', 'all');
+        $year = $request->input('year', date('Y'));
+        $month = $request->input('month', date('n'));
+        $semester = $request->input('semester', 1);
+        $quarter = $request->input('quarter', 1);
+
+        $startDate = null;
+        $endDate = null;
+        $isNotFinished = false;
+
+        if ($periodType !== 'all') {
+            if ($periodType === 'year') {
+                $startDate = Carbon::create($year)->startOfYear();
+                $endDate = Carbon::create($year)->endOfYear();
+            } elseif ($periodType === 'semester') {
+                if ($semester == 1) {
+                    $startDate = Carbon::create($year, 1, 1)->startOfMonth();
+                    $endDate = Carbon::create($year, 6, 1)->endOfMonth();
+                } else {
+                    $startDate = Carbon::create($year, 7, 1)->startOfMonth();
+                    $endDate = Carbon::create($year, 12, 1)->endOfMonth();
+                }
+            } elseif ($periodType === 'quarter') {
+                $startMonth = ($quarter - 1) * 3 + 1;
+                $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+                $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+            } elseif ($periodType === 'month') {
+                $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+                $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+            }
+
+            if ($endDate && $endDate->isFuture()) {
+                $isNotFinished = true;
+            }
+        }
+
         $puskesmasInKecamatan = array_keys(array_filter($mapping, function ($val) use ($kecamatan) {
             return $val === $kecamatan;
         }));
@@ -144,10 +246,15 @@ class PenyakitRecapController extends Controller
             abort(404, 'Kecamatan tidak ditemukan.');
         }
 
-        $rekapData = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
+        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
-            ->whereIn('kpusk', $puskesmasInKecamatan)
-            ->groupBy('kode_penyakit')
+            ->whereIn('kpusk', $puskesmasInKecamatan);
+            
+        if ($startDate && $endDate) {
+            $query->whereBetween('tanggal', [$startDate, $endDate]);
+        }
+
+        $rekapData = $query->groupBy('kode_penyakit')
             ->orderByDesc('count')
             ->get();
             
@@ -166,10 +273,15 @@ class PenyakitRecapController extends Controller
         // Extract array ringkasan masing-masing puskesmas di dalam wilayah kecamatan ini untuk Grid Card di view
         $puskesmasStats = [];
         foreach ($puskesmasInKecamatan as $puskName) {
-            $puskData = RekamMedis::where('kpusk', $puskName)
+            $queryPusk = RekamMedis::where('kpusk', $puskName)
                 ->whereNotNull('kode_penyakit')
-                ->select('kode_penyakit', DB::raw('count(*) as count'))
-                ->groupBy('kode_penyakit')
+                ->select('kode_penyakit', DB::raw('count(*) as count'));
+                
+            if ($startDate && $endDate) {
+                $queryPusk->whereBetween('tanggal', [$startDate, $endDate]);
+            }
+
+            $puskData = $queryPusk->groupBy('kode_penyakit')
                 ->orderByDesc('count')
                 ->get();
             
@@ -182,6 +294,6 @@ class PenyakitRecapController extends Controller
             }
         }
 
-        return view('recap.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats'));
+        return view('recap.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
     }
 }
