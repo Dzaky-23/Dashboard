@@ -9,7 +9,7 @@
             </h4>
         </div>
 
-        <div class="px-6 pb-6 pt-16 md:px-8 md:pb-8 md:pt-20 overflow-x-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex items-end justify-center min-w-max gap-4 sm:gap-6 md:gap-8 min-h-[380px]">
+        <div class="px-6 pb-6 pt-16 md:px-8 md:pb-8 md:pt-20 overflow-x-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex items-end justify-start xl:justify-center flex-nowrap w-full gap-4 sm:gap-6 md:gap-8 min-h-[380px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent pb-x">
             @if(isset($chartData) && $chartData->isNotEmpty())
                 @foreach($chartData as $index => $item)
                     @php
@@ -20,7 +20,7 @@
                         // Menentukan penedek status
                         $shortStatus = str_contains($item->status, 'LOLOS') ? 'LOLOS' : str_replace('HAMPIR (', '', str_replace(' unit)', '', $item->status));
                     @endphp
-                    <div class="flex flex-col items-center group relative cursor-pointer">
+                    <div class="flex flex-col items-center flex-shrink-0 group relative cursor-pointer">
                         <!-- Floating Tooltip -->
                         <div class="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 bg-slate-800 shadow-xl rounded-xl px-4 py-2.5 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100">
                             {{ number_format($item->total) }} Kasus
