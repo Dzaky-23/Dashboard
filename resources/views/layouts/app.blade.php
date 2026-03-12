@@ -47,7 +47,7 @@
                                     Daftar Pasien
                                 </a>
                                 <a href="{{ route('recap.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('recap.*') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
-                                    Daftar Puskesmas
+                                    Daftar Rekapitulasi
                                 </a>
                             </div>
                         </div>

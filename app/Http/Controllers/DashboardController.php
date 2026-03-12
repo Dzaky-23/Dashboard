@@ -17,11 +17,16 @@ class DashboardController extends Controller
         $totalBPJS = Pasien::where('cara_bayar', 'BPJS')->count();
         $totalUmum = Pasien::where('cara_bayar', 'Umum')->count();
 
+        $currentYear = date('Y');
+
         // 4 Metrik Rekap Penyakit Global
-        $totalKasusPenyakit = RekamMedis::whereNotNull('kode_penyakit')->count();
+        $totalKasusPenyakit = RekamMedis::whereNotNull('kode_penyakit')
+            ->whereYear('tanggal', $currentYear)
+            ->count();
         
         $topPenyakitData = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
+            ->whereYear('tanggal', $currentYear)
             ->groupBy('kode_penyakit')
             ->orderByDesc('count')
             ->first();

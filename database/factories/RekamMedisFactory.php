@@ -20,7 +20,7 @@ class RekamMedisFactory extends Factory
         $status = $this->faker->randomElement(['Baru', 'Lama']);
         
         return [
-            'tanggal' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+            'tanggal' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28')->format('Y-m-d'),
             // 'no_reg' and 'kpusk' will be overridden in seeder
             'kdSadar' => $this->faker->randomElement(['Compos Mentis', 'Apatis', 'Somnolen', 'Sopor', 'Koma']),
             
@@ -46,7 +46,7 @@ class RekamMedisFactory extends Factory
             // SOAP Tambahan
             'anamnesa' => $this->faker->paragraph(2),
             'fisik' => $this->faker->paragraph(1),
-            'kode_penyakit' => $this->faker->randomElement(['J00', 'A09', 'E11', 'I10', 'K30']),
+            'kode_penyakit' => $this->faker->randomElement(range('A', 'Z')) . $this->faker->numberBetween(1, 5),
             'status' => $status,
             'kode_obat' => 'OBT-' . $this->faker->numberBetween(100, 999),
             'jumlah' => $this->faker->numberBetween(10, 30),
@@ -68,7 +68,7 @@ class RekamMedisFactory extends Factory
             'cara_bayar' => $this->faker->randomElement(['BPJS', 'Umum', 'Asuransi Lain']),
             'kode_pemeriksa' => 'PAY-' . strtoupper($this->faker->lexify('????')) . $this->faker->numberBetween(100, 999),
             
-            'diisi_pada' => $this->faker->dateTimeBetween('-1 year', 'now'),
+            'diisi_pada' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28'),
         ];
     }
 }

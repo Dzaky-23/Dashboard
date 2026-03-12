@@ -50,7 +50,6 @@
                     <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Pasien</th>
                     <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">NIK</th>
                     <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal Daftar</th>
-                    <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                     <th scope="col" class="relative py-4 pl-3 pr-6">
                         <span class="sr-only">Aksi</span>
                     </th>
@@ -74,13 +73,6 @@
                     </td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500 font-mono text-xs">{{ $pasien->nik ?: '-' }}</td>
                     <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">{{ $pasien->tanggal ? date('d M Y', strtotime($pasien->tanggal)) : '-' }}</td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm">
-                        @if($pasien->status == 'Baru')
-                            <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-700/10">Baru</span>
-                        @else
-                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Lama</span>
-                        @endif
-                    </td>
                     <td class="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
                         <a href="{{ route('pasiens.show', $pasien->id) }}" class="text-red-600 hover:text-indigo-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors inline-block opacity-0 group-hover:opacity-100 focus:opacity-100">
                             Detail &rarr;

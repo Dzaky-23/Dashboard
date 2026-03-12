@@ -21,7 +21,7 @@ class PasienFactory extends Factory
         $cara_bayar = $this->faker->randomElement(['Umum', 'BPJS']);
         
         return [
-            'tanggal' => $this->faker->dateTimeBetween('-1 month', 'now')->format('Y-m-d'),
+            'tanggal' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28')->format('Y-m-d'),
             'kpusk' => $this->faker->randomElement(array_keys(\App\Services\RecapLogicService::MAPPING_KECAMATAN)),
             'no_reg' => date('Ymd') . $this->faker->unique()->numberBetween(1000, 9999),
             'nik' => $this->faker->numerify('################'),
@@ -48,7 +48,7 @@ class PasienFactory extends Factory
             'prolanis' => $this->faker->boolean(20) ? 'Ya' : null, // 20% chance of being prolanis
             'alergi' => $this->faker->boolean(30) ? $this->faker->randomElement(['Amoxicillin', 'Paracetamol', 'Seafood', 'Kacang', 'Debu']) : null,
             'catatan' => $this->faker->boolean(40) ? $this->faker->sentence() : null,
-            'submited_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
+            'submited_at' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28'),
         ];
     }
 }
