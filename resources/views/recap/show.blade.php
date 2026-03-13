@@ -52,56 +52,7 @@
                         Filter Rekapitulasi:
                     </h4>
                     <!-- Form Filter Waktu & Limit N -->
-                    <form action="{{ route('recap.show', $puskesmas) }}" method="GET" class="flex flex-wrap items-center justify-end gap-2" x-data="{ pType: '{{ $periodType }}' }">
-                        <select name="period_type" x-model="pType" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-slate-50 shadow-sm cursor-pointer">
-                            <option value="all">Semua Waktu</option>
-                            <option value="year">Per Tahun</option>
-                            <option value="semester">Per Semester</option>
-                            <option value="quarter">Per Triwulan</option>
-                            <option value="month">Per Bulan</option>
-                        </select>
-                        
-                        <template x-if="pType !== 'all'">
-                            <select name="year" class="w-24 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
-                                @for($y = 2024; $y <= date('Y') + 1; $y++)
-                                    <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
-                                @endfor
-                            </select>
-                        </template>
-
-                        <template x-if="pType === 'semester'">
-                            <select name="semester" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
-                                <option value="1" {{ $semester == 1 ? 'selected' : '' }}>Semester 1</option>
-                                <option value="2" {{ $semester == 2 ? 'selected' : '' }}>Semester 2</option>
-                            </select>
-                        </template>
-
-                        <template x-if="pType === 'quarter'">
-                            <select name="quarter" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
-                                <option value="1" {{ $quarter == 1 ? 'selected' : '' }}>Q1 (Jan-Mar)</option>
-                                <option value="2" {{ $quarter == 2 ? 'selected' : '' }}>Q2 (Apr-Jun)</option>
-                                <option value="3" {{ $quarter == 3 ? 'selected' : '' }}>Q3 (Jul-Sep)</option>
-                                <option value="4" {{ $quarter == 4 ? 'selected' : '' }}>Q4 (Okt-Des)</option>
-                            </select>
-                        </template>
-
-                        <template x-if="pType === 'month'">
-                            <select name="month" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
-                                @php
-                                    $months = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
-                                @endphp
-                                @foreach($months as $num => $name)
-                                    <option value="{{ $num }}" {{ $month == $num ? 'selected' : '' }}>{{ $name }}</option>
-                                @endforeach
-                            </select>
-                        </template>
-
-                        <div class="flex items-center ml-2 pl-3 space-x-2 border-l border-slate-200">
-                            <label for="limit" class="text-xs font-semibold text-slate-500">N:</label>
-                            <input type="number" name="limit" id="limit" value="{{ $limit }}" min="1" class="w-16 text-xs font-bold border-slate-300 rounded-md py-1.5 px-2 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm">
-                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 px-4 rounded-md shadow-sm transition-colors ml-1">Terapkan</button>
-                        </div>
-                    </form>
+                    @include('recap.partials.filter_waktu_limit', ['actionUrl' => route('recap.show', $puskesmas)])
                 </div>
 
                 @if($isNotFinished)
@@ -119,43 +70,7 @@
                 <div class="px-8 py-8 border-b border-slate-200 bg-slate-50/50">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
-                        <!-- Col 1-2: Grafik Neumorphic -->
-                        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
-                                <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                    Tren Penyakit Teratas
-                                </h4>
-                            </div>
-                            
-                            <div class="p-6 md:p-8 flex-grow flex flex-col justify-center min-h-[340px]">
-                                @if(isset($rekapChartData) && $rekapChartData->isNotEmpty())
-                                    <div class="space-y-4 w-full">
-                                        @foreach($rekapChartData as $index => $item)
-                                            @php
-                                                $widthPercentage = ($item->count / $maxChartWidth) * 100;
-                                            @endphp
-                                            <div class="flex items-center gap-4 group">
-                                                <div class="w-16 md:w-20 flex-shrink-0 text-right">
-                                                    <span class="text-xs md:text-sm font-bold text-slate-700">{{ $item->kode_penyakit }}</span>
-                                                </div>
-                                                <div class="flex-grow flex items-center gap-3">
-                                                    <div class="w-full bg-slate-100 rounded-md h-7 overflow-hidden flex items-center shadow-inner">
-                                                        <div class="bg-rose-600 hover:bg-rose-400 h-full rounded-md transition-all duration-1000 ease-out" style="width: {{ max($widthPercentage, 1) }}%"></div>
-                                                    </div>
-                                                    <span class="text-xs md:text-sm font-semibold text-slate-600 w-12">{{ number_format($item->count) }}</span>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <div class="flex flex-col items-center justify-center text-slate-400 py-10 w-full h-full">
-                                        <svg class="w-10 h-10 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                        <p class="text-sm font-medium">Data grafis tidak tersedia.</p>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
+                        @include('recap.partials.chart_top_penyakit')
 
                         <!-- Col 3: Snapshot Statistik Sederhana -->
                         <div class="flex flex-col gap-4">
@@ -192,203 +107,15 @@
                     </div>
                 </div>
 
-                <div class="p-0 mt-8 border-t border-slate-200 pt-2" x-data="{
-                    searchQuery: '',
-                    filterMode: 'include',
-                    tempFilterMode: 'include',
-                    selectedLetters: [],
-                    tempSelectedLetters: [],
-                    sortMode: 'highest',
-                    letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
-                    isFilterOpen: false,
-                    rawData: {{ $rekapData->map(function($item, $index) { return ['kode_penyakit' => $item->kode_penyakit, 'count' => $item->count, 'is_top' => $index === 0]; })->toJson() }},
-                    get filteredData() {
-                        let result = this.rawData;
-                        
-                        // 1. Terapkan Pencarian Global (Search)
-                        if (this.searchQuery.trim() !== '') {
-                            const sq = this.searchQuery.toLowerCase();
-                            result = result.filter(i => i.kode_penyakit.toLowerCase().includes(sq));
-                        }
-                        
-                        // 2. Terapkan Filter Kategori (Include/Exclude huruf awal)
-                        if (this.selectedLetters.length > 0) {
-                            result = result.filter(i => {
-                                const firstLetter = i.kode_penyakit.charAt(0).toUpperCase();
-                                const match = this.selectedLetters.includes(firstLetter);
-                                return this.filterMode === 'include' ? match : !match;
-                            });
-                        }
-                        
-                        return result;
-                    },
-                    get sortedAndFilteredData() {
-                        let result = [...this.filteredData];
-                        
-                        // 3. Terapkan Pengurutan (Sorting)
-                        result.sort((a, b) => {
-                            if (this.sortMode === 'highest') {
-                                return b.count - a.count;
-                            } else if (this.sortMode === 'lowest') {
-                                return a.count - b.count;
-                            } else if (this.sortMode === 'a_z') {
-                                return a.kode_penyakit.localeCompare(b.kode_penyakit);
-                            } else if (this.sortMode === 'z_a') {
-                                return b.kode_penyakit.localeCompare(a.kode_penyakit);
-                            }
-                            return 0;
-                        });
-
-                        return result;
-                    },
-                    toggleLetter(l) {
-                        if (this.tempSelectedLetters.includes(l)) {
-                            this.tempSelectedLetters = this.tempSelectedLetters.filter(x => x !== l);
-                        } else {
-                            this.tempSelectedLetters.push(l);
-                        }
-                    },
-                    applyFilter() {
-                        this.selectedLetters = [...this.tempSelectedLetters];
-                        this.filterMode = this.tempFilterMode;
-                        this.isFilterOpen = false;
-                    },
-                    formatNumber(num) {
-                        return new Intl.NumberFormat('id-ID').format(num);
-                    }
-                }">
-                    <div class="px-8 flex flex-col mt-6 mb-4 gap-4">
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <h4 class="text-lg font-bold text-slate-700 flex items-center mb-0">
-                                <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                                Rekapitulasi Total Penyakit
-                            </h4>
-                            
-                            <div class="flex flex-wrap items-center gap-3">
-                                <!-- Kotak Search Umum -->
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    </div>
-                                    <input type="text" x-model="searchQuery" placeholder="Cari Kode ICD X..." class="pl-9 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm w-48 transition-all focus:w-64">
-                                </div>
-                                
-                                <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
-                                
-                                <!-- Dropdown Filter Alfabet -->
-                                <div class="relative">
-                                    <button @click="isFilterOpen = !isFilterOpen; if(isFilterOpen) { tempSelectedLetters = [...selectedLetters]; tempFilterMode = filterMode; }" class="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-md shadow-sm text-xs font-bold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors">
-                                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-                                        Filter Kategori (A-Z)
-                                        <span x-show="selectedLetters.length > 0" class="flex h-4 w-4 items-center justify-center rounded-full bg-red-100 text-[10px] text-red-600 font-black" x-text="selectedLetters.length" style="display: none;"></span>
-                                    </button>
-
-                                    <!-- Area Latar Belakang (Backdrop) untuk click outside -> close + cancel -->
-                                    <div x-show="isFilterOpen" @click="isFilterOpen = false" class="fixed inset-0 z-40" style="display: none;"></div>
-
-                                    <!-- Dropdown Menu -->
-                                    <div x-show="isFilterOpen" x-transition class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-slate-200 z-50 p-4" style="display: none;">
-                                        <div class="mb-3">
-                                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Mode Filter:</label>
-                                            <div class="flex rounded-md shadow-sm">
-                                                <button @click.stop="tempFilterMode = 'include'" :class="tempFilterMode === 'include' ? 'bg-red-50 border-red-200 text-red-700 z-10' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'" class="flex-1 border py-1.5 text-xs font-bold rounded-l-md transition-colors relative">Include</button>
-                                                <button @click.stop="tempFilterMode = 'exclude'" :class="tempFilterMode === 'exclude' ? 'bg-slate-700 border-slate-700 text-white z-10' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50 -ml-px'" class="flex-1 border py-1.5 text-xs font-bold rounded-r-md transition-colors relative">Exclude</button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-4">
-                                            <label class="block text-xs font-bold text-slate-700 mb-1.5 flex justify-between items-center">
-                                                <span>Pilih Kategori (Awalan ICD-X):</span>
-                                                <button @click.stop="tempSelectedLetters = []" x-show="tempSelectedLetters.length > 0" class="text-[10px] text-red-600 hover:underline" style="display: none;">Bersihkan Pilihan</button>
-                                            </label>
-                                            <div class="grid grid-cols-6 gap-1.5">
-                                                <template x-for="l in letters" :key="l">
-                                                    <button @click.stop="toggleLetter(l)" 
-                                                            :class="tempSelectedLetters.includes(l) ? (tempFilterMode === 'include' ? 'bg-red-500 text-white border-red-500 shadow-inner' : 'bg-slate-700 text-white border-slate-700 shadow-inner') : 'bg-white border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50'"
-                                                            class="border rounded text-xs font-bold py-1 text-center transition-colors hover:scale-105 active:scale-95" x-text="l"></button>
-                                                </template>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Tombol Aksi Bawah -->
-                                        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                                            <button @click.stop="isFilterOpen = false" class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-md transition-colors">Batal</button>
-                                            <button @click.stop="applyFilter()" class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md shadow-sm transition-colors flex items-center gap-1.5">
-                                                Terapkan
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
-
-                                <!-- Dropdown Sort -->
-                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
-                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
-                                    <select x-model="sortMode" class="text-[11px] font-bold border-none bg-transparent py-0.5 pl-0 pr-6 focus:ring-0 cursor-pointer text-slate-700">
-                                        <option value="highest">Kasus Terbanyak</option>
-                                        <option value="lowest">Kasus Tersedikit</option>
-                                        <option value="a_z">Abjad Penyakit (A-Z)</option>
-                                        <option value="z_a">Abjad Penyakit (Z-A)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Indikator Badge Status Filter Aktif -->
-                        <div x-show="selectedLetters.length > 0" x-transition class="flex flex-wrap items-center gap-2 mt-1" style="display: none;">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-100 text-xs font-bold text-slate-700 shadow-sm leading-none">
-                                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-                                Filter diterapkan: 
-                                <span class="text-slate-500 font-medium ml-1">Kategori</span>
-                                <div class="flex flex-wrap gap-1">
-                                    <template x-for="l in selectedLetters" :key="l">
-                                        <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm text-[11px]" :class="filterMode === 'include' ? 'border-red-200 text-red-700' : 'border-slate-300 text-slate-700'" x-text="(filterMode === 'include' ? '+' : '-') + l"></span>
-                                    </template>
-                                </div>
-                                <span class="text-slate-500 font-medium ml-1 text-[11px] italic" x-text="filterMode === 'include' ? '(ditampilkan)' : '(dikecualikan)'"></span>
-                            </span>
-                            <button @click="selectedLetters = []" class="text-xs font-bold text-red-500 hover:text-red-700 hover:underline">Hapus Filter</button>
-                        </div>
-                    </div>
-
-                    <!-- Pilihan Tabel -->
-                    <table class="w-full text-sm text-left text-slate-600" x-show="sortedAndFilteredData.length > 0">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-y border-slate-200">
-                            <tr>
-                                <th scope="col" class="px-8 py-4 font-semibold w-16 text-center">No</th>
-                                <th scope="col" class="px-8 py-4 font-semibold">Kode Penyakit (ICD X)</th>
-                                <th scope="col" class="px-8 py-4 text-right font-semibold w-40">Jumlah Kasus</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(item, index) in sortedAndFilteredData" :key="item.kode_penyakit">
-                                <tr class="bg-white border-b border-slate-100/50 hover:bg-slate-50 transition-colors">
-                                    <td class="px-8 py-4 text-center text-slate-400 font-medium" x-text="index + 1"></td>
-                                    <td class="px-8 py-4 font-bold text-slate-800">
-                                        <span x-text="item.kode_penyakit"></span>
-                                        <template x-if="item.is_top">
-                                            <span class="ml-3 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-200 shadow-sm">
-                                                ★ Terbanyak
-                                            </span>
-                                        </template>
-                                    </td>
-                                    <td class="px-8 py-4 text-right">
-                                        <span :class="{'text-white bg-red-600 shadow-sm shadow-red-200': item.is_top, 'text-slate-700 bg-slate-100': !item.is_top}" class="inline-flex items-center justify-center px-3 py-1 text-sm font-bold leading-none rounded-full min-w-[3rem]" x-text="formatNumber(item.count)">
-                                        </span>
-                                    </td>
-                                </tr>
-                            </template>
-                                        <p class="text-sm mt-1">Tidak ada kode ICD X yang cocok dengan kriteria filter.</p>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                <div class="p-0 mt-8 border-t border-slate-200 pt-2" x-data="recapTable({{ $rekapData->map(function($item, $index) { return ['kode_penyakit' => $item->kode_penyakit, 'count' => $item->count, 'is_top' => $index === 0]; })->toJson() }})">
+                    @include('recap.partials.filter_controls')
+                    @include('recap.partials.disease_table')
                 </div>
                 <!-- End NotFinished IF Block -->
                 @endif
             </div>
         </div>
     </div>
+    
+    @include('recap.partials.alpine_scripts')
 </x-app-layout>
