@@ -458,53 +458,52 @@ class PenyakitRecapController extends Controller
             $puskesmasData[$puskName] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
         }
 
-        // ====== GENERATE EXCEL (CSV) ======
+        // ====== GENERATE EXCEL (BINARY XLSX) ======
         if ($format === 'excel') {
-            $filename = "Laporan_Rekap_Penyakit_" . date('Ymd_His') . ".csv";
-            $headers = [
-                "Content-type"        => "text/csv",
-                "Content-Disposition" => "attachment; filename=$filename",
-                "Pragma"              => "no-cache",
-                "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-                "Expires"             => "0"
-            ];
+            $filename = "Laporan_Rekap_Penyakit_" . date('Ymd_His') . ".xlsx";
+            $data = [];
+            
+            // Section 1
+            $data[] = ['<b>SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)</b>', '', ''];
+            $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+            foreach ($topUmum as $index => $row) {
+                $data[] = [$index + 1, $row->kode_penyakit, $row->count];
+            }
+            $data[] = ['', '', ''];
 
-            $callback = function() use ($topUmum, $kecamatanData, $puskesmasData) {
-                $file = fopen('php://output', 'w');
-                // CSV Header / Section 1
-                fputcsv($file, ['SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)']);
-                fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
-                foreach ($topUmum as $index => $row) {
-                    fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
+            // Section 2
+            $data[] = ['<b>SECTION: TOP PENYAKIT PER KECAMATAN</b>', '', ''];
+            foreach ($kecamatanData as $kecName => $kecData) {
+                $data[] = ["<b>Kecamatan: $kecName</b>", '', ''];
+                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+                foreach ($kecData as $index => $row) {
+                    $data[] = [$index + 1, $row->kode_penyakit, $row->count];
                 }
-                fputcsv($file, []);
+                $data[] = ['', '', ''];
+            }
 
-                // Section 2
-                fputcsv($file, ['SECTION: TOP PENYAKIT PER KECAMATAN']);
-                foreach ($kecamatanData as $kecName => $data) {
-                    fputcsv($file, ["Kecamatan: $kecName"]);
-                    fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
-                    foreach ($data as $index => $row) {
-                        fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
-                    }
-                    fputcsv($file, []);
+            // Section 3
+            $data[] = ['<b>SECTION: TOP PENYAKIT PER PUSKESMAS</b>', '', ''];
+            foreach ($puskesmasData as $puskName => $puskData) {
+                $data[] = ["<b>Puskesmas: $puskName</b>", '', ''];
+                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+                foreach ($puskData as $index => $row) {
+                    $data[] = [$index + 1, $row->kode_penyakit, $row->count];
                 }
+                $data[] = ['', '', ''];
+            }
 
-                // Section 3
-                fputcsv($file, ['SECTION: TOP PENYAKIT PER PUSKESMAS']);
-                foreach ($puskesmasData as $puskName => $data) {
-                    fputcsv($file, ["Puskesmas: $puskName"]);
-                    fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
-                    foreach ($data as $index => $row) {
-                        fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
-                    }
-                    fputcsv($file, []);
-                }
-
-                fclose($file);
-            };
-
-            return response()->stream($callback, 200, $headers);
+            $xlsx = \Shuchkin\SimpleXLSXGen::fromArray($data);
+            $xlsx->setColWidth(1, 12);
+            $xlsx->setColWidth(2, 35);
+            $xlsx->setColWidth(3, 18);
+            
+            $content = (string) $xlsx;
+            
+            return response($content)
+                ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('Cache-Control', 'max-age=0');
         }
 
         // ====== GENERATE HTML (PRINTABLE PDF) ======
