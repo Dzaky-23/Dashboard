@@ -31,8 +31,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
     Route::get('/recap-penyakit', [PenyakitRecapController::class, 'index'])->name('recap.index');
+    Route::get('/recap-penyakit/export', [PenyakitRecapController::class, 'export'])->name('recap.export');
     Route::get('/recap-penyakit/kecamatan/{kecamatan}', [PenyakitRecapController::class, 'showKecamatan'])->name('recap.kecamatan.show');
     Route::get('/recap-penyakit/{puskesmas}', [PenyakitRecapController::class, 'show'])->name('recap.show');
+    
+    // Rute Tabel Daftar Penyakit (Full Page & Filter)
+    Route::get('/recap-penyakit/kecamatan/{kecamatan}/full-list', [PenyakitRecapController::class, 'fullListKecamatan'])->name('recap.kecamatan.full_list');
+    Route::get('/recap-penyakit/{puskesmas}/full-list', [PenyakitRecapController::class, 'fullList'])->name('recap.full_list');
 });
 
 require __DIR__.'/auth.php';

@@ -160,23 +160,6 @@
         </div>
     </div>
 </div>
-
-    <!-- Helpful Info Card -->
-    <div class="mt-8 mb-4 bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl p-6 hover:shadow-md transition-shadow">
-        <h4 class="text-sm font-bold text-slate-900 mb-4">Informasi Sistem</h4>
-        <div class="space-y-3 text-sm text-slate-600">
-            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <span>Status Server</span>
-                <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-100">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
-                </span>
-            </div>
-            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <span>Sinkronisasi Data</span>
-                <span class="text-slate-800 font-medium">Hari ini, {{ date('H:i') }}</span>
-            </div>
-        </div>
-    </div>
 </div>
 
 @endsection
