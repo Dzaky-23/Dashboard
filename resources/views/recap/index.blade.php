@@ -7,6 +7,11 @@
                     search: '',
                     openExportModal: false,
                     exportFormat: 'pdf',
+                    exportIncludeLetters: [],
+                    exportExcludeLetters: [],
+                    isIncludeOpen: false,
+                    isExcludeOpen: false,
+                    letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
                     get hasResults() {
                         if (this.search === '') return true;
                         const q = this.search.toLowerCase();
@@ -27,7 +32,7 @@
                             Masih belum ada data penyebaran penyakit yang tercatat.
                         </div>
                     @else
-                        @include('recap.partials.global_chart')
+                        @include('recap.global_chart')
 
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
                             <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
@@ -58,9 +63,9 @@
                         </div>
 
                         <div x-show="hasResults" class="min-h-[300px]">
-                            @include('recap.partials.tab_semua')
-                            @include('recap.partials.tab_kecamatan')
-                            @include('recap.partials.tab_puskesmas')
+                            @include('recap.tab_semua')
+                            @include('recap.tab_kecamatan')
+                            @include('recap.tab_puskesmas')
                         </div>
 
                         <div x-show="!hasResults" x-cloak class="p-10 mt-6 text-center bg-slate-50 border border-dashed border-slate-300 rounded-xl">
@@ -83,10 +88,14 @@
                                     x-transition:leave="ease-in duration-200" 
                                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
                                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
-                                    class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-2xl">
+                                    class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-2xl">
                                     
-                                    <form action="#" method="GET">
-                                        <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                                    <form action="{{ route('recap.export') }}" method="GET">
+                                        <!-- Hidden Inputs untuk A-Z -->
+                                        <input type="hidden" name="include_icd" :value="exportIncludeLetters.join(',')">
+                                        <input type="hidden" name="exclude_icd" :value="exportExcludeLetters.join(',')">
+
+                                        <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
                                             <div>
                                                 <h3 class="text-lg font-bold text-slate-800" id="modal-title">Cetak Laporan Penyakit</h3>
                                                 <p class="text-xs text-slate-500 mt-0.5">Sesuaikan parameter rekapitulasi data yang ingin di-export.</p>
@@ -157,14 +166,53 @@
                                                         <input type="date" name="end_date" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
                                                     </div>
                                                     <div class="pt-2">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Include Kode ICD-X</label>
-                                                        <input type="text" name="include_icd" placeholder="Misal: A09, J06" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
-                                                        <p class="text-[10px] text-slate-400 mt-1">Pisahkan dengan koma (,). Kosongkan jika ingin semua.</p>
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Include Kategori (A-Z)</label>
+                                                        <div class="relative w-full" @click.outside="isIncludeOpen = false">
+                                                            <div @click="isIncludeOpen = !isIncludeOpen; isExcludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isIncludeOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''">
+                                                                <span x-show="exportIncludeLetters.length === 0" class="text-slate-400 text-sm">Pilih Kategori (Bisa >1)...</span>
+                                                                <div x-show="exportIncludeLetters.length > 0" class="flex flex-wrap gap-1">
+                                                                    <template x-for="l in exportIncludeLetters" :key="l">
+                                                                        <span class="bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
+                                                                    </template>
+                                                                </div>
+                                                                <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            </div>
+                                                            <!-- Menu Dropdown Jatuh ke bawah -->
+                                                            <div x-show="isIncludeOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-xl p-3" style="display: none;">
+                                                                <div class="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                                                                    <template x-for="l in letters" :key="l">
+                                                                        <button type="button" @click.stop="exportIncludeLetters.includes(l) ? exportIncludeLetters = exportIncludeLetters.filter(x => x !== l) : exportIncludeLetters.push(l)"
+                                                                        :class="exportIncludeLetters.includes(l) ? 'bg-blue-600 text-white border-blue-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300'"
+                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="l"></button>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
+
                                                     <div class="pt-2">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Exclude Kode ICD-X</label>
-                                                        <input type="text" name="exclude_icd" placeholder="Misal: Z00.0, Z01" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
-                                                        <p class="text-[10px] text-slate-400 mt-1">Kode penyakit yang diabaikan/dikecualikan.</p>
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Exclude Kategori (A-Z)</label>
+                                                        <div class="relative w-full" @click.outside="isExcludeOpen = false">
+                                                            <div @click="isExcludeOpen = !isExcludeOpen; isIncludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isExcludeOpen ? 'ring-2 ring-red-500 border-red-500' : ''">
+                                                                <span x-show="exportExcludeLetters.length === 0" class="text-slate-400 text-sm">Pilih Kategori (Bisa >1)...</span>
+                                                                <div x-show="exportExcludeLetters.length > 0" class="flex flex-wrap gap-1">
+                                                                    <template x-for="l in exportExcludeLetters" :key="l">
+                                                                        <span class="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
+                                                                    </template>
+                                                                </div>
+                                                                <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                            </div>
+                                                            <!-- Menu Dropdown Jatuh ke atas (bottom-full) agar tidak terpotong window jika di HP -->
+                                                            <div x-show="isExcludeOpen" x-transition class="absolute bottom-full mb-1 z-50 w-full bg-white border border-slate-200 rounded-md shadow-xl p-3" style="display: none;">
+                                                                <div class="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
+                                                                    <template x-for="l in letters" :key="l">
+                                                                        <button type="button" @click.stop="exportExcludeLetters.includes(l) ? exportExcludeLetters = exportExcludeLetters.filter(x => x !== l) : exportExcludeLetters.push(l)"
+                                                                        :class="exportExcludeLetters.includes(l) ? 'bg-red-600 text-white border-red-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:border-red-300'"
+                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="l"></button>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

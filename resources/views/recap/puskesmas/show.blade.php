@@ -107,15 +107,111 @@
                     </div>
                 </div>
 
-                <div class="p-0 mt-8 border-t border-slate-200 pt-2" x-data="recapTable({{ $rekapData->map(function($item, $index) { return ['kode_penyakit' => $item->kode_penyakit, 'count' => $item->count, 'is_top' => $index === 0]; })->toJson() }})">
-                    @include('recap.partials.filter_controls')
-                    @include('recap.partials.disease_table')
+                <div x-data="{ 
+                    isModalOpen: false, 
+                    periodType: 'month', 
+                    periodValue: '{{ date('n') }}', 
+                    year: '{{ date('Y') }}',
+                    get options() {
+                        if (this.periodType === 'month') {
+                            return [
+                                { v: 1, l: 'Januari' }, { v: 2, l: 'Februari' }, { v: 3, l: 'Maret' },
+                                { v: 4, l: 'April' }, { v: 5, l: 'Mei' }, { v: 6, l: 'Juni' },
+                                { v: 7, l: 'Juli' }, { v: 8, l: 'Agustus' }, { v: 9, l: 'September' },
+                                { v: 10, l: 'Oktober' }, { v: 11, l: 'November' }, { v: 12, l: 'Desember' }
+                            ];
+                        } else if (this.periodType === 'quarter') {
+                            return [
+                                { v: 1, l: 'Triwulan 1 (Jan-Mar)' },
+                                { v: 2, l: 'Triwulan 2 (Apr-Jun)' },
+                                { v: 3, l: 'Triwulan 3 (Jul-Sep)' },
+                                { v: 4, l: 'Triwulan 4 (Okt-Des)' }
+                            ];
+                        } else if (this.periodType === 'semester') {
+                            return [
+                                { v: 1, l: 'Semester 1 (Jan-Jun)' },
+                                { v: 2, l: 'Semester 2 (Jul-Des)' }
+                            ];
+                        }
+                        return [];
+                    }
+                }" class="px-8 mt-4 pb-8 flex justify-center">
+                    <!-- Trigger Button -->
+                    <button @click="isModalOpen = true" class="inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white bg-slate-800 rounded-xl shadow-md hover:bg-slate-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all w-full md:w-auto">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        Lihat Daftar Lengkap Penyakit
+                    </button>
+
+                    <!-- Modal Backdrop -->
+                    <div x-show="isModalOpen" 
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+                         style="display: none;">
+                        
+                        <!-- Modal Content -->
+                        <div @click.away="isModalOpen = false" 
+                             x-show="isModalOpen"
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
+                            
+                            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                                    Filter Daftar Penyakit
+                                </h3>
+                                <button @click="isModalOpen = false" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+
+                            <form action="{{ route('recap.full_list', $puskesmas) }}" method="GET" class="p-6 space-y-6">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">Tipe Periode</label>
+                                    <select name="period_type" x-model="periodType" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                                        <option value="month">Per Bulan</option>
+                                        <option value="quarter">Per Triwulan</option>
+                                        <option value="semester">Per Semester</option>
+                                        <option value="year">Per Tahun</option>
+                                    </select>
+                                </div>
+
+                                <div x-show="periodType !== 'year'">
+                                    <label class="block text-sm font-bold text-slate-700 mb-2" x-text="periodType === 'month' ? 'Pilih Bulan' : (periodType === 'quarter' ? 'Pilih Triwulan' : 'Pilih Semester')"></label>
+                                    <select name="period_value" x-model="periodValue" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                                        <template x-for="opt in options" :key="opt.v">
+                                            <option :value="opt.v" x-text="opt.l"></option>
+                                        </template>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">Tahun</label>
+                                    <input type="number" name="year" x-model="year" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                                </div>
+
+                                <div class="pt-4 flex justify-end gap-3">
+                                    <button type="button" @click="isModalOpen = false" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
+                                        Batal
+                                    </button>
+                                    <button type="submit" class="px-5 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                                        Tampilkan Data
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <!-- End NotFinished IF Block -->
                 @endif
             </div>
         </div>
     </div>
-    
-    @include('recap.partials.alpine_scripts')
 </x-app-layout>

@@ -13,7 +13,7 @@ class PenyakitRecapController extends Controller
     public function index(Request $request)
     {
         $limit = 10;
-        $yearInput = $request->input('year');
+        $yearInput = $request->input('year', date('Y'));
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
 
         // Ambil daftar tahun unik yang ada datanya
@@ -134,9 +134,10 @@ class PenyakitRecapController extends Controller
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
         $kecamatan = $mapping[$puskesmas] ?? 'Tidak Diketahui';
 
-        $periodType = $request->input('period_type', 'all');
-        $year = $request->input('year', date('Y'));
-        $month = $request->input('month', date('n'));
+        $lastMonth = Carbon::now()->subMonth();
+        $periodType = $request->input('period_type', 'month');
+        $year = $request->input('year', $lastMonth->year);
+        $month = $request->input('month', $lastMonth->month);
         $semester = $request->input('semester', 1);
         $quarter = $request->input('quarter', 1);
 
@@ -193,7 +194,7 @@ class PenyakitRecapController extends Controller
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
 
-        return view('recap.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
+        return view('recap.puskesmas.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
     }
 
     public function showKecamatan(Request $request, $kecamatan)
@@ -202,9 +203,10 @@ class PenyakitRecapController extends Controller
         $limit = $limitInput === null ? 10 : (int) $limitInput;
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
         
-        $periodType = $request->input('period_type', 'all');
-        $year = $request->input('year', date('Y'));
-        $month = $request->input('month', date('n'));
+        $lastMonth = Carbon::now()->subMonth();
+        $periodType = $request->input('period_type', 'month');
+        $year = $request->input('year', $lastMonth->year);
+        $month = $request->input('month', $lastMonth->month);
         $semester = $request->input('semester', 1);
         $quarter = $request->input('quarter', 1);
 
@@ -294,6 +296,268 @@ class PenyakitRecapController extends Controller
             }
         }
 
-        return view('recap.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
+        return view('recap.kecamatan.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
+    }
+
+    public function export(Request $request)
+    {
+        $format = $request->input('format', 'pdf');
+        $topNUmum = (int) $request->input('top_n_umum', 10);
+        $topNKecamatan = (int) $request->input('top_n_kecamatan', 10);
+        $topNPuskesmas = (int) $request->input('top_n_puskesmas', 10);
+        
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $filterMode = $request->input('export_filter_mode', 'include');
+        $lettersStr = $request->input('export_letters', '');
+        $letters = $lettersStr !== '' ? explode(',', $lettersStr) : [];
+        
+        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+
+        // Base Query
+        $query = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
+            ->whereNotNull('kode_penyakit');
+
+        if ($startDate) {
+            $query->whereDate('tanggal', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('tanggal', '<=', $endDate);
+        }
+
+        // Terapkan Filter Kategori Huruf A-Z (pada tingkat SQL)
+        if (!empty($letters)) {
+            $query->where(function ($q) use ($letters, $filterMode) {
+                foreach ($letters as $letter) {
+                    if ($filterMode === 'include') {
+                        $q->orWhere('kode_penyakit', 'LIKE', $letter . '%');
+                    } else {
+                        $q->where('kode_penyakit', 'NOT LIKE', $letter . '%');
+                    }
+                }
+            });
+        }
+
+        $rawData = $query->groupBy('kpusk', 'kode_penyakit')->get();
+
+        // 1. Data Top N Umum
+        $topUmum = collect();
+        $groupedUmum = $rawData->groupBy('kode_penyakit');
+        foreach ($groupedUmum as $kode => $items) {
+            $topUmum->push((object)[
+                'kode_penyakit' => $kode,
+                'count' => $items->sum('count')
+            ]);
+        }
+        $topUmum = $topUmum->sortByDesc('count')->take($topNUmum)->values();
+
+        // 2. Data Top N Per Kecamatan
+        $kecamatanData = [];
+        $listKecamatan = array_unique(array_values($mapping));
+        foreach ($listKecamatan as $kecName) {
+            $puskInKec = array_keys(array_filter($mapping, fn($k) => $k === $kecName));
+            $dataKec = $rawData->whereIn('kpusk', $puskInKec);
+            
+            $groupedKec = $dataKec->groupBy('kode_penyakit');
+            $topKec = collect();
+            foreach ($groupedKec as $kode => $items) {
+                $topKec->push((object)[
+                    'kode_penyakit' => $kode,
+                    'count' => $items->sum('count')
+                ]);
+            }
+            $kecamatanData[$kecName] = $topKec->sortByDesc('count')->take($topNKecamatan)->values();
+        }
+
+        // 3. Data Top N Per Puskesmas
+        $puskesmasData = [];
+        $groupedPusk = $rawData->groupBy('kpusk');
+        foreach ($groupedPusk as $puskName => $items) {
+            $topPusk = collect();
+            $groupedPenyakit = $items->groupBy('kode_penyakit');
+            foreach ($groupedPenyakit as $kode => $penyakits) {
+                $topPusk->push((object)[
+                    'kode_penyakit' => $kode,
+                    'count' => $penyakits->sum('count')
+                ]);
+            }
+            $puskesmasData[$puskName] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
+        }
+
+        // ====== GENERATE EXCEL (CSV) ======
+        if ($format === 'excel') {
+            $filename = "Laporan_Rekap_Penyakit_" . date('Ymd_His') . ".csv";
+            $headers = [
+                "Content-type"        => "text/csv",
+                "Content-Disposition" => "attachment; filename=$filename",
+                "Pragma"              => "no-cache",
+                "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+                "Expires"             => "0"
+            ];
+
+            $callback = function() use ($topUmum, $kecamatanData, $puskesmasData) {
+                $file = fopen('php://output', 'w');
+                // CSV Header / Section 1
+                fputcsv($file, ['SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)']);
+                fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
+                foreach ($topUmum as $index => $row) {
+                    fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
+                }
+                fputcsv($file, []);
+
+                // Section 2
+                fputcsv($file, ['SECTION: TOP PENYAKIT PER KECAMATAN']);
+                foreach ($kecamatanData as $kecName => $data) {
+                    fputcsv($file, ["Kecamatan: $kecName"]);
+                    fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
+                    foreach ($data as $index => $row) {
+                        fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
+                    }
+                    fputcsv($file, []);
+                }
+
+                // Section 3
+                fputcsv($file, ['SECTION: TOP PENYAKIT PER PUSKESMAS']);
+                foreach ($puskesmasData as $puskName => $data) {
+                    fputcsv($file, ["Puskesmas: $puskName"]);
+                    fputcsv($file, ['Peringkat', 'Kode Penyakit (ICD-X)', 'Jumlah Kasus']);
+                    foreach ($data as $index => $row) {
+                        fputcsv($file, [$index + 1, $row->kode_penyakit, $row->count]);
+                    }
+                    fputcsv($file, []);
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        }
+
+        // ====== GENERATE HTML (PRINTABLE PDF) ======
+        return view('recap.export_print', compact(
+            'topUmum', 
+            'kecamatanData', 
+            'puskesmasData', 
+            'topNUmum', 
+            'topNKecamatan', 
+            'topNPuskesmas',
+            'startDate',
+            'endDate',
+            'filterMode',
+            'letters'
+        ));
+    }
+
+    // ==========================================
+    // RUTE FULL-PAGE DAFTAR PENYAKIT (PUSKESMAS)
+    // ==========================================
+
+    public function fullList(Request $request, $puskesmas)
+    {
+        $year = (int) $request->input('year', date('Y'));
+        $periodType = $request->input('period_type', 'month');
+        $periodValue = (int) $request->input('period_value', date('n'));
+        $search = $request->input('search');
+        $sort = $request->input('sort', 'cases_desc');
+
+        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
+            ->whereNotNull('kode_penyakit')
+            ->where('kpusk', $puskesmas)
+            ->whereYear('tanggal', $year);
+
+        if ($periodType === 'month') {
+            $query->whereMonth('tanggal', $periodValue);
+        } elseif ($periodType === 'quarter') {
+            $startMonth = ($periodValue - 1) * 3 + 1;
+            $endMonth = $startMonth + 2;
+            $query->whereMonth('tanggal', '>=', $startMonth)
+                  ->whereMonth('tanggal', '<=', $endMonth);
+        } elseif ($periodType === 'semester') {
+            $startMonth = ($periodValue - 1) * 6 + 1;
+            $endMonth = $startMonth + 5;
+            $query->whereMonth('tanggal', '>=', $startMonth)
+                  ->whereMonth('tanggal', '<=', $endMonth);
+        }
+
+        if ($search) {
+            $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
+        }
+
+        $query->groupBy('kode_penyakit');
+
+        // Logic Sorting
+        if ($sort === 'cases_asc') {
+            $query->orderBy('count', 'asc');
+        } elseif ($sort === 'alphabet_asc') {
+            $query->orderBy('kode_penyakit', 'asc');
+        } elseif ($sort === 'alphabet_desc') {
+            $query->orderByDesc('kode_penyakit');
+        } else {
+            $query->orderByDesc('count');
+        }
+
+        $penyakits = $query->paginate(10)->withQueryString();
+
+        return view('recap.puskesmas.full_list', compact('puskesmas', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
+    }
+
+    // ==========================================
+    // RUTE FULL-PAGE DAFTAR PENYAKIT (KECAMATAN)
+    // ==========================================
+
+    public function fullListKecamatan(Request $request, $kecamatan)
+    {
+        $year = (int) $request->input('year', date('Y'));
+        $periodType = $request->input('period_type', 'month');
+        $periodValue = (int) $request->input('period_value', date('n'));
+        $search = $request->input('search');
+        $sort = $request->input('sort', 'cases_desc');
+
+        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $puskesmasList = array_keys(array_filter($mapping, fn($k) => $k === $kecamatan));
+
+        if (empty($puskesmasList)) {
+            abort(404, 'Kecamatan tidak ditemukan.');
+        }
+
+        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
+            ->whereNotNull('kode_penyakit')
+            ->whereIn('kpusk', $puskesmasList)
+            ->whereYear('tanggal', $year);
+
+        if ($periodType === 'month') {
+            $query->whereMonth('tanggal', $periodValue);
+        } elseif ($periodType === 'quarter') {
+            $startMonth = ($periodValue - 1) * 3 + 1;
+            $endMonth = $startMonth + 2;
+            $query->whereMonth('tanggal', '>=', $startMonth)
+                  ->whereMonth('tanggal', '<=', $endMonth);
+        } elseif ($periodType === 'semester') {
+            $startMonth = ($periodValue - 1) * 6 + 1;
+            $endMonth = $startMonth + 5;
+            $query->whereMonth('tanggal', '>=', $startMonth)
+                  ->whereMonth('tanggal', '<=', $endMonth);
+        }
+
+        if ($search) {
+            $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
+        }
+
+        $query->groupBy('kode_penyakit');
+
+        // Logic Sorting
+        if ($sort === 'cases_asc') {
+            $query->orderBy('count', 'asc');
+        } elseif ($sort === 'alphabet_asc') {
+            $query->orderBy('kode_penyakit', 'asc');
+        } elseif ($sort === 'alphabet_desc') {
+            $query->orderByDesc('kode_penyakit');
+        } else {
+            $query->orderByDesc('count');
+        }
+
+        $penyakits = $query->paginate(10)->withQueryString();
+
+        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
     }
 }

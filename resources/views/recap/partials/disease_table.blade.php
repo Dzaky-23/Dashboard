@@ -7,9 +7,9 @@
         </tr>
     </thead>
     <tbody>
-        <template x-for="(item, index) in sortedAndFilteredData" :key="item.kode_penyakit">
+        <template x-for="(item, index) in paginatedData" :key="item.kode_penyakit">
             <tr class="bg-white border-b border-slate-100/50 hover:bg-slate-50 transition-colors">
-                <td class="px-8 py-4 text-center text-slate-400 font-medium" x-text="index + 1"></td>
+                <td class="px-8 py-4 text-center text-slate-500 font-medium" x-text="(Number(currentPage) - 1) * Number(itemsPerPage) + index + 1"></td>
                 <td class="px-8 py-4 font-bold text-slate-800">
                     <span x-text="item.kode_penyakit"></span>
                     <template x-if="item.is_top">
@@ -36,13 +36,40 @@
     </button>
 </div>
 
-<!-- Footer Data -->
-<div class="px-8 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center h-14 rounded-b-xl">
-    <span class="text-xs font-bold text-slate-500 flex items-center">
-        Memperlihatkan <span class="bg-white rounded border border-slate-200 px-1.5 mx-1.5 py-0.5 shadow-sm text-slate-700" x-text="sortedAndFilteredData.length"></span> penyakit dari total <span class="ml-1 text-slate-700" x-text="rawData.length"></span>
-    </span>
-    
-    <div x-show="searchQuery !== '' || selectedLetters.length > 0" class="text-xs font-bold text-red-500 hover:text-red-700 cursor-pointer" @click="searchQuery = ''; selectedLetters = []" style="display: none;">
-        Bersihkan Filter
+<!-- Footer Data & Navigasi Pagination -->
+<div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-b-xl">
+    <!-- Teks Info (Kiri) -->
+    <div class="text-sm text-slate-700 leading-5 w-full sm:w-auto text-center sm:text-left">
+        Menampilkan
+        <span class="font-medium" x-text="(Number(currentPage) - 1) * Number(itemsPerPage) + 1"></span>
+        ke
+        <span class="font-medium" x-text="Math.min(Number(currentPage) * Number(itemsPerPage), sortedAndFilteredData.length)"></span>
+        dari
+        <span class="font-medium" x-text="sortedAndFilteredData.length"></span>
+        hasil
+    </div>
+
+    <!-- Tombol Navigasi (Kanan) -->
+    <div x-show="totalPages > 1" class="w-full sm:w-auto text-center sm:text-right">
+        <span class="relative z-0 inline-flex shadow-sm rounded-md">
+            <!-- Prev Button -->
+            <button @click="prevPage()" :disabled="Number(currentPage) === 1" :class="Number(currentPage) === 1 ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-500 hover:bg-slate-50 focus:z-10'" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            
+            <!-- Page Numbers -->
+            <template x-for="(p, index) in getPaginationElements()" :key="index">
+                <button type="button" @click="if(p !== '...') goToPage(p)"
+                    :disabled="p === '...'"
+                    :class="Number(currentPage) === p ? 'z-10 bg-red-50 border-red-500 text-red-600 font-bold' : (p === '...' ? 'bg-white border-slate-300 text-slate-700 cursor-default px-3' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50 focus:z-10')"
+                    class="relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 transition-colors -ml-px" x-text="p">
+                </button>
+            </template>
+            
+            <!-- Next Button -->
+            <button @click="nextPage()" :disabled="Number(currentPage) === totalPages" :class="Number(currentPage) === totalPages ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-500 hover:bg-slate-50 focus:z-10'" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 transition-colors -ml-px">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+        </span>
     </div>
 </div>
