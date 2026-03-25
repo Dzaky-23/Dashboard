@@ -14,7 +14,18 @@ class RekamMedisController extends Controller
         $perPage = min((int) $request->integer('per_page', 15), 100);
         $q = $request->string('q')->toString();
 
-        $query = RekamMedis::query()->latest('id');
+        $query = RekamMedis::query()
+            ->select([
+                'id',
+                'tanggal',
+                'kpusk',
+                'no_reg',
+                'kode_penyakit',
+                'status',
+                'unit',
+                'diisi_pada',
+            ])
+            ->latest('id');
 
         if ($q !== '') {
             $query->where(function ($builder) use ($q): void {
