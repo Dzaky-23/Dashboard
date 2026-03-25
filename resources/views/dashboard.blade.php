@@ -4,12 +4,12 @@
 
 @section('content')
 <div class="mb-8">
-    <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang, {{ Auth::user()->name }}!</h1>
+    <h1 class="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang!</h1>
     <p class="mt-2 text-base text-slate-600">Berikut adalah ringkasan aktivitas pencatatan pasien dan rekap penyakit.</p>
 </div>
 
 <!-- Stats Overview -->
-<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     <!-- Stat 1: Total -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
@@ -27,24 +27,7 @@
         </div>
     </div>
 
-    <!-- Stat 2: New Today -->
-    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
-        <div class="flex items-center gap-4">
-            <div class="rounded-xl bg-emerald-50 p-3 text-emerald-600">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <div>
-                <p class="text-sm font-medium text-slate-500">Pasien Hari Ini</p>
-                <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-bold text-slate-900">{{ number_format($pasienBaruToday ?? 0) }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stat 3: BPJS -->
+    <!-- Stat 2: BPJS -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
             <div class="rounded-xl bg-teal-50 p-3 text-teal-600">
@@ -61,7 +44,7 @@
         </div>
     </div>
 
-    <!-- Stat 4: Umum -->
+    <!-- Stat 3: Umum -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
             <div class="rounded-xl bg-orange-50 p-3 text-orange-600">
@@ -82,7 +65,7 @@
 <!-- Disease Stats Overview (Added Section) -->
 <div class="mt-8 mb-4">
 </div>
-<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
     <!-- Disease Stat 1: Total Cases -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
@@ -103,30 +86,7 @@
         </p>
     </div>
 
-
-    <!-- Disease Stat 2: Top Disease -->
-    <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
-        <div class="flex items-center gap-4">
-            <div class="rounded-xl bg-indigo-50 p-3 text-indigo-600">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                </svg>
-            </div>
-            <div class="overflow-hidden w-full">
-                <p class="text-sm font-medium text-slate-500 whitespace-nowrap">Penyakit Terbanyak</p>
-                <div class="flex items-baseline gap-2">
-                    <p class="text-lg font-bold text-slate-900 truncate" title="{{ $topPenyakitGlobal ?? '-' }}">
-                        {{ $topPenyakitGlobal ?? '-' }}
-                    </p>
-                </div>
-            </div>
-        </div>
-        <p class="mt-4 text-xs font-medium text-slate-500 italic">
-            *jumlah kasus penyakit terbanyak pertahun {{ date('Y') }}
-        </p>
-    </div>
-
-    <!-- Disease Stat 3: Total Puskesmas -->
+    <!-- Disease Stat 2: Total Puskesmas -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
             <div class="rounded-xl bg-blue-50 p-3 text-blue-600">
@@ -143,7 +103,7 @@
         </div>
     </div>
 
-    <!-- Disease Stat 4: Total Kecamatan -->
+    <!-- Disease Stat 3: Total Kecamatan -->
     <div class="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md transition-shadow">
         <div class="flex items-center gap-4">
             <div class="rounded-xl bg-purple-50 p-3 text-purple-600">
