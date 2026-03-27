@@ -1,4 +1,4 @@
-<!-- TAB 2: HANYA KECAMATAN -->
+{{-- <!-- TAB 2: HANYA KECAMATAN -->
 <div x-show="activeFilter === 'kecamatan'" x-transition class="tab-kecamatan grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
     @foreach ($kecamatanDataList as $kecName => $kecData)
         <a href="{{ route('recap.kecamatan.show', $kecName) }}" data-search-key="{{ strtolower($kecName) }}" x-show="search === '' || '{{ strtolower($kecName) }}'.includes(search.toLowerCase())" class="group block bg-gradient-to-br from-red-50/50 to-white border border-red-100 rounded-2xl p-6 shadow-sm hover:border-red-300 hover:shadow-md transition-all duration-300 relative overflow-hidden">
@@ -30,4 +30,4 @@
             </div>
         </a>
     @endforeach
-</div>
+</div> --}}

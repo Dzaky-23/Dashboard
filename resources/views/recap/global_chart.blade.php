@@ -10,7 +10,6 @@
                 <label for="year" class="text-xs font-bold text-slate-500 hidden sm:block">Periode:</label>
                 <div class="relative">
                     <select name="year" id="year" onchange="document.getElementById('filterYearForm').submit()" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-3 pr-8 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
-                        <option value="">Semua Tahun</option>
                         @foreach($availableYears as $y)
                             <option value="{{ $y }}" {{ $yearInput == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
                         @endforeach
@@ -22,30 +21,39 @@
             </form>
         </div>
 
-        <div class="px-6 pb-6 pt-16 md:px-8 md:pb-8 md:pt-20 overflow-x-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex items-end justify-start xl:justify-center flex-nowrap w-full gap-2 sm:gap-3 lg:gap-5 min-h-[380px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        <div class="px-6 py-6 md:px-8 md:py-8 overflow-y-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex flex-col items-stretch justify-center w-full gap-2 sm:gap-3 min-h-[250px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
             @if(isset($chartData) && $chartData->isNotEmpty())
                 @foreach($chartData as $index => $item)
                     @php
-                        $heightPercentage = ($item->total / $maxChartWidth) * 100;
+                        $percentage = ($item->total / $maxChartWidth) * 100;
+                        $widthPercentage = max($percentage, 8);
                         $colors = ['from-pink-400 to-pink-500', 'from-amber-400 to-orange-500', 'from-emerald-400 to-teal-500', 'from-sky-400 to-blue-500', 'from-violet-400 to-indigo-500', 'from-rose-400 to-red-500'];
                         $color = $colors[$index % count($colors)];
                         
                         $shortStatus = str_contains($item->status, 'LOLOS') ? 'LOLOS' : str_replace('HAMPIR (', '', str_replace(' unit)', '', $item->status));
                     @endphp
-                    <div class="flex flex-col items-center flex-shrink-0 group relative cursor-pointer">
-                        <div class="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 bg-slate-800 shadow-xl rounded-xl px-4 py-2.5 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100">
+                    <div class="flex flex-row items-center w-full group relative cursor-pointer">
+                        <!-- Tooltip on hover -->
+                        <div class="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 bg-slate-800 shadow-xl rounded-xl px-4 py-2 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100">
                             {{ number_format($item->total) }} Kasus
                             <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 transform rotate-45"></div>
                         </div>
 
-                        <div class="h-44 md:h-52 w-10 md:w-12 bg-slate-100/50 rounded-full p-1.5 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05),inset_-4px_-4px_8px_rgba(255,255,255,0.8)] border border-white flex flex-col justify-end">
-                            <div class="w-full bg-gradient-to-t {{ $color }} rounded-full relative transition-[height] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_4px_10px_rgba(0,0,0,0.1)] group-hover:brightness-110" style="height: {{ max($heightPercentage, 8) }}%">
-                                <div class="absolute top-1 left-1.5 right-1.5 h-1/4 bg-white/40 rounded-full blur-[1px]"></div>
-                            </div>
+                        <!-- Label (ICD-X) -->
+                        <div class="mr-3 md:mr-4 flex flex-shrink-0 items-center justify-end w-8 md:w-10">
+                            <span class="block text-[11px] md:text-xs font-bold text-slate-700 truncate" title="{{ $item->label }}">{{ $item->label }}</span>
                         </div>
 
-                        <div class="mt-4 flex flex-col items-center justify-start h-12 w-12 md:w-14">
-                            <span class="block text-[11px] md:text-xs font-bold text-slate-700 truncate w-full px-1 text-center" title="{{ $item->label }}">{{ $item->label }}</span>
+                        <!-- Bar Track -->
+                        <div class="flex-grow h-6 md:h-8 bg-slate-100/50 rounded-full p-1 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.05),inset_-2px_-2px_6px_rgba(255,255,255,0.8)] border border-white flex flex-row justify-start">
+                            <!-- Colored Filled Bar -->
+                            <div class="h-full bg-gradient-to-r {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
+                                <!-- Text Inside Bar for Data (Optional, hiding it on very small screens or keeping it simple, let's keep it visible inside the bar right end!) -->
+                                <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate">{{ number_format($item->total) }}</span>
+                                
+                                <!-- Glass Effect Reflection on Right Edge -->
+                                <div class="absolute right-1 top-1 bottom-1 w-1/4 max-w-[12px] bg-white/40 rounded-full blur-[1px]"></div>
+                            </div>
                         </div>
                     </div>
                 @endforeach
@@ -78,7 +86,7 @@
         </div>
 
         <div class="relative z-10 pt-5 mt-auto border-t border-slate-100">
-            <button @click="openExportModal = true" type="button" class="w-full inline-flex justify-center items-center px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 active:scale-95">
+            <button @click="openExportModal = true" type="button" class="w-full inline-flex justify-center items-center px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-red-500 active:scale-95">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>

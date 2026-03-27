@@ -49,15 +49,15 @@
                         </div>
 
                         <div class="flex flex-wrap gap-2 mb-8 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 sm:inline-flex w-full sm:w-auto shadow-inner">
-                            <button @click="activeFilter = 'semua'" :class="{'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'semua', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'semua'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out">
+                            <button @click="activeFilter = 'semua'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'semua', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'semua'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out">
                                 Tampilkan Semua
                             </button>
-                            <button @click="activeFilter = 'kecamatan'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'kecamatan', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'kecamatan'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2">
-                                <span x-show="activeFilter === 'kecamatan'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                            <button style="display: none;" @click="activeFilter = 'kecamatan'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'kecamatan', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'kecamatan'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2">
+                                {{-- <span x-show="activeFilter === 'kecamatan'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span> --}}
                                 Hanya Kecamatan
                             </button>
                             <button @click="activeFilter = 'puskesmas'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'puskesmas', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'puskesmas'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2">
-                                <span x-show="activeFilter === 'puskesmas'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                                {{-- <span x-show="activeFilter === 'puskesmas'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span> --}}
                                 Hanya Puskesmas
                             </button>
                         </div>
@@ -100,9 +100,9 @@
                                                 <h3 class="text-lg font-bold text-slate-800" id="modal-title">Cetak Laporan Penyakit</h3>
                                                 <p class="text-xs text-slate-500 mt-0.5">Sesuaikan parameter rekapitulasi data yang ingin di-export.</p>
                                             </div>
-                                            <button type="button" @click="openExportModal = false" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full p-2 transition-colors">
+                                            {{-- <button type="button" @click="openExportModal = false" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full p-2 transition-colors">
                                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
+                                            </button> --}}
                                         </div>
 
                                         <div class="px-6 py-5 bg-slate-50/50">
@@ -168,11 +168,11 @@
                                                     <div class="pt-2">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Include Kategori (A-Z)</label>
                                                         <div class="relative w-full" @click.outside="isIncludeOpen = false">
-                                                            <div @click="isIncludeOpen = !isIncludeOpen; isExcludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isIncludeOpen ? 'ring-2 ring-blue-500 border-blue-500' : ''">
+                                                            <div @click="isIncludeOpen = !isIncludeOpen; isExcludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isIncludeOpen ? 'ring-2 ring-red-500 border-red-500' : ''">
                                                                 <span x-show="exportIncludeLetters.length === 0" class="text-slate-400 text-sm">Pilih Kategori (Bisa >1)...</span>
                                                                 <div x-show="exportIncludeLetters.length > 0" class="flex flex-wrap gap-1">
                                                                     <template x-for="l in exportIncludeLetters" :key="l">
-                                                                        <span class="bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
+                                                                        <span class="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
                                                                     </template>
                                                                 </div>
                                                                 <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -182,7 +182,7 @@
                                                                 <div class="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
                                                                     <template x-for="l in letters" :key="l">
                                                                         <button type="button" @click.stop="exportIncludeLetters.includes(l) ? exportIncludeLetters = exportIncludeLetters.filter(x => x !== l) : exportIncludeLetters.push(l)"
-                                                                        :class="exportIncludeLetters.includes(l) ? 'bg-blue-600 text-white border-blue-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300'"
+                                                                        :class="exportIncludeLetters.includes(l) ? 'bg-red-600 text-white border-red-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:border-red-300'"
                                                                         class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="l"></button>
                                                                     </template>
                                                                 </div>
@@ -222,7 +222,7 @@
                                             <button type="button" @click="openExportModal = false" class="inline-flex justify-center items-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
                                                 Batal
                                             </button>
-                                            <button type="submit" class="inline-flex justify-center items-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                                            <button type="submit" class="inline-flex justify-center items-center rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
                                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                                 Download Laporan
                                             </button>

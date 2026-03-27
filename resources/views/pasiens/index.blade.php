@@ -15,7 +15,14 @@
 <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden mb-6">
     <!-- Search Bar -->
     <div class="border-b border-slate-200 p-4 sm:p-6 bg-slate-50/50">
-        <form action="{{ route('pasiens.index') }}" method="GET" class="flex max-w-md items-center gap-3">
+        <form action="{{ route('pasiens.index') }}" method="GET" class="flex max-w-xl items-center gap-3">
+            <div class="relative w-32 flex-shrink-0">
+                <select name="year" onchange="this.form.submit()" class="block w-full rounded-xl border-0 py-2.5 pl-3 pr-8 text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-red-600 sm:text-sm sm:leading-6 transition-all font-semibold bg-white cursor-pointer shadow-sm">
+                    @foreach($availableYears as $y)
+                        <option value="{{ $y }}" {{ $yearInput == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="relative flex-grow">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <svg class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -27,7 +34,7 @@
             <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800 transition-colors">
                 Cari
             </button>
-            @if(request('search'))
+            @if(request('search') || request('year') != date('Y'))
                 <a href="{{ route('pasiens.index') }}" class="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
                     Reset
                 </a>
@@ -95,7 +102,7 @@
     <!-- Pagination Footer -->
     @if($pasiens->hasPages())
     <div class="border-t border-slate-200 bg-white px-6 py-4">
-        {{ $pasiens->appends(['search' => request('search')])->links() }}
+        {{ $pasiens->appends(['search' => request('search'), 'year' => request('year')])->links() }}
     </div>
     @endif
 </div>
