@@ -10,13 +10,24 @@ class PasienController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $yearInput = $request->input('year', date('Y'));
         
+        $startDate = \Carbon\Carbon::create($yearInput)->startOfYear();
+        $endDate = \Carbon\Carbon::create($yearInput)->endOfYear();
+
         $pasiens = Pasien::when($search, function($query, $search) {
-            return $query->where('nama', 'like', "%{$search}%")
-                         ->orWhere('nik', 'like', "%{$search}%");
-        })->orderBy('submited_at', 'desc')->paginate(10);
+            return $query->where(function ($q) use ($search) {
+                $q->where('nama', 'like', "%{$search}%")
+                  ->orWhere('nik', 'like', "%{$search}%");
+            });
+        })
+        ->whereBetween('submited_at', [$startDate, $endDate])
+        ->orderBy('submited_at', 'desc')
+        ->paginate(10);
         
-        return view('pasiens.index', compact('pasiens', 'search'));
+        $availableYears = range(date('Y'), 2024);
+        
+        return view('pasiens.index', compact('pasiens', 'search', 'yearInput', 'availableYears'));
     }
 
     public function create()

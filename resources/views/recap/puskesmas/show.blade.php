@@ -63,7 +63,7 @@
                         </div>
                         <h3 class="text-base font-bold text-slate-900">Hasil Rekap Belum Tersedia</h3>
                         <p class="text-sm text-slate-500 mt-2 max-w-sm">Periode rekapitulasi waktu yang Anda pilih belum selesai masa perhitungannya atau berada pada rentang masa depan.</p>
-                        <a href="{{ route('recap.show', $puskesmas) }}" class="mt-6 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Kembalikan ke Semua Waktu</a>
+                        <a href="{{ route('recap.show', $puskesmas) }}" class="mt-6 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Reset Filter Waktu</a>
                     </div>
                 @else
                 <!-- Section Grafik & Analitik Ringkas -->

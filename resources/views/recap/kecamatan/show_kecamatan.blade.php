@@ -62,7 +62,7 @@
                         </div>
                         <h3 class="text-base font-bold text-slate-900">Hasil Rekap Belum Tersedia</h3>
                         <p class="text-sm text-slate-500 mt-2 max-w-sm">Periode rekapitulasi waktu yang Anda pilih belum selesai masa perhitungannya atau berada pada rentang masa depan.</p>
-                        <a href="{{ route('recap.kecamatan.show', $kecamatan) }}" class="mt-6 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Kembalikan ke Semua Waktu</a>
+                        <a href="{{ route('recap.kecamatan.show', $kecamatan) }}" class="mt-6 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Reset Filter Waktu</a>
                     </div>
                 @else
                 <!-- Section Grafik & Analitik Ringkas -->
@@ -87,14 +87,25 @@
                             </div>
                             
                             <!-- Card Total Puskesmas -->
-                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-grow flex flex-col justify-center relative overflow-hidden group">
-                                <span class="block text-xs font-bold text-red-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 relative z-10">
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-grow flex flex-col justify-start relative overflow-hidden group">
+                                <span class="block text-[11px] font-bold text-red-500 uppercase tracking-widest mb-3 flex items-center gap-1.5 relative z-10">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                                    Fasilitas Unit
+                                    Sebaran Fasilitas
                                 </span>
-                                <h4 class="text-4xl font-black text-slate-800 tracking-tight leading-none mb-2 relative z-10">{{ number_format($totalPuskesmas) }}</h4>
-                                <div class="flex items-end gap-2 relative z-10 mt-1">
-                                    <span class="text-xs font-semibold text-slate-500 mb-1">Total Unit Puskesmas Beroperasi</span>
+                                <h4 class="text-4xl font-black text-slate-800 tracking-tight leading-none mb-1 relative z-10">{{ number_format($totalPuskesmas) }} <span class="text-lg font-bold text-slate-400">Unit</span></h4>
+                                
+                                <div class="mt-5 border-t border-slate-100 pt-4 flex-grow overflow-y-auto">
+                                    <ul class="space-y-3 relative z-10">
+                                        @foreach($puskesmasStats as $pstat)
+                                            <li class="flex justify-between items-center group/item hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                                                    <span class="text-sm font-semibold text-slate-700">Pusk. {{ $pstat->nama }}</span>
+                                                </div>
+                                                <span class="text-slate-600 text-[11px] font-bold bg-slate-100 px-2 py-1 rounded-md border border-slate-200">{{ number_format($pstat->total_kasus) }} Kasus</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -105,7 +116,7 @@
                 <div class="px-8 flex-col mb-4">
                     <h4 class="text-lg font-bold text-slate-700 mt-6 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        Daftar Fasilitas Puskesmas
+                        Daftar Puskesmas
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         @foreach($puskesmasStats as $pstat)

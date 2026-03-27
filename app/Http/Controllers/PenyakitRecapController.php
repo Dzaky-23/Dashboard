@@ -28,7 +28,9 @@ class PenyakitRecapController extends Controller
             ->whereNotNull('kode_penyakit');
 
         if ($yearInput) {
-            $queryRekap->whereYear('tanggal', $yearInput);
+            $startDate = Carbon::create($yearInput)->startOfYear();
+            $endDate = Carbon::create($yearInput)->endOfYear();
+            $queryRekap->whereBetween('tanggal', [$startDate, $endDate]);
         }
 
         // Menghitung Data Kecamatan secara Kolektif untuk UI Tampilan Grid Card
@@ -135,7 +137,7 @@ class PenyakitRecapController extends Controller
                 'total' => $item['Total_Kasus'],
                 'status' => $item['Status'],
             ];
-        });
+        })->sortByDesc('total')->values();
 
         $maxChartWidth = $chartData->max('total') ?: 1;
 
@@ -382,9 +384,10 @@ class PenyakitRecapController extends Controller
         
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-        $filterMode = $request->input('export_filter_mode', 'include');
-        $lettersStr = $request->input('export_letters', '');
-        $letters = $lettersStr !== '' ? explode(',', $lettersStr) : [];
+        $includeIcdStr = $request->input('include_icd');
+        $excludeIcdStr = $request->input('exclude_icd');
+        $includeLetters = !empty($includeIcdStr) ? explode(',', $includeIcdStr) : [];
+        $excludeLetters = !empty($excludeIcdStr) ? explode(',', $excludeIcdStr) : [];
         
         $mapping = RecapLogicService::MAPPING_KECAMATAN;
 
@@ -400,14 +403,18 @@ class PenyakitRecapController extends Controller
         }
 
         // Terapkan Filter Kategori Huruf A-Z (pada tingkat SQL)
-        if (!empty($letters)) {
-            $query->where(function ($q) use ($letters, $filterMode) {
-                foreach ($letters as $letter) {
-                    if ($filterMode === 'include') {
-                        $q->orWhere('kode_penyakit', 'LIKE', $letter . '%');
-                    } else {
-                        $q->where('kode_penyakit', 'NOT LIKE', $letter . '%');
-                    }
+        if (!empty($includeLetters)) {
+            $query->where(function ($q) use ($includeLetters) {
+                foreach ($includeLetters as $letter) {
+                    $q->orWhere('kode_penyakit', 'LIKE', trim($letter) . '%');
+                }
+            });
+        }
+
+        if (!empty($excludeLetters)) {
+            $query->where(function ($q) use ($excludeLetters) {
+                foreach ($excludeLetters as $letter) {
+                    $q->where('kode_penyakit', 'NOT LIKE', trim($letter) . '%');
                 }
             });
         }
@@ -516,8 +523,8 @@ class PenyakitRecapController extends Controller
             'topNPuskesmas',
             'startDate',
             'endDate',
-            'filterMode',
-            'letters'
+            'includeLetters',
+            'excludeLetters'
         ));
     }
 
@@ -533,24 +540,29 @@ class PenyakitRecapController extends Controller
         $search = $request->input('search');
         $sort = $request->input('sort', 'cases_desc');
 
+        $startDate = null;
+        $endDate = null;
+
+        if ($periodType === 'month') {
+            $startDate = Carbon::create($year, $periodValue, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $periodValue, 1)->endOfMonth();
+        } elseif ($periodType === 'quarter') {
+            $startMonth = ($periodValue - 1) * 3 + 1;
+            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+        } elseif ($periodType === 'semester') {
+            $startMonth = ($periodValue - 1) * 6 + 1;
+            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $startMonth + 5, 1)->endOfMonth();
+        } else {
+            $startDate = Carbon::create($year)->startOfYear();
+            $endDate = Carbon::create($year)->endOfYear();
+        }
+
         $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
             ->where('kpusk', $puskesmas)
-            ->whereYear('tanggal', $year);
-
-        if ($periodType === 'month') {
-            $query->whereMonth('tanggal', $periodValue);
-        } elseif ($periodType === 'quarter') {
-            $startMonth = ($periodValue - 1) * 3 + 1;
-            $endMonth = $startMonth + 2;
-            $query->whereMonth('tanggal', '>=', $startMonth)
-                  ->whereMonth('tanggal', '<=', $endMonth);
-        } elseif ($periodType === 'semester') {
-            $startMonth = ($periodValue - 1) * 6 + 1;
-            $endMonth = $startMonth + 5;
-            $query->whereMonth('tanggal', '>=', $startMonth)
-                  ->whereMonth('tanggal', '<=', $endMonth);
-        }
+            ->whereBetween('tanggal', [$startDate, $endDate]);
 
         if ($search) {
             $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
@@ -593,24 +605,29 @@ class PenyakitRecapController extends Controller
             abort(404, 'Kecamatan tidak ditemukan.');
         }
 
+        $startDate = null;
+        $endDate = null;
+
+        if ($periodType === 'month') {
+            $startDate = Carbon::create($year, $periodValue, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $periodValue, 1)->endOfMonth();
+        } elseif ($periodType === 'quarter') {
+            $startMonth = ($periodValue - 1) * 3 + 1;
+            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+        } elseif ($periodType === 'semester') {
+            $startMonth = ($periodValue - 1) * 6 + 1;
+            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $startMonth + 5, 1)->endOfMonth();
+        } else {
+            $startDate = Carbon::create($year)->startOfYear();
+            $endDate = Carbon::create($year)->endOfYear();
+        }
+
         $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
             ->whereNotNull('kode_penyakit')
             ->whereIn('kpusk', $puskesmasList)
-            ->whereYear('tanggal', $year);
-
-        if ($periodType === 'month') {
-            $query->whereMonth('tanggal', $periodValue);
-        } elseif ($periodType === 'quarter') {
-            $startMonth = ($periodValue - 1) * 3 + 1;
-            $endMonth = $startMonth + 2;
-            $query->whereMonth('tanggal', '>=', $startMonth)
-                  ->whereMonth('tanggal', '<=', $endMonth);
-        } elseif ($periodType === 'semester') {
-            $startMonth = ($periodValue - 1) * 6 + 1;
-            $endMonth = $startMonth + 5;
-            $query->whereMonth('tanggal', '>=', $startMonth)
-                  ->whereMonth('tanggal', '<=', $endMonth);
-        }
+            ->whereBetween('tanggal', [$startDate, $endDate]);
 
         if ($search) {
             $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
