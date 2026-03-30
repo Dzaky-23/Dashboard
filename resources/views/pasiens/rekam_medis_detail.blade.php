@@ -27,7 +27,7 @@
                     No Reg: {{ $pasien->no_reg }}
                 </span>
             </div>
-        </div>        
+        </div>
     </div>
 </div>
 

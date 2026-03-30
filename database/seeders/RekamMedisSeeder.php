@@ -13,11 +13,15 @@ class RekamMedisSeeder extends Seeder
      */
     public function run(): void
     {
-        Pasien::query()->each(function (Pasien $pasien): void {
-            RekamMedis::factory(rand(30, 40))->create([
-                'no_reg' => $pasien->no_reg,
-                'kpusk' => $pasien->kpusk,
-            ]);
-        });
+        Pasien::query()
+            ->select(['id', 'no_reg', 'kpusk'])
+            ->chunkById(500, function ($pasiens): void {
+                foreach ($pasiens as $pasien) {
+                    RekamMedis::factory(rand(30, 40))->create([
+                        'no_reg' => $pasien->no_reg,
+                        'kpusk' => $pasien->kpusk,
+                    ]);
+                }
+            });
     }
 }

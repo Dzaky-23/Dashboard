@@ -8,13 +8,28 @@
         <h1 class="text-2xl font-bold text-slate-900">Data Pasien</h1>
         <p class="mt-1 text-sm text-slate-500">Daftar seluruh pasien yang terdapat pada database.</p>
     </div>
+    <div class="mt-4 sm:mt-0">
+        <a href="{{ route('pasiens.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-all">
+            <svg class="-ml-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+            Pasien Baru
+        </a>
+    </div>
 </div>
 
 <!-- Search and Table Container -->
 <div class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden mb-6">
     <!-- Search Bar -->
     <div class="border-b border-slate-200 p-4 sm:p-6 bg-slate-50/50">
-        <form action="{{ route('pasiens.index') }}" method="GET" class="flex max-w-md items-center gap-3">
+        <form action="{{ route('pasiens.index') }}" method="GET" class="flex max-w-xl items-center gap-3">
+            <div class="relative w-32 flex-shrink-0">
+                <select name="year" onchange="this.form.submit()" class="block w-full rounded-xl border-0 py-2.5 pl-3 pr-8 text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-red-600 sm:text-sm sm:leading-6 transition-all font-semibold bg-white cursor-pointer shadow-sm">
+                    @foreach($availableYears as $y)
+                        <option value="{{ $y }}" {{ $yearInput == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="relative flex-grow">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <svg class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -26,7 +41,7 @@
             <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800 transition-colors">
                 Cari
             </button>
-            @if(request('search'))
+            @if(request('search') || request('year') != date('Y'))
                 <a href="{{ route('pasiens.index') }}" class="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
                     Reset
                 </a>
@@ -38,11 +53,11 @@
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-white">
                 <tr>
-                    <th scope="col" class="py-4 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No Reg</th>
-                    <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Pasien</th>
-                    <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">NIK</th>
-                    <th scope="col" class="px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal Daftar</th>
-                    <th scope="col" class="relative py-4 pl-3 pr-6">
+                    <th scope="col" class="w-[15%] py-4 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No Reg</th>
+                    <th scope="col" class="w-[30%] px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Pasien</th>
+                    <th scope="col" class="w-[25%] px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">NIK</th>
+                    <th scope="col" class="w-[20%] px-3 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal Daftar</th>
+                    <th scope="col" class="w-[10%] relative py-4 pl-3 pr-6">
                         <span class="sr-only">Aksi</span>
                     </th>
                 </tr>
@@ -82,7 +97,6 @@
                                 <a href="{{ route('pasiens.index') }}" class="mt-4 text-sm font-semibold text-red-600 hover:text-red-500 transition-colors">Clear pencarian</a>
                             @else
                                 <span class="text-base font-medium text-slate-900">Belum ada pasien terdaftar.</span>
-                                <span class="block mt-1 text-sm text-slate-500">Mulai dengan mendaftarkan pasien baru.</span>
                             @endif
                         </div>
                     </td>
@@ -95,7 +109,7 @@
     <!-- Pagination Footer -->
     @if($pasiens->hasPages())
     <div class="border-t border-slate-200 bg-white px-6 py-4">
-        {{ $pasiens->appends(['search' => request('search')])->links() }}
+        {{ $pasiens->appends(['search' => request('search'), 'year' => request('year')])->links() }}
     </div>
     @endif
 </div>

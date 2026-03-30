@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
+    /** 
      * Run the migrations.
      */
     public function up(): void
@@ -52,6 +52,12 @@ return new class extends Migration
             $table->timestamp('diisi_pada')->useCurrent();
             $table->longText('rekomendasi_diet')->nullable();
             $table->timestamps();
+
+            $table->index(['no_reg', 'kpusk']);
+            $table->index('kode_penyakit');
+            $table->index('status');
+            $table->index('tanggal');
+            $table->index('diisi_pada');
         });
     }
 

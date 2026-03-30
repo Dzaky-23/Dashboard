@@ -1,20 +1,17 @@
 <!-- Form Filter Waktu & Limit N -->
 <form action="{{ $actionUrl }}" method="GET" class="flex flex-wrap items-center justify-end gap-2" x-data="{ pType: '{{ $periodType }}' }">
     <select name="period_type" x-model="pType" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-slate-50 shadow-sm cursor-pointer">
-        <option value="all">Semua Waktu</option>
         <option value="year">Per Tahun</option>
         <option value="semester">Per Semester</option>
         <option value="quarter">Per Triwulan</option>
         <option value="month">Per Bulan</option>
     </select>
     
-    <template x-if="pType !== 'all'">
-        <select name="year" class="w-24 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
-            @for($y = 2024; $y <= date('Y') + 1; $y++)
-                <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
-            @endfor
-        </select>
-    </template>
+    <select name="year" class="w-24 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
+        @for($y = 2024; $y <= date('Y') + 1; $y++)
+            <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>{{ $y }}</option>
+        @endfor
+    </select>
 
     <template x-if="pType === 'semester'">
         <select name="semester" class="w-32 text-xs font-bold border-slate-300 rounded-md py-1.5 px-3 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm cursor-pointer">
