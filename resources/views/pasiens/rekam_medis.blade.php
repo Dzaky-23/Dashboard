@@ -30,16 +30,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Actions -->
-        <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
-                <svg class="h-4 w-4 text-red-100" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Tambah Rekam Medis
-            </button>
-        </div>
     </div>
 </div>
 
