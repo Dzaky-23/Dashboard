@@ -7,115 +7,68 @@ use Illuminate\Support\Str;
 
 class RecapLogicService
 {
+
+
     /**
-     * Mapping nama Puskesmas ke Kecamatan
+     * Mapping Kode Kecamatan ke Nama Kecamatan
      */
-    public const MAPPING_KECAMATAN = [
-        'PONCOL' => 'SEMARANG TENGAH', 'MIROTO' => 'SEMARANG TENGAH',
-        'BANDARHARJO' => 'SEMARANG UTARA', 'BULU LOR' => 'SEMARANG UTARA',
-        'HALMAHERA' => 'SEMARANG TIMUR', 'KARANGDORO' => 'SEMARANG TIMUR', 'BUGANGAN' => 'SEMARANG TIMUR',
-        'LAMPER TENGAH' => 'SEMARANG SELATAN', 'PANDANARAN' => 'SEMARANG SELATAN',
-        'LEBDOSARI' => 'SEMARANG BARAT', 'KROBOKAN' => 'SEMARANG BARAT', 'MANYARAN' => 'SEMARANG BARAT',
-        'NGEMPLAK SIMONGAN' => 'SEMARANG BARAT', 'KARANGAYU' => 'SEMARANG BARAT',
-        'GAYAMSARI' => 'GAYAMSARI', 'CANDILAMA' => 'CANDISARI', 'KAGOK' => 'CANDISARI',
-        'PEGANDAN' => 'GAJAHMUNGKUR', 'BANGETAYU' => 'GENUK', 'GENUK' => 'GENUK',
-        'TLOGOSARI KULON' => 'PEDURUNGAN', 'TLOGOSARI WETAN' => 'PEDURUNGAN', 'PLAMONGANSARI' => 'PEDURUNGAN',
-        'ROWOSARI' => 'TEMBALANG', 'KEDUNGMUNDU' => 'TEMBALANG', 'BULUSAN' => 'TEMBALANG',
-        'NGEREP' => 'BANYUMANIK', 'PADANGSARI' => 'BANYUMANIK', 'PUPAY' => 'BANYUMANIK', 'SRONDOL' => 'BANYUMANIK',
-        'SEKARAN' => 'GUNUNGPATI', 'GUNUNGPATI' => 'GUNUNGPATI', 'MIJEN' => 'MIJEN', 'KARANGMALANG' => 'MIJEN',
-        'PURWOYOSO' => 'NGALIYAN', 'TAMBAKAJI' => 'NGALIYAN', 'NGALIYAN' => 'NGALIYAN',
-        'KARANGANYAR' => 'TUGU', 'MANGKANG' => 'TUGU'
+    public const MAPPING_NAMA_KECAMATAN = [
+        'KC01' => 'SEMARANG TENGAH',
+        'KC02' => 'SEMARANG UTARA',
+        'KC03' => 'SEMARANG TIMUR',
+        'KC04' => 'SEMARANG SELATAN',
+        'KC05' => 'SEMARANG BARAT',
+        'KC06' => 'GAYAMSARI',
+        'KC07' => 'CANDISARI',
+        'KC08' => 'GAJAH MUNGKUR',
+        'KC09' => 'GENUK',
+        'KC10' => 'PEDURUNGAN',
+        'KC11' => 'TEMBALANG',
+        'KC12' => 'BANYUMANIK',
+        'KC13' => 'GUNUNGPATI',
+        'KC14' => 'MIJEN',
+        'KC15' => 'NGALIYAN',
+        'KC16' => 'TUGU'
     ];
 
-    /**
-     * Membersihkan dan memproses baris data mentah dari Excel.
-     * 
-     * [!] PENTING: Di PHP/Laravel membaca Excel biasanya memakai package `maatwebsite/excel`.
-     * Asumsi method ini menerima `$rawRows` yang merupakan array hasil import()
-     * yang sudah melewati proses pembacaan file Excel.
-     * 
-     * @param array|\Traversable|Collection $rawRows Baris data dari Excel.
-     * @param string $fileName Nama file (tanpa ekstensi untuk nama puskesmas).
-     * @return array ['data' => Collection, 'log' => array]
-     */
-    public function cleanAndProcessData($rawRows, string $fileName): array
+    public static function getMappingKodeToKecamatan(): array
     {
-        $rows = collect($rawRows);
-        $log = ['file' => $fileName, 'status' => 'SUCCESS', 'message' => 'Berhasil diproses.'];
-        
-        try {
-            // Ambil nama puskesmas dari ekstensi yang sudah dihapus
-            $namaPusk = Str::upper(trim($fileName));
-            $kecamatan = self::MAPPING_KECAMATAN[$namaPusk] ?? 'TIDAK TERDAFTAR';
-
-            $cleanedData = collect();
-
-            foreach ($rows as $index => $row) {
-                // Di maatwebsite, jika tanpa WithHeadingRow maka ini indexed array.
-                // Jika WithHeadingRow maka ini associative array.
-                $rowArray = is_array($row) ? $row : (array) $row;
-
-                /**
-                 * SESUAIKAN kuncinya (keys) dengan library Excel yang Anda gunakan.
-                 * Di Python logic aslinya (berbasis positional):
-                 * - 'Jenis Penyakit' kemungkinan ada di kolom C (index 2) atau B dsb.
-                 * - 'ICD X' ada di B (index 1) dsb.
-                 * - Data angka penyakit ada di index 3 sampai 50.
-                 */
-                
-                // Fallback pencarian key fleksibel
-                $jenisPenyakit = $rowArray['Jenis Penyakit'] ?? $rowArray['jenis_penyakit'] ?? $rowArray[2] ?? '';
-                $icdX = $rowArray['ICD X'] ?? $rowArray['icd_x'] ?? $rowArray[1] ?? '';
-                
-                $jenisPenyakitStr = (string) $jenisPenyakit;
-                
-                // 1. Filter Baris Sampah
-                if (preg_match('/TOTAL|JUMLAH|SUB TOTAL/i', $jenisPenyakitStr)) {
-                    continue;
-                }
-
-                // 2. Sum Kolom Data Angka (Menyesuaikan index asli pandas df.iloc[:, 3:51])
-                $totalKasus = 0;
-                // Jika data yang didapat berupa numeric associative (misal dari row[3] hingga row[50])
-                for ($i = 3; $i <= 50; $i++) {
-                    $val = $rowArray[$i] ?? 0;
-                    if (is_numeric($val)) {
-                        $totalKasus += (float) $val;
-                    }
-                }
-                
-                // *Opsional:* Jika array berbentuk associative column ('kasus_a', 'kasus_b'),
-                // Anda butuh logic foreach loop pada `$rowArray` dan mengecek array key-nya.
-
-                // 3. Standardisasi Teks
-                $jenisPenyakitStr = Str::upper(trim($jenisPenyakitStr));
-                $icdXStr = Str::upper(trim((string) $icdX));
-
-                // 4. Hanya ambil yang ada kasusnya
-                if ($totalKasus > 0) {
-                    $cleanedData->push([
-                        'Jenis Penyakit' => $jenisPenyakitStr,
-                        'ICD X' => $icdXStr,
-                        'Total_Kasus' => $totalKasus,
-                        'Puskesmas' => $namaPusk,
-                        'Kecamatan' => $kecamatan
-                    ]);
-                }
+        return \Illuminate\Support\Facades\Cache::remember('mapping_kode_kecamatan', 600, function() {
+            $refData = \App\Models\RefPuskesmas::all();
+            $mapping = [];
+            foreach($refData as $ref) {
+                $kodeKecamatan = strtoupper(trim($ref->kode_kecamatan));
+                $namaKecamatan = self::MAPPING_NAMA_KECAMATAN[$kodeKecamatan] ?? $kodeKecamatan;
+                $mapping[$ref->kode_puskesmas] = $namaKecamatan;
             }
-
-            if ($cleanedData->isEmpty()) {
-                $log['status'] = 'WARNING';
-                $log['message'] = 'File valid tapi tidak ada data kasus (>0).';
-            }
-
-            return ['data' => $cleanedData, 'log' => $log];
-
-        } catch (\Exception $e) {
-            $log['status'] = 'ERROR';
-            $log['message'] = 'Gagal memproses: ' . $e->getMessage();
-            return ['data' => collect(), 'log' => $log];
-        }
+            return $mapping;
+        });
     }
+
+    public static function getPuskesmasNames(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('mapping_kode_nama_pusk', 600, function() {
+            return \App\Models\RefPuskesmas::pluck('puskesmas', 'kode_puskesmas')->toArray();
+        });
+    }
+
+    /**
+     * Translate array of ICD codes into [Code => Name] dictionary
+     * Menggunakan array kodes untuk meminimalisasi bebaan RAM dengan format "IN (...)".
+     */
+    public static function getIcdNames(array $icdCodes): array
+    {
+        if (empty($icdCodes)) return [];
+        
+        // Memaksa cache per hash array agar query tak diulang di detik yang sama
+        $hash = md5(implode(',', $icdCodes));
+        return \Illuminate\Support\Facades\Cache::remember("icd_names_{$hash}", 300, function() use ($icdCodes) {
+            return \App\Models\BpjsRefIcd::whereIn('kdDiag', $icdCodes)
+                ->pluck('nmDiag', 'kdDiag')
+                ->toArray();
+        });
+    }
+
 
     /**
      * Menghitung Top N penyakit berdasarkan grup (Kecamatan/Puskesmas).

@@ -62,11 +62,11 @@ class DashboardController extends Controller
         $totalKasusPenyakit = $penyakitStats['totalKasusPenyakit'];
         $topPenyakitData = $penyakitStats['topPenyakitData'];
             
-        $topPenyakitGlobal = $topPenyakitData ? $topPenyakitData->kode_penyakit . ' (' . $topPenyakitData->count . ' Kasus)' : 'Tidak Ada';
+        $topIcdName = $topPenyakitData ? (\App\Services\RecapLogicService::getIcdNames([$topPenyakitData->kode_penyakit])[$topPenyakitData->kode_penyakit] ?? $topPenyakitData->kode_penyakit) : '';
+        $topPenyakitGlobal = $topPenyakitData ? $topIcdName . ' (' . $topPenyakitData->count . ' Kasus)' : 'Tidak Ada';
 
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
-        $totalPuskesmas = count(array_keys($mapping));
-        $totalKecamatan = count(array_unique(array_values($mapping)));
+        $totalPuskesmas = \App\Models\RefPuskesmas::count();
+        $totalKecamatan = \App\Models\RefPuskesmas::distinct('kode_kecamatan')->count();
 
         // Data Tren 12 Bulan
         $trendStats = Cache::remember('dashboard_trend_stats_' . $currentYear, now()->addMinutes(10), function () use ($currentYear) {

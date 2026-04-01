@@ -81,6 +81,7 @@
                     <tr class="border-b-2 border-slate-300">
                         <th class="py-2 px-4 font-bold text-slate-700 w-16 text-center">No</th>
                         <th class="py-2 px-4 font-bold text-slate-700">Kode Penyakit (ICD-X)</th>
+                        <th class="py-2 px-4 font-bold text-slate-700">Nama Penyakit</th>
                         <th class="py-2 px-4 font-bold text-slate-700 text-right w-40">Jumlah Kasus</th>
                     </tr>
                 </thead>
@@ -89,11 +90,12 @@
                         <tr>
                             <td class="py-2 px-4 text-center text-slate-500 font-medium">{{ $index + 1 }}</td>
                             <td class="py-2 px-4 font-bold text-slate-800">{{ $item->kode_penyakit }}</td>
+                            <td class="py-2 px-4 text-slate-700">{{ $item->nama_penyakit ?? $item->kode_penyakit }}</td>
                             <td class="py-2 px-4 text-right font-semibold">{{ number_format($item->count) }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="py-4 text-center text-slate-400 italic">Tidak ada data tercatat.</td>
+                            <td colspan="4" class="py-4 text-center text-slate-400 italic">Tidak ada data tercatat.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -115,6 +117,7 @@
                         <thead>
                             <tr class="bg-slate-50 text-slate-500">
                                 <th class="py-1 px-2">ICD X</th>
+                                <th class="py-1 px-2">Nama</th>
                                 <th class="py-1 px-2 text-right">Kasus</th>
                             </tr>
                         </thead>
@@ -122,11 +125,12 @@
                             @forelse($kData as $item)
                                 <tr>
                                     <td class="py-1.5 px-2 font-semibold">{{ $item->kode_penyakit }}</td>
+                                    <td class="py-1.5 px-2 text-slate-600">{{ $item->nama_penyakit ?? $item->kode_penyakit }}</td>
                                     <td class="py-1.5 px-2 text-right">{{ number_format($item->count) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="2" class="py-2 text-center text-slate-400">Kosong</td>
+                                    <td colspan="3" class="py-2 text-center text-slate-400">Kosong</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -152,11 +156,12 @@
                             @forelse($pData as $item)
                                 <tr>
                                     <td class="py-1 font-semibold text-slate-700">{{ $item->kode_penyakit }}</td>
+                                    <td class="py-1 text-slate-600">{{ $item->nama_penyakit ?? $item->kode_penyakit }}</td>
                                     <td class="py-1 text-right font-medium">{{ number_format($item->count) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="2" class="py-2 text-center text-slate-400">Belum ada data</td>
+                                    <td colspan="3" class="py-2 text-center text-slate-400">Belum ada data</td>
                                 </tr>
                             @endforelse
                         </tbody>

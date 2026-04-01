@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\BpjsRefIcd;
 use App\Models\RekamMedis;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,6 +19,20 @@ class RekamMedisFactory extends Factory
     public function definition(): array
     {
         $status = $this->faker->randomElement(['Baru', 'Lama']);
+        static $icdCodes = null;
+        if ($icdCodes === null) {
+            $icdCodes = BpjsRefIcd::query()
+                ->whereNotNull('kdDiag')
+                ->where('kdDiag', '!=', '')
+                ->inRandomOrder()
+                ->limit(100)
+                ->pluck('kdDiag')
+                ->values()
+                ->all();
+        }
+        $kodePenyakit = !empty($icdCodes)
+            ? $this->faker->randomElement($icdCodes)
+            : $this->faker->randomElement(range('A', 'Z')) . $this->faker->numberBetween(1, 5);
         
         return [
             'tanggal' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28')->format('Y-m-d'),
@@ -46,7 +61,7 @@ class RekamMedisFactory extends Factory
             // SOAP Tambahan
             'anamnesa' => $this->faker->paragraph(2),
             'fisik' => $this->faker->paragraph(1),
-            'kode_penyakit' => $this->faker->randomElement(range('A', 'Z')) . $this->faker->numberBetween(1, 5),
+            'kode_penyakit' => $kodePenyakit,
             'status' => $status,
             'kode_obat' => 'OBT-' . $this->faker->numberBetween(100, 999),
             'jumlah' => $this->faker->numberBetween(10, 30),

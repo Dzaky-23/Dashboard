@@ -60,4 +60,9 @@ class Pasien extends Model
     {
         return $this->hasMany(RekamMedis::class, 'no_reg', 'no_reg')->orderBy('tanggal', 'desc');
     }
+
+    public function referensiPuskesmas()
+    {
+        return $this->belongsTo(RefPuskesmas::class, 'kpusk', 'kode_puskesmas');
+    }
 }
