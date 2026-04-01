@@ -100,7 +100,7 @@
                                             <li class="flex justify-between items-center group/item hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors">
                                                 <div class="flex items-center gap-2">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                                                    <span class="text-sm font-semibold text-slate-700">Pusk. {{ $pstat->nama }}</span>
+                                                    <span class="text-sm font-semibold text-slate-700">{{ \App\Services\RecapLogicService::getPuskesmasNames()[$pstat->nama] ?? $pstat->nama }}</span>
                                                 </div>
                                                 <span class="text-slate-600 text-[11px] font-bold bg-slate-100 px-2 py-1 rounded-md border border-slate-200">{{ number_format($pstat->total_kasus) }} Kasus</span>
                                             </li>

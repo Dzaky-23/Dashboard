@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\RefPuskesmas;
 use App\Models\Pasien;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,10 +20,21 @@ class PasienFactory extends Factory
     {
         $status = $this->faker->randomElement(['Baru', 'Lama']);
         $cara_bayar = $this->faker->randomElement(['Umum', 'BPJS']);
+        static $kpuskCodes = null;
+        if ($kpuskCodes === null) {
+            $kpuskCodes = RefPuskesmas::query()
+                ->pluck('kode_puskesmas')
+                ->filter()
+                ->values()
+                ->all();
+        }
+        $kpusk = !empty($kpuskCodes)
+            ? $this->faker->randomElement($kpuskCodes)
+            : $this->faker->randomElement(array_keys(\App\Services\RecapLogicService::MAPPING_NAMA_KECAMATAN));
         
         return [
             'tanggal' => $this->faker->dateTimeBetween('2024-01-01', '2026-02-28')->format('Y-m-d'),
-            'kpusk' => $this->faker->randomElement(array_keys(\App\Services\RecapLogicService::MAPPING_KECAMATAN)),
+            'kpusk' => $kpusk,
             'no_reg' => date('Ymd') . $this->faker->unique()->numberBetween(1000, 9999),
             'nik' => $this->faker->numerify('################'),
             'sapaan' => $this->faker->title(),

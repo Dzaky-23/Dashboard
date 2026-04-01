@@ -8,7 +8,7 @@
         <a data-search-key="{{ strtolower($puskesmas ?? '') }}" x-show="search === '' || '{{ strtolower($puskesmas ?? '') }}'.includes(search.toLowerCase())" href="{{ route('recap.show', $puskesmas) }}" class="group block bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-red-300 hover:shadow-md hover:ring-1 hover:ring-red-300 transition-all duration-300 relative">
             <div class="flex justify-between items-start mb-2">
                 <h4 class="font-bold text-slate-800 text-base group-hover:text-red-700 transition-colors duration-200 pr-2 truncate">
-                    {{ $puskesmas ?? 'Tidak Diketahui' }}
+                    {{ $puskesmasNames[$puskesmas] ?? $puskesmas }}
                 </h4>
             </div>
             <p class="text-[11px] font-bold text-slate-400 mb-4 flex items-center uppercase tracking-wider">

@@ -67,4 +67,14 @@ class RekamMedis extends Model
     {
         return $this->belongsTo(Pasien::class, 'no_reg', 'no_reg');
     }
+
+    public function referensiPuskesmas()
+    {
+        return $this->belongsTo(RefPuskesmas::class, 'kpusk', 'kode_puskesmas');
+    }
+
+    public function referensiIcd()
+    {
+        return $this->belongsTo(BpjsRefIcd::class, 'kode_penyakit', 'kdDiag');
+    }
 }

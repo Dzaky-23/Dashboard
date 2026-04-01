@@ -98,7 +98,7 @@ class RekamMedisController extends Controller
             'lingkarPerut' => ['nullable', 'integer', 'min:0'],
             'anamnesa' => ['nullable', 'string'],
             'fisik' => ['nullable', 'string'],
-            'kode_penyakit' => ['nullable', 'string', 'max:255'],
+            'kode_penyakit' => ['nullable', 'string', 'max:255', 'exists:bpjs_ref_icd,kdDiag'],
             'status' => ['nullable', 'string', 'max:255'],
             'kode_obat' => ['nullable', 'string'],
             'jumlah' => ['nullable', 'string', 'max:255'],

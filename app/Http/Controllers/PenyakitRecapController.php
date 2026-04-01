@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RekamMedis;
+use App\Models\RekapPenyakitTop;
 use App\Services\RecapLogicService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,22 +16,34 @@ class PenyakitRecapController extends Controller
     {
         $limit = 10;
         $yearInput = $request->input('year', date('Y'));
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
 
         // Ambil daftar tahun unik yang ada datanya
-        $availableYears = RekamMedis::selectRaw('YEAR(tanggal) as year')
-            ->whereNotNull('tanggal')
-            ->groupBy('year')
+        $availableYears = RekapPenyakitTop::query()
+            ->select('year')
+            ->where('scope', 'global')
+            ->where('period_type', 'year')
+            ->whereNotNull('year')
+            ->distinct()
             ->orderByDesc('year')
             ->pluck('year');
 
-        $queryRekap = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
-            ->whereNotNull('kode_penyakit');
+        if ($availableYears->isEmpty()) {
+            $availableYears = RekamMedis::selectRaw('YEAR(tanggal) as year')
+                ->whereNotNull('tanggal')
+                ->groupBy('year')
+                ->orderByDesc('year')
+                ->pluck('year');
+        }
+
+        $queryRekap = RekapPenyakitTop::query()
+            ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
+            ->where('scope', 'puskesmas');
 
         if ($yearInput) {
-            $startDate = Carbon::create($yearInput)->startOfYear();
-            $endDate = Carbon::create($yearInput)->endOfYear();
-            $queryRekap->whereBetween('tanggal', [$startDate, $endDate]);
+            $queryRekap->where('period_type', 'year')->where('year', $yearInput);
+        } else {
+            $queryRekap->where('period_type', 'all');
         }
 
         // Menghitung Data Kecamatan secara Kolektif untuk UI Tampilan Grid Card
@@ -39,15 +52,16 @@ class PenyakitRecapController extends Controller
 
         $cacheKeyRekap = 'rekap:index:' . ($yearInput ?: 'all');
         $rekapData = collect(Cache::remember($cacheKeyRekap, now()->addMinutes(10), function () use ($queryRekap) {
-            return $queryRekap->groupBy('kpusk', 'kode_penyakit')
-                ->orderBy('kpusk')
-                ->orderByDesc('count')
+            return $queryRekap->orderBy('kpusk')
+                ->orderBy('rank')
                 ->get()
                 ->map(function ($row) {
                     return [
                         'kpusk' => $row->kpusk,
                         'kode_penyakit' => $row->kode_penyakit,
+                        'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
+                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -106,14 +120,29 @@ class PenyakitRecapController extends Controller
         sort($listKecamatan);
         
         // Data Global Stats Overview untuk Recap.Index
-        $totalKasus = $rekapData->sum('count');
+        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
+        $icdNames = $rekapData->pluck('nama_penyakit', 'kode_penyakit')
+            ->filter()
+            ->toArray();
+        if (count($icdNames) < $rekapData->pluck('kode_penyakit')->unique()->count()) {
+            $missingCodes = $rekapData->pluck('kode_penyakit')
+                ->unique()
+                ->diff(array_keys($icdNames))
+                ->values()
+                ->toArray();
+            if (!empty($missingCodes)) {
+                $icdNames = array_replace($icdNames, RecapLogicService::getIcdNames($missingCodes));
+            }
+        }
+
         $topPenyakitAgg = $rekapData->groupBy('kode_penyakit')->map(function ($items) {
             return $items->sum('count');
         })->sortDesc();
         $topPenyakitData = $topPenyakitAgg->isNotEmpty()
             ? (object)['kode_penyakit' => $topPenyakitAgg->keys()->first(), 'count' => $topPenyakitAgg->first()]
             : null;
-        $topPenyakit = $topPenyakitData ? $topPenyakitData->kode_penyakit . ' (' . $topPenyakitData->count . ' Kasus)' : 'Tidak Ada';
+        $topPenyakitName = $topPenyakitData ? ($icdNames[$topPenyakitData->kode_penyakit] ?? $topPenyakitData->kode_penyakit) : '';
+        $topPenyakit = $topPenyakitData ? $topPenyakitName . ' (' . $topPenyakitData->count . ' Kasus)' : 'Tidak Ada';
 
         $totalPuskesmas = count(array_keys($mapping));
         $totalKecamatan = count(array_unique(array_values($mapping)));
@@ -141,11 +170,13 @@ class PenyakitRecapController extends Controller
 
         $maxChartWidth = $chartData->max('total') ?: 1;
 
+        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
+
         return view('recap.index', compact(
             'groupedByPusk', 'mapping', 'listPuskesmas', 'listKecamatan', 
             'kecamatanDataList', 'totalKasus', 'topPenyakit', 
             'totalPuskesmas', 'totalKecamatan', 'chartData', 'maxChartWidth',
-            'availableYears', 'yearInput'
+            'availableYears', 'yearInput', 'puskesmasNames', 'icdNames'
         ));
     }
 
@@ -153,7 +184,7 @@ class PenyakitRecapController extends Controller
     {
         $limitInput = $request->input('limit');
         $limit = $limitInput === null ? 10 : (int) $limitInput;
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $kecamatan = $mapping[$puskesmas] ?? 'Tidak Diketahui';
 
         $lastMonth = Carbon::now()->subMonth();
@@ -203,22 +234,31 @@ class PenyakitRecapController extends Controller
             $quarter,
         ]);
 
-        $rekapData = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($puskesmas, $startDate, $endDate) {
-            $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
-                ->whereNotNull('kode_penyakit')
-                ->where('kpusk', $puskesmas);
+        $rekapData = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($puskesmas, $periodType, $year, $month, $semester, $quarter) {
+            $query = RekapPenyakitTop::query()
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->where('scope', 'puskesmas')
+                ->where('kpusk', $puskesmas)
+                ->where('period_type', $periodType);
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('tanggal', [$startDate, $endDate]);
+            if ($periodType === 'year') {
+                $query->where('year', $year);
+            } elseif ($periodType === 'semester') {
+                $query->where('year', $year)->where('semester', $semester);
+            } elseif ($periodType === 'quarter') {
+                $query->where('year', $year)->where('quarter', $quarter);
+            } elseif ($periodType === 'month') {
+                $query->where('year', $year)->where('month', $month);
             }
 
-            return $query->groupBy('kode_penyakit')
-                ->orderByDesc('count')
+            return $query->orderBy('rank')
                 ->get()
                 ->map(function ($row) {
                     return [
                         'kode_penyakit' => $row->kode_penyakit,
+                        'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
+                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -233,18 +273,32 @@ class PenyakitRecapController extends Controller
             $limit = $totalDiagnosaUnik;
         }
 
-        $totalKasus = $rekapData->sum('count');
+        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
 
-        return view('recap.puskesmas.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
+        $icdNames = $rekapData->pluck('nama_penyakit', 'kode_penyakit')
+            ->filter()
+            ->toArray();
+        if (count($icdNames) < $rekapData->pluck('kode_penyakit')->unique()->count()) {
+            $missingCodes = $rekapData->pluck('kode_penyakit')
+                ->unique()
+                ->diff(array_keys($icdNames))
+                ->values()
+                ->toArray();
+            if (!empty($missingCodes)) {
+                $icdNames = array_replace($icdNames, RecapLogicService::getIcdNames($missingCodes));
+            }
+        }
+
+        return view('recap.puskesmas.show', compact('puskesmas', 'kecamatan', 'rekapData', 'totalKasus', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter', 'icdNames'));
     }
 
     public function showKecamatan(Request $request, $kecamatan)
     {
         $limitInput = $request->input('limit');
         $limit = $limitInput === null ? 10 : (int) $limitInput;
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         
         $lastMonth = Carbon::now()->subMonth();
         $periodType = $request->input('period_type', 'month');
@@ -301,22 +355,38 @@ class PenyakitRecapController extends Controller
             $quarter,
         ]);
 
-        $rekapByPusk = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($puskesmasInKecamatan, $startDate, $endDate) {
-            $query = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
-                ->whereNotNull('kode_penyakit')
-                ->whereIn('kpusk', $puskesmasInKecamatan);
+        $kodeKecamatan = array_search($kecamatan, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
+        if ($kodeKecamatan === false) {
+            abort(404, 'Kecamatan tidak ditemukan.');
+        }
 
-            if ($startDate && $endDate) {
-                $query->whereBetween('tanggal', [$startDate, $endDate]);
+        $rekapByPusk = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
+            $query = RekapPenyakitTop::query()
+                ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->where('scope', 'puskesmas')
+                ->where('kode_kecamatan', $kodeKecamatan)
+                ->where('period_type', $periodType);
+
+            if ($periodType === 'year') {
+                $query->where('year', $year);
+            } elseif ($periodType === 'semester') {
+                $query->where('year', $year)->where('semester', $semester);
+            } elseif ($periodType === 'quarter') {
+                $query->where('year', $year)->where('quarter', $quarter);
+            } elseif ($periodType === 'month') {
+                $query->where('year', $year)->where('month', $month);
             }
 
-            return $query->groupBy('kpusk', 'kode_penyakit')
+            return $query->orderBy('kpusk')
+                ->orderBy('rank')
                 ->get()
                 ->map(function ($row) {
                     return [
                         'kpusk' => $row->kpusk,
                         'kode_penyakit' => $row->kode_penyakit,
+                        'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
+                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -348,7 +418,7 @@ class PenyakitRecapController extends Controller
             $limit = $totalDiagnosaUnik;
         }
 
-        $totalKasus = $rekapData->sum('count');
+        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
         $totalPuskesmas = count($puskesmasInKecamatan);
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
@@ -372,7 +442,21 @@ class PenyakitRecapController extends Controller
             ];
         }
 
-        return view('recap.kecamatan.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter'));
+        $icdNames = $rekapData->pluck('nama_penyakit', 'kode_penyakit')
+            ->filter()
+            ->toArray();
+        if (count($icdNames) < $rekapData->pluck('kode_penyakit')->unique()->count()) {
+            $missingCodes = $rekapData->pluck('kode_penyakit')
+                ->unique()
+                ->diff(array_keys($icdNames))
+                ->values()
+                ->toArray();
+            if (!empty($missingCodes)) {
+                $icdNames = array_replace($icdNames, RecapLogicService::getIcdNames($missingCodes));
+            }
+        }
+
+        return view('recap.kecamatan.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter', 'icdNames'));
     }
 
     public function export(Request $request)
@@ -389,17 +473,29 @@ class PenyakitRecapController extends Controller
         $includeLetters = !empty($includeIcdStr) ? explode(',', $includeIcdStr) : [];
         $excludeLetters = !empty($excludeIcdStr) ? explode(',', $excludeIcdStr) : [];
         
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
 
-        // Base Query
-        $query = RekamMedis::select('kpusk', 'kode_penyakit', DB::raw('count(*) as count'))
-            ->whereNotNull('kode_penyakit');
+        $query = RekapPenyakitTop::query()
+            ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
+            ->whereIn('scope', ['global', 'kecamatan', 'puskesmas']);
 
-        if ($startDate) {
-            $query->whereDate('tanggal', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->whereDate('tanggal', '<=', $endDate);
+        if ($startDate || $endDate) {
+            if (!$startDate || !$endDate) {
+                abort(422, 'Untuk export dengan filter tanggal, isi start_date dan end_date sekaligus.');
+            }
+
+            $start = Carbon::parse($startDate);
+            $end = Carbon::parse($endDate);
+
+            if ($start->year !== $end->year) {
+                abort(422, 'Export rekap hanya mendukung satu tahun yang sama untuk start_date dan end_date.');
+            }
+
+            $query->where('period_type', 'month')
+                ->where('year', $start->year)
+                ->whereBetween('month', [$start->month, $end->month]);
+        } else {
+            $query->where('period_type', 'all');
         }
 
         // Terapkan Filter Kategori Huruf A-Z (pada tingkat SQL)
@@ -419,14 +515,15 @@ class PenyakitRecapController extends Controller
             });
         }
 
-        $rawData = $query->groupBy('kpusk', 'kode_penyakit')->get();
+        $rawData = $query->get();
 
         // 1. Data Top N Umum
         $topUmum = collect();
-        $groupedUmum = $rawData->groupBy('kode_penyakit');
+        $groupedUmum = $rawData->where('scope', 'global')->groupBy('kode_penyakit');
         foreach ($groupedUmum as $kode => $items) {
             $topUmum->push((object)[
                 'kode_penyakit' => $kode,
+                'nama_penyakit' => $items->first()->nama_penyakit ?? null,
                 'count' => $items->sum('count')
             ]);
         }
@@ -436,14 +533,20 @@ class PenyakitRecapController extends Controller
         $kecamatanData = [];
         $listKecamatan = array_unique(array_values($mapping));
         foreach ($listKecamatan as $kecName) {
-            $puskInKec = array_keys(array_filter($mapping, fn($k) => $k === $kecName));
-            $dataKec = $rawData->whereIn('kpusk', $puskInKec);
+            $kodeKecamatan = array_search($kecName, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
+            if ($kodeKecamatan === false) {
+                $kecamatanData[$kecName] = collect();
+                continue;
+            }
+
+            $dataKec = $rawData->where('scope', 'kecamatan')->where('kode_kecamatan', $kodeKecamatan);
             
             $groupedKec = $dataKec->groupBy('kode_penyakit');
             $topKec = collect();
             foreach ($groupedKec as $kode => $items) {
                 $topKec->push((object)[
                     'kode_penyakit' => $kode,
+                    'nama_penyakit' => $items->first()->nama_penyakit ?? null,
                     'count' => $items->sum('count')
                 ]);
             }
@@ -452,13 +555,14 @@ class PenyakitRecapController extends Controller
 
         // 3. Data Top N Per Puskesmas
         $puskesmasData = [];
-        $groupedPusk = $rawData->groupBy('kpusk');
+        $groupedPusk = $rawData->where('scope', 'puskesmas')->groupBy('kpusk');
         foreach ($groupedPusk as $puskName => $items) {
             $topPusk = collect();
             $groupedPenyakit = $items->groupBy('kode_penyakit');
             foreach ($groupedPenyakit as $kode => $penyakits) {
                 $topPusk->push((object)[
                     'kode_penyakit' => $kode,
+                    'nama_penyakit' => $penyakits->first()->nama_penyakit ?? null,
                     'count' => $penyakits->sum('count')
                 ]);
             }
@@ -472,38 +576,39 @@ class PenyakitRecapController extends Controller
             
             // Section 1
             $data[] = ['<b>SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)</b>', '', ''];
-            $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+            $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
             foreach ($topUmum as $index => $row) {
-                $data[] = [$index + 1, $row->kode_penyakit, $row->count];
+                $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
             }
-            $data[] = ['', '', ''];
+            $data[] = ['', '', '', ''];
 
             // Section 2
             $data[] = ['<b>SECTION: TOP PENYAKIT PER KECAMATAN</b>', '', ''];
             foreach ($kecamatanData as $kecName => $kecData) {
                 $data[] = ["<b>Kecamatan: $kecName</b>", '', ''];
-                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
                 foreach ($kecData as $index => $row) {
-                    $data[] = [$index + 1, $row->kode_penyakit, $row->count];
+                    $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
                 }
-                $data[] = ['', '', ''];
+                $data[] = ['', '', '', ''];
             }
 
             // Section 3
             $data[] = ['<b>SECTION: TOP PENYAKIT PER PUSKESMAS</b>', '', ''];
             foreach ($puskesmasData as $puskName => $puskData) {
                 $data[] = ["<b>Puskesmas: $puskName</b>", '', ''];
-                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Jumlah Kasus</b>'];
+                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
                 foreach ($puskData as $index => $row) {
-                    $data[] = [$index + 1, $row->kode_penyakit, $row->count];
+                    $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
                 }
-                $data[] = ['', '', ''];
+                $data[] = ['', '', '', ''];
             }
 
             $xlsx = \Shuchkin\SimpleXLSXGen::fromArray($data);
             $xlsx->setColWidth(1, 12);
-            $xlsx->setColWidth(2, 35);
-            $xlsx->setColWidth(3, 18);
+            $xlsx->setColWidth(2, 18);
+            $xlsx->setColWidth(3, 45);
+            $xlsx->setColWidth(4, 18);
             
             $content = (string) $xlsx;
             
@@ -598,7 +703,7 @@ class PenyakitRecapController extends Controller
         $search = $request->input('search');
         $sort = $request->input('sort', 'cases_desc');
 
-        $mapping = RecapLogicService::MAPPING_KECAMATAN;
+        $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $puskesmasList = array_keys(array_filter($mapping, fn($k) => $k === $kecamatan));
 
         if (empty($puskesmasList)) {
