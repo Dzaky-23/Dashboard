@@ -9,6 +9,9 @@
                     exportFormat: 'pdf',
                     exportIncludeLetters: [],
                     exportExcludeLetters: [],
+                    exportPeriodType: 'year',
+                    exportYear: '{{ date('Y') }}',
+                    exportMonth: '{{ date('n') }}',
                     isIncludeOpen: false,
                     isExcludeOpen: false,
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
@@ -157,13 +160,36 @@
                                             <div>
                                                 <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Spesifik</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-4 border border-slate-200 rounded-lg">
-                                                    <div>
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Dari Tanggal</label>
-                                                        <input type="date" name="start_date" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
+                                                    <div class="col-span-1 md:col-span-2">
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Periode Export</label>
+                                                        <select name="period_type" x-model="exportPeriodType" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer bg-slate-50">
+                                                            <option value="year">Per Tahun</option>
+                                                            <option value="month">Per Bulan</option>
+                                                        </select>
                                                     </div>
-                                                    <div>
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Sampai Tanggal</label>
-                                                        <input type="date" name="end_date" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
+                                                    <div x-show="exportPeriodType === 'month'" x-cloak>
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Bulan</label>
+                                                        <select name="month" x-model="exportMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer">
+                                                            @php
+                                                                $bulanIndoStr = ['1'=>'Januari', '2'=>'Februari', '3'=>'Maret', '4'=>'April', '5'=>'Mei', '6'=>'Juni', '7'=>'Juli', '8'=>'Agustus', '9'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
+                                                            @endphp
+                                                            @foreach([1,2,3,4,5,6,7,8,9,10,11,12] as $m)
+                                                                <option value="{{ $m }}">{{ $bulanIndoStr[$m] }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div :class="exportPeriodType === 'month' ? '' : 'col-span-1 md:col-span-2'">
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Tahun</label>
+                                                        <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer">
+                                                            @if(isset($availableYears) && $availableYears->isNotEmpty())
+                                                                @foreach($availableYears as $y)
+                                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                                @endforeach
+                                                            @else
+                                                                <option value="{{ date('Y') }}">{{ date('Y') }}</option>
+                                                                <option value="{{ date('Y') - 1 }}">{{ date('Y') - 1 }}</option>
+                                                            @endif
+                                                        </select>
                                                     </div>
                                                     <div class="pt-2">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Include Kategori (A-Z)</label>
