@@ -29,13 +29,11 @@
                         $widthPercentage = max($percentage, 8);
                         $colors = ['from-pink-400 to-pink-500', 'from-amber-400 to-orange-500', 'from-emerald-400 to-teal-500', 'from-sky-400 to-blue-500', 'from-violet-400 to-indigo-500', 'from-rose-400 to-red-500'];
                         $color = $colors[$index % count($colors)];
-                        
-                        $shortStatus = str_contains($item->status, 'LOLOS') ? 'LOLOS' : str_replace('HAMPIR (', '', str_replace(' unit)', '', $item->status));
                     @endphp
                     <div class="flex flex-row items-center w-full group relative cursor-pointer">
                         <!-- Tooltip on hover -->
-                        <div class="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 bg-slate-800 shadow-xl rounded-xl px-4 py-2 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100">
-                            {{ number_format($item->total) }} Kasus
+                        <div class="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-slate-800 shadow-xl rounded-xl px-4 py-2 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100 z-50">
+                            {{ $item->status }} ({{ number_format($item->total) }} Kasus)
                             <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 transform rotate-45"></div>
                         </div>
 
@@ -77,10 +75,10 @@
             
             <div class="space-y-4 text-sm text-slate-600 font-medium leading-relaxed mb-6">
                 <p>
-                    Grafik ini mengolah <span class="text-slate-800 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{{ number_format($totalKasus ?? 0) }}</span> rekam medis dari seluruh puskesmas terdaftar.
+                    Grafik ini mengumpulkan seluruh data rekam medis dari berbagai puskesmas terdaftar untuk wilayah ini.
                 </p>
                 <p>
-                    Sistem mengelompokkan diagnosa berdasarkan kode ICD-X pasien, lalu menyortir <span class="text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">10 penyakit tersering</span> lintas kecamatan untuk ditampilkan sebagai diagram batang visual.
+                    Sistem mengakumulasi total kasus penyakit secara absolut berdasarkan kode ICD-X, lalu menampilkan <span class="text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">10 diagnosis teratas</span> dengan jumlah kasus terbanyak secara keseluruhan.
                 </p>
             </div>
         </div>

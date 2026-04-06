@@ -50,10 +50,13 @@
             <h2 class="text-xl font-bold text-slate-800 uppercase underline underline-offset-4 mb-2">Laporan Rekapitulasi Penyakit</h2>
             
             <p class="text-sm text-slate-600 font-medium font-mono bg-slate-100 inline-block px-3 py-1 rounded">
-                @if($startDate && $endDate)
-                    Periode: {{ date('d M Y', strtotime($startDate)) }} s/d {{ date('d M Y', strtotime($endDate)) }}
+                @php
+                    $bulanIndoPrint = ['1'=>'Januari', '2'=>'Februari', '3'=>'Maret', '4'=>'April', '5'=>'Mei', '6'=>'Juni', '7'=>'Juli', '8'=>'Agustus', '9'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
+                @endphp
+                @if(isset($periodType) && $periodType === 'month')
+                    Periode: Bulan {{ $bulanIndoPrint[$month] ?? $month }} {{ $year }}
                 @else
-                    Periode: Sepanjang Waktu
+                    Periode: Tahun {{ $year }}
                 @endif
             </p>
             

@@ -147,26 +147,28 @@ class PenyakitRecapController extends Controller
         $totalPuskesmas = count(array_keys($mapping));
         $totalKecamatan = count(array_unique(array_values($mapping)));
 
-        // --- GRAFIK GLOBAL UMUM & SMART ANALYSIS ---
-        $rawDataSemua = $rekapData->map(function ($item) use ($mapping) {
-                return [
-                    'Puskesmas' => $item->kpusk,
-                    'Kecamatan' => $mapping[$item->kpusk] ?? 'Tidak Diketahui',
-                    'Jenis Penyakit' => $item->kode_penyakit,
-                    'ICD X' => $item->kode_penyakit,
-                    'Total_Kasus' => $item->count
+        // --- GRAFIK GLOBAL UMUM ---
+        $chartQuery = RekapPenyakitTop::query()
+            ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as total'))
+            ->where('scope', 'global');
+            
+        if ($yearInput) {
+            $chartQuery->where('period_type', 'year')->where('year', $yearInput);
+        } else {
+            $chartQuery->where('period_type', 'all');
+        }
+
+        $chartData = $chartQuery->orderByDesc('total')
+            ->limit($limit)
+            ->get()
+            ->map(function ($item) use ($icdNames) {
+                $name = $item->nama_penyakit ?? ($icdNames[$item->kode_penyakit] ?? $item->kode_penyakit);
+                return (object)[
+                    'label' => $item->kode_penyakit,
+                    'total' => (int) $item->total,
+                    'status' => $name,
                 ];
             });
-        
-        $recapService = new RecapLogicService();
-        $rankingsGlobal = $recapService->calculateRankings($rawDataSemua, ['Kecamatan'], max($limit, 10));
-        $chartData = $recapService->findCommonDiseases($rankingsGlobal, 'Kecamatan', $limit)->map(function ($item) {
-            return (object)[
-                'label' => $item['ICD X'],
-                'total' => $item['Total_Kasus'],
-                'status' => $item['Status'],
-            ];
-        })->sortByDesc('total')->values();
 
         $maxChartWidth = $chartData->max('total') ?: 1;
 
@@ -466,8 +468,9 @@ class PenyakitRecapController extends Controller
         $topNKecamatan = (int) $request->input('top_n_kecamatan', 10);
         $topNPuskesmas = (int) $request->input('top_n_puskesmas', 10);
         
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        $periodType = $request->input('period_type', 'year');
+        $year = $request->input('year', date('Y'));
+        $month = $request->input('month', date('n'));
         $includeIcdStr = $request->input('include_icd');
         $excludeIcdStr = $request->input('exclude_icd');
         $includeLetters = !empty($includeIcdStr) ? explode(',', $includeIcdStr) : [];
@@ -479,23 +482,13 @@ class PenyakitRecapController extends Controller
             ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
             ->whereIn('scope', ['global', 'kecamatan', 'puskesmas']);
 
-        if ($startDate || $endDate) {
-            if (!$startDate || !$endDate) {
-                abort(422, 'Untuk export dengan filter tanggal, isi start_date dan end_date sekaligus.');
-            }
-
-            $start = Carbon::parse($startDate);
-            $end = Carbon::parse($endDate);
-
-            if ($start->year !== $end->year) {
-                abort(422, 'Export rekap hanya mendukung satu tahun yang sama untuk start_date dan end_date.');
-            }
-
+        if ($periodType === 'month') {
             $query->where('period_type', 'month')
-                ->where('year', $start->year)
-                ->whereBetween('month', [$start->month, $end->month]);
+                  ->where('year', $year)
+                  ->where('month', $month);
         } else {
-            $query->where('period_type', 'all');
+            $query->where('period_type', 'year')
+                  ->where('year', $year);
         }
 
         // Terapkan Filter Kategori Huruf A-Z (pada tingkat SQL)
@@ -626,8 +619,9 @@ class PenyakitRecapController extends Controller
             'topNUmum', 
             'topNKecamatan', 
             'topNPuskesmas',
-            'startDate',
-            'endDate',
+            'periodType',
+            'year',
+            'month',
             'includeLetters',
             'excludeLetters'
         ));
