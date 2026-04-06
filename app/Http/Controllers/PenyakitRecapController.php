@@ -398,20 +398,49 @@ class PenyakitRecapController extends Controller
             });
         });
 
-        $rekapAgg = collect();
-        foreach ($rekapByPusk as $items) {
-            foreach ($items as $row) {
-                $key = $row->kode_penyakit;
-                $rekapAgg[$key] = ($rekapAgg[$key] ?? 0) + $row->count;
-            }
-        }
+        // -------------------------
+        // TARIK DATA KECAMATAN UTUH
+        // -------------------------
+        $cacheKeyKec = implode(':', [
+            'rekap:kecamatan_total',
+            strtoupper($kecamatan),
+            $periodType,
+            $year,
+            $month,
+            $semester,
+            $quarter,
+        ]);
 
-        $rekapData = $rekapAgg->map(function ($count, $kode) {
-            return (object)[
-                'kode_penyakit' => $kode,
-                'count' => $count,
-            ];
-        })->sortByDesc('count')->values();
+        $rekapDataRaw = collect(Cache::remember($cacheKeyKec, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
+            $query = RekapPenyakitTop::query()
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->where('scope', 'kecamatan')
+                ->where('kode_kecamatan', $kodeKecamatan)
+                ->where('period_type', $periodType);
+
+            if ($periodType === 'year') {
+                $query->where('year', $year);
+            } elseif ($periodType === 'semester') {
+                $query->where('year', $year)->where('semester', $semester);
+            } elseif ($periodType === 'quarter') {
+                $query->where('year', $year)->where('quarter', $quarter);
+            } elseif ($periodType === 'month') {
+                $query->where('year', $year)->where('month', $month);
+            }
+
+            return $query->orderBy('rank')->get()->map(function ($row) {
+                return [
+                    'kode_penyakit' => $row->kode_penyakit,
+                    'nama_penyakit' => $row->nama_penyakit,
+                    'count' => (int) $row->count,
+                    'total_kasus' => (int) $row->total_kasus,
+                ];
+            })->all();
+        }));
+
+        $rekapData = $rekapDataRaw->map(function ($row) {
+            return (object) $row;
+        });
 
         $totalDiagnosaUnik = $rekapData->count();
         $warningLimit = null;
@@ -436,7 +465,8 @@ class PenyakitRecapController extends Controller
             $top = $items->sortByDesc('count')->first();
             $puskesmasStats[] = (object)[
                 'nama' => $puskName,
-                'total_kasus' => $items->sum('count'),
+                // Mengambil nilai total_kasus murni dari database, bukan dari sum array (karena array mungkin terpotong limit)
+                'total_kasus' => $top ? $top->total_kasus : $items->sum('count'),
                 'top_penyakit' => $top ? (object)[
                     'kode_penyakit' => $top->kode_penyakit,
                     'count' => $top->count,
