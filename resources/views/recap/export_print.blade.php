@@ -55,6 +55,10 @@
                 @endphp
                 @if(isset($periodType) && $periodType === 'month')
                     Periode: Bulan {{ $bulanIndoPrint[$month] ?? $month }} {{ $year }}
+                @elseif(isset($periodType) && $periodType === 'semester')
+                    Periode: Semester {{ $semester }} Tahun {{ $year }}
+                @elseif(isset($periodType) && $periodType === 'quarter')
+                    Periode: Triwulan {{ $quarter }} (Q{{ $quarter }}) Tahun {{ $year }}
                 @else
                     Periode: Tahun {{ $year }}
                 @endif
@@ -73,39 +77,43 @@
         </div>
 
         <!-- Bagian 1: Keseluruhan Wilayah -->
-        <div class="mb-10">
-            <div class="bg-slate-800 text-white px-4 py-2 font-bold mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Top {{ $topNUmum }} Penyakit - Keseluruhan Wilayah Kabupten
+        @if(in_array('umum', $exportScopes))
+        <!-- SECTION 1: TOP UMUM -->
+        <div class="mb-8">
+            <h3 class="text-sm font-bold text-slate-800 bg-slate-200 px-3 py-2 border-l-4 border-red-500 mb-4 inline-block">SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)</h3>
+            <div class="overflow-hidden border border-slate-300 rounded-md">
+                <table class="w-full text-left border-collapse bg-white">
+                    <thead>
+                        <tr>
+                            <th class="py-2 px-3 border-b border-slate-300 bg-slate-100 text-xs font-bold text-slate-700 w-16 text-center">Peringkat</th>
+                            <th class="py-2 px-3 border-b border-slate-300 bg-slate-100 text-xs font-bold text-slate-700 w-32 text-center">Kode Penyakit (ICD-X)</th>
+                            <th class="py-2 px-3 border-b border-slate-300 bg-slate-100 text-xs font-bold text-slate-700 w-auto">Nama Penyakit</th>
+                            <th class="py-2 px-3 border-b border-slate-300 bg-slate-100 text-xs font-bold text-slate-700 w-32 border-l border-slate-300 text-right">Jumlah Kasus</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm text-slate-700">
+                        @forelse($topUmum as $index => $row)
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-2 px-3 border-b border-slate-200 text-center font-bold">{{ $index + 1 }}</td>
+                                <td class="py-2 px-3 border-b border-slate-200 text-center font-mono font-bold">{{ $row->kode_penyakit }}</td>
+                                <td class="py-2 px-3 border-b border-slate-200">{{ $row->nama_penyakit ?? $row->kode_penyakit }}</td>
+                                <td class="py-2 px-3 border-b border-slate-200 border-l border-slate-300 text-right font-medium text-red-600 bg-red-50/30">
+                                    {{ number_format($row->count) }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="py-4 text-center text-slate-500 italic">Data penyakit untuk seluruh wilayah tidak tersedia.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-            
-            <table class="w-full text-sm text-left border-collapse">
-                <thead>
-                    <tr class="border-b-2 border-slate-300">
-                        <th class="py-2 px-4 font-bold text-slate-700 w-16 text-center">No</th>
-                        <th class="py-2 px-4 font-bold text-slate-700">Kode Penyakit (ICD-X)</th>
-                        <th class="py-2 px-4 font-bold text-slate-700">Nama Penyakit</th>
-                        <th class="py-2 px-4 font-bold text-slate-700 text-right w-40">Jumlah Kasus</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                    @forelse($topUmum as $index => $item)
-                        <tr>
-                            <td class="py-2 px-4 text-center text-slate-500 font-medium">{{ $index + 1 }}</td>
-                            <td class="py-2 px-4 font-bold text-slate-800">{{ $item->kode_penyakit }}</td>
-                            <td class="py-2 px-4 text-slate-700">{{ $item->nama_penyakit ?? $item->kode_penyakit }}</td>
-                            <td class="py-2 px-4 text-right font-semibold">{{ number_format($item->count) }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="py-4 text-center text-slate-400 italic">Tidak ada data tercatat.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
         </div>
+        @endif
 
-        <!-- Bagian 2: Per Kecamatan -->
+        @if(in_array('kecamatan', $exportScopes))
+        <!-- SECTION 2: TOP KECAMATAN -->
         <div class="mb-10">
             <div class="bg-slate-800 text-white px-4 py-2 font-bold mb-4 flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -142,7 +150,9 @@
                 @endforeach
             </div>
         </div>
+        @endif
 
+        @if(in_array('puskesmas', $exportScopes))
         <!-- Bagian 3: Per Fasilitas Kesehatan (Puskesmas) -->
         <div class="mb-8" style="page-break-before: always;">
             <div class="bg-slate-800 text-white px-4 py-2 font-bold mb-4 flex items-center gap-2">
@@ -173,6 +183,7 @@
                 @endforeach
             </div>
         </div>
+        @endif
         
         <div class="pt-8 mt-12 border-t border-slate-300 text-center text-xs text-slate-400 print:bottom-0">
             Dihasilkan oleh Sistem Informasi Rekam Medis (Auto-Generated)

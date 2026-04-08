@@ -501,6 +501,10 @@ class PenyakitRecapController extends Controller
         $periodType = $request->input('period_type', 'year');
         $year = $request->input('year', date('Y'));
         $month = $request->input('month', date('n'));
+        $semester = $request->input('semester', '1');
+        $quarter = $request->input('quarter', '1');
+        
+        $exportScopes = $request->input('export_scope', []);
         $includeIcdStr = $request->input('include_icd');
         $excludeIcdStr = $request->input('exclude_icd');
         $includeLetters = !empty($includeIcdStr) ? explode(',', $includeIcdStr) : [];
@@ -516,6 +520,14 @@ class PenyakitRecapController extends Controller
             $query->where('period_type', 'month')
                   ->where('year', $year)
                   ->where('month', $month);
+        } elseif ($periodType === 'semester') {
+            $query->where('period_type', 'semester')
+                  ->where('year', $year)
+                  ->where('semester', $semester);
+        } elseif ($periodType === 'quarter') {
+            $query->where('period_type', 'quarter')
+                  ->where('year', $year)
+                  ->where('quarter', $quarter);
         } else {
             $query->where('period_type', 'year')
                   ->where('year', $year);
@@ -542,98 +554,233 @@ class PenyakitRecapController extends Controller
 
         // 1. Data Top N Umum
         $topUmum = collect();
-        $groupedUmum = $rawData->where('scope', 'global')->groupBy('kode_penyakit');
-        foreach ($groupedUmum as $kode => $items) {
-            $topUmum->push((object)[
-                'kode_penyakit' => $kode,
-                'nama_penyakit' => $items->first()->nama_penyakit ?? null,
-                'count' => $items->sum('count')
-            ]);
-        }
-        $topUmum = $topUmum->sortByDesc('count')->take($topNUmum)->values();
-
-        // 2. Data Top N Per Kecamatan
-        $kecamatanData = [];
-        $listKecamatan = array_unique(array_values($mapping));
-        foreach ($listKecamatan as $kecName) {
-            $kodeKecamatan = array_search($kecName, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
-            if ($kodeKecamatan === false) {
-                $kecamatanData[$kecName] = collect();
-                continue;
-            }
-
-            $dataKec = $rawData->where('scope', 'kecamatan')->where('kode_kecamatan', $kodeKecamatan);
-            
-            $groupedKec = $dataKec->groupBy('kode_penyakit');
-            $topKec = collect();
-            foreach ($groupedKec as $kode => $items) {
-                $topKec->push((object)[
+        if (in_array('umum', $exportScopes)) {
+            $groupedUmum = $rawData->where('scope', 'global')->groupBy('kode_penyakit');
+            foreach ($groupedUmum as $kode => $items) {
+                $topUmum->push((object)[
                     'kode_penyakit' => $kode,
                     'nama_penyakit' => $items->first()->nama_penyakit ?? null,
                     'count' => $items->sum('count')
                 ]);
             }
-            $kecamatanData[$kecName] = $topKec->sortByDesc('count')->take($topNKecamatan)->values();
+            $topUmum = $topUmum->sortByDesc('count')->take($topNUmum)->values();
+        }
+
+        // 2. Data Top N Per Kecamatan
+        $kecamatanData = [];
+        if (in_array('kecamatan', $exportScopes)) {
+            $listKecamatan = array_unique(array_values($mapping));
+            foreach ($listKecamatan as $kecName) {
+                $kodeKecamatan = array_search($kecName, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
+                if ($kodeKecamatan === false) {
+                    $kecamatanData[$kecName] = collect();
+                    continue;
+                }
+
+                $dataKec = $rawData->where('scope', 'kecamatan')->where('kode_kecamatan', $kodeKecamatan);
+                
+                $groupedKec = $dataKec->groupBy('kode_penyakit');
+                $topKec = collect();
+                foreach ($groupedKec as $kode => $items) {
+                    $topKec->push((object)[
+                        'kode_penyakit' => $kode,
+                        'nama_penyakit' => $items->first()->nama_penyakit ?? null,
+                        'count' => $items->sum('count')
+                    ]);
+                }
+                $kecamatanData[$kecName] = $topKec->sortByDesc('count')->take($topNKecamatan)->values();
+            }
         }
 
         // 3. Data Top N Per Puskesmas
         $puskesmasData = [];
-        $groupedPusk = $rawData->where('scope', 'puskesmas')->groupBy('kpusk');
-        foreach ($groupedPusk as $puskName => $items) {
-            $topPusk = collect();
-            $groupedPenyakit = $items->groupBy('kode_penyakit');
-            foreach ($groupedPenyakit as $kode => $penyakits) {
-                $topPusk->push((object)[
-                    'kode_penyakit' => $kode,
-                    'nama_penyakit' => $penyakits->first()->nama_penyakit ?? null,
-                    'count' => $penyakits->sum('count')
-                ]);
+        if (in_array('puskesmas', $exportScopes)) {
+            $groupedPusk = $rawData->where('scope', 'puskesmas')->groupBy('kpusk');
+            foreach ($groupedPusk as $puskName => $items) {
+                $topPusk = collect();
+                $groupedPenyakit = $items->groupBy('kode_penyakit');
+                foreach ($groupedPenyakit as $kode => $penyakits) {
+                    $topPusk->push((object)[
+                        'kode_penyakit' => $kode,
+                        'nama_penyakit' => $penyakits->first()->nama_penyakit ?? null,
+                        'count' => $penyakits->sum('count')
+                    ]);
+                }
+                $puskesmasData[$puskName] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
             }
-            $puskesmasData[$puskName] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
         }
 
         // ====== GENERATE EXCEL (BINARY XLSX) ======
         if ($format === 'excel') {
             $filename = "Laporan_Rekap_Penyakit_" . date('Ymd_His') . ".xlsx";
-            $data = [];
-            
-            // Section 1
-            $data[] = ['<b>SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)</b>', '', ''];
-            $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
-            foreach ($topUmum as $index => $row) {
-                $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
-            }
-            $data[] = ['', '', '', ''];
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Worksheet');
 
-            // Section 2
-            $data[] = ['<b>SECTION: TOP PENYAKIT PER KECAMATAN</b>', '', ''];
-            foreach ($kecamatanData as $kecName => $kecData) {
-                $data[] = ["<b>Kecamatan: $kecName</b>", '', ''];
-                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
-                foreach ($kecData as $index => $row) {
-                    $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
+            $sheet->getColumnDimension('A')->setWidth(15);
+            $sheet->getColumnDimension('B')->setWidth(25);
+            $sheet->getColumnDimension('C')->setWidth(50);
+            $sheet->getColumnDimension('D')->setWidth(18);
+
+            $currentRow = 1;
+            $charts = [];
+
+            $addChart = function ($titleText, $startRow, $endRow, $currentRow) use (&$charts) {
+                $xAxisTickValues = [
+                    new \PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues('String', "'Worksheet'!\$C\${$startRow}:\$C\${$endRow}", null, $endRow - $startRow + 1)
+                ];
+                $dataSeriesValues = [
+                    new \PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues('Number', "'Worksheet'!\$D\${$startRow}:\$D\${$endRow}", null, $endRow - $startRow + 1)
+                ];
+
+                $series = new \PhpOffice\PhpSpreadsheet\Chart\DataSeries(
+                    \PhpOffice\PhpSpreadsheet\Chart\DataSeries::TYPE_BARCHART,
+                    \PhpOffice\PhpSpreadsheet\Chart\DataSeries::GROUPING_STANDARD,
+                    range(0, count($dataSeriesValues) - 1),
+                    [],
+                    $xAxisTickValues,
+                    $dataSeriesValues
+                );
+                $series->setPlotDirection(\PhpOffice\PhpSpreadsheet\Chart\DataSeries::DIRECTION_BAR);
+
+                $layout = new \PhpOffice\PhpSpreadsheet\Chart\Layout();
+                $layout->setShowVal(true);
+                $layout->setShowCatName(false);
+                $layout->setDLblPos('outEnd');
+
+                $categoryAxis = new \PhpOffice\PhpSpreadsheet\Chart\Axis();
+                $categoryAxis->setAxisOptionsProperties(
+                    \PhpOffice\PhpSpreadsheet\Chart\Properties::AXIS_LABELS_NEXT_TO,
+                    null,
+                    null,
+                    \PhpOffice\PhpSpreadsheet\Chart\Properties::ORIENTATION_REVERSED
+                );
+
+                $valueAxis = new \PhpOffice\PhpSpreadsheet\Chart\Axis();
+
+                $plotArea = new \PhpOffice\PhpSpreadsheet\Chart\PlotArea($layout, [$series]);
+                $title = new \PhpOffice\PhpSpreadsheet\Chart\Title($titleText);
+                
+                $chart = new \PhpOffice\PhpSpreadsheet\Chart\Chart(
+                    'chart_' . $startRow,
+                    $title,
+                    null,
+                    $plotArea,
+                    true,
+                    0,
+                    null,
+                    null,
+                    $categoryAxis,
+                    $valueAxis
+                );
+                
+                $chart->setTopLeftPosition('F' . ($startRow - 1));
+                // Give a little extra width for value labels and enough height for longer rankings.
+                $chart->setBottomRightPosition('Q' . max($endRow, $startRow + 14));
+                $charts[] = $chart;
+            };
+
+            if (in_array('umum', $exportScopes)) {
+                $sheet->setCellValue("A{$currentRow}", 'SECTION: TOP PENYAKIT UMUM (KESELURUHAN WILAYAH)');
+                $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+                $currentRow += 2;
+                
+                $sheet->setCellValue("A{$currentRow}", 'Peringkat');
+                $sheet->setCellValue("B{$currentRow}", 'Kode Penyakit (ICD-X)');
+                $sheet->setCellValue("C{$currentRow}", 'Nama Penyakit');
+                $sheet->setCellValue("D{$currentRow}", 'Jumlah Kasus');
+                $sheet->getStyle("A{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
+                $currentRow++;
+                
+                $startRow = $currentRow;
+                foreach ($topUmum as $index => $row) {
+                    $sheet->setCellValue("A{$currentRow}", $index + 1);
+                    $sheet->setCellValue("B{$currentRow}", $row->kode_penyakit);
+                    $sheet->setCellValue("C{$currentRow}", $row->nama_penyakit ?? $row->kode_penyakit);
+                    $sheet->setCellValue("D{$currentRow}", $row->count);
+                    $currentRow++;
                 }
-                $data[] = ['', '', '', ''];
-            }
-
-            // Section 3
-            $data[] = ['<b>SECTION: TOP PENYAKIT PER PUSKESMAS</b>', '', ''];
-            foreach ($puskesmasData as $puskName => $puskData) {
-                $data[] = ["<b>Puskesmas: $puskName</b>", '', ''];
-                $data[] = ['<b>Peringkat</b>', '<b>Kode Penyakit (ICD-X)</b>', '<b>Nama Penyakit</b>', '<b>Jumlah Kasus</b>'];
-                foreach ($puskData as $index => $row) {
-                    $data[] = [$index + 1, $row->kode_penyakit, $row->nama_penyakit ?? $row->kode_penyakit, $row->count];
+                if ($currentRow > $startRow) {
+                    $addChart('Top Penyakit Umum', $startRow, $currentRow - 1, $currentRow);
                 }
-                $data[] = ['', '', '', ''];
+                $currentRow += 2;
             }
 
-            $xlsx = \Shuchkin\SimpleXLSXGen::fromArray($data);
-            $xlsx->setColWidth(1, 12);
-            $xlsx->setColWidth(2, 18);
-            $xlsx->setColWidth(3, 45);
-            $xlsx->setColWidth(4, 18);
+            if (in_array('kecamatan', $exportScopes)) {
+                $sheet->setCellValue("A{$currentRow}", 'SECTION: TOP PENYAKIT PER KECAMATAN');
+                $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+                $currentRow += 2;
+                
+                foreach ($kecamatanData as $kecName => $kecData) {
+                    $sheet->setCellValue("A{$currentRow}", "Kecamatan: $kecName");
+                    $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+                    $currentRow += 2;
+
+                    $sheet->setCellValue("A{$currentRow}", 'Peringkat');
+                    $sheet->setCellValue("B{$currentRow}", 'Kode Penyakit (ICD-X)');
+                    $sheet->setCellValue("C{$currentRow}", 'Nama Penyakit');
+                    $sheet->setCellValue("D{$currentRow}", 'Jumlah Kasus');
+                    $sheet->getStyle("A{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
+                    $currentRow++;
+
+                    $startRow = $currentRow;
+                    foreach ($kecData as $index => $row) {
+                        $sheet->setCellValue("A{$currentRow}", $index + 1);
+                        $sheet->setCellValue("B{$currentRow}", $row->kode_penyakit);
+                        $sheet->setCellValue("C{$currentRow}", $row->nama_penyakit ?? $row->kode_penyakit);
+                        $sheet->setCellValue("D{$currentRow}", $row->count);
+                        $currentRow++;
+                    }
+                    if ($currentRow > $startRow) {
+                        $addChart("Top Penyakit - $kecName", $startRow, $currentRow - 1, $currentRow);
+                    }
+                    $currentRow += 2;
+                }
+            }
+
+            if (in_array('puskesmas', $exportScopes)) {
+                $sheet->setCellValue("A{$currentRow}", 'SECTION: TOP PENYAKIT PER PUSKESMAS');
+                $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+                $currentRow += 2;
+                
+                foreach ($puskesmasData as $puskName => $puskData) {
+                    $sheet->setCellValue("A{$currentRow}", "Puskesmas: $puskName");
+                    $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+                    $currentRow += 2;
+
+                    $sheet->setCellValue("A{$currentRow}", 'Peringkat');
+                    $sheet->setCellValue("B{$currentRow}", 'Kode Penyakit (ICD-X)');
+                    $sheet->setCellValue("C{$currentRow}", 'Nama Penyakit');
+                    $sheet->setCellValue("D{$currentRow}", 'Jumlah Kasus');
+                    $sheet->getStyle("A{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
+                    $currentRow++;
+
+                    $startRow = $currentRow;
+                    foreach ($puskData as $index => $row) {
+                        $sheet->setCellValue("A{$currentRow}", $index + 1);
+                        $sheet->setCellValue("B{$currentRow}", $row->kode_penyakit);
+                        $sheet->setCellValue("C{$currentRow}", $row->nama_penyakit ?? $row->kode_penyakit);
+                        $sheet->setCellValue("D{$currentRow}", $row->count);
+                        $currentRow++;
+                    }
+                    if ($currentRow > $startRow) {
+                        $addChart("Top Penyakit - $puskName", $startRow, $currentRow - 1, $currentRow);
+                    }
+                    $currentRow += 2;
+                }
+            }
             
-            $content = (string) $xlsx;
+            // Penempelan Objek Chart Ke Spreadsheet Utama
+            foreach ($charts as $chart) {
+                $sheet->addChart($chart);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->setIncludeCharts(true);
+            
+            ob_start();
+            $writer->save('php://output');
+            $content = ob_get_clean();
             
             return response($content)
                 ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -652,6 +799,9 @@ class PenyakitRecapController extends Controller
             'periodType',
             'year',
             'month',
+            'semester',
+            'quarter',
+            'exportScopes',
             'includeLetters',
             'excludeLetters'
         ));
