@@ -68,28 +68,9 @@ class DashboardController extends Controller
         $totalPuskesmas = \App\Models\RefPuskesmas::count();
         $totalKecamatan = \App\Models\RefPuskesmas::distinct('kode_kecamatan')->count();
 
-        // Data Tren 12 Bulan
-        $trendStats = Cache::remember('dashboard_trend_stats_' . $currentYear, now()->addMinutes(10), function () use ($currentYear) {
-            $startDate = Carbon::create($currentYear)->startOfYear();
-            $endDate = Carbon::create($currentYear)->endOfYear();
-
-            $monthlyCases = RekamMedis::selectRaw('MONTH(tanggal) as month, count(*) as total')
-                ->whereNotNull('kode_penyakit')
-                ->whereBetween('tanggal', [$startDate, $endDate])
-                ->groupBy('month')
-                ->pluck('total', 'month')
-                ->all();
-
-            $trendData = [];
-            for ($i = 1; $i <= 12; $i++) {
-                $trendData[] = $monthlyCases[$i] ?? 0;
-            }
-            return $trendData;
-        });
-
         return view('dashboard', compact(
             'totalPasien', 'pasienBaruToday', 'totalBPJS', 'totalUmum',
-            'totalKasusPenyakit', 'topPenyakitGlobal', 'totalPuskesmas', 'totalKecamatan', 'trendStats', 'currentYear'
+            'totalKasusPenyakit', 'topPenyakitGlobal', 'totalPuskesmas', 'totalKecamatan', 'currentYear'
         ));
     }
 }

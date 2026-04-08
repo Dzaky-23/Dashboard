@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class RekapPenyakitTopBuilder
 {
-    private const TOP_LIMIT = 50;
+    private const TOP_LIMIT = 20;
 
     public function build(): void
     {

@@ -9,9 +9,12 @@
                     exportFormat: 'pdf',
                     exportIncludeLetters: [],
                     exportExcludeLetters: [],
+                    exportScope: { umum: true, kecamatan: true, puskesmas: true },
                     exportPeriodType: 'year',
                     exportYear: '{{ date('Y') }}',
                     exportMonth: '{{ date('n') }}',
+                    exportSemester: '1',
+                    exportQuarter: '1',
                     isIncludeOpen: false,
                     isExcludeOpen: false,
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
@@ -139,20 +142,29 @@
                                             <div class="mb-6">
                                                 <h4 class="text-sm font-semibold text-slate-800 mb-3">2. Pengaturan Ranking (Tampilkan Top N)</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                    <div class="bg-white p-3 border border-slate-200 rounded-lg">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Top N Umum</label>
-                                                        <input type="number" name="top_n_umum" value="10" min="1" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
-                                                        <p class="text-[10px] text-slate-400 mt-1 leading-tight">Secara keseluruhan wilayah</p>
+                                                    <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.umum ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
+                                                        <label class="flex items-center cursor-pointer mb-2 w-full">
+                                                            <input type="checkbox" name="export_scope[]" value="umum" x-model="exportScope.umum" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
+                                                            <span class="ml-2 block text-xs font-bold" :class="exportScope.umum ? 'text-slate-800' : 'text-slate-500'">Top N Umum</span>
+                                                        </label>
+                                                        <input type="number" name="top_n_umum" value="10" min="1" :disabled="!exportScope.umum" :class="exportScope.umum ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Secara keseluruhan wilayah</p>
                                                     </div>
-                                                    <div class="bg-white p-3 border border-slate-200 rounded-lg">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Top N Per Kecamatan</label>
-                                                        <input type="number" name="top_n_kecamatan" value="10" min="1" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
-                                                        <p class="text-[10px] text-slate-400 mt-1 leading-tight">Ranking di tiap kecamatan</p>
+                                                    <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.kecamatan ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
+                                                        <label class="flex items-center cursor-pointer mb-2 w-full">
+                                                            <input type="checkbox" name="export_scope[]" value="kecamatan" x-model="exportScope.kecamatan" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
+                                                            <span class="ml-2 block text-xs font-bold" :class="exportScope.kecamatan ? 'text-slate-800' : 'text-slate-500'">Top N Per Kecamatan</span>
+                                                        </label>
+                                                        <input type="number" name="top_n_kecamatan" value="10" min="1" :disabled="!exportScope.kecamatan" :class="exportScope.kecamatan ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap kecamatan</p>
                                                     </div>
-                                                    <div class="bg-white p-3 border border-slate-200 rounded-lg">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Top N Per Puskesmas</label>
-                                                        <input type="number" name="top_n_puskesmas" value="10" min="1" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2">
-                                                        <p class="text-[10px] text-slate-400 mt-1 leading-tight">Ranking di tiap faskes</p>
+                                                    <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.puskesmas ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
+                                                        <label class="flex items-center cursor-pointer mb-2 w-full">
+                                                            <input type="checkbox" name="export_scope[]" value="puskesmas" x-model="exportScope.puskesmas" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
+                                                            <span class="ml-2 block text-xs font-bold" :class="exportScope.puskesmas ? 'text-slate-800' : 'text-slate-500'">Top N Per Puskesmas</span>
+                                                        </label>
+                                                        <input type="number" name="top_n_puskesmas" value="10" min="1" :disabled="!exportScope.puskesmas" :class="exportScope.puskesmas ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap faskes</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -162,14 +174,32 @@
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-4 border border-slate-200 rounded-lg">
                                                     <div class="col-span-1 md:col-span-2">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Periode Export</label>
-                                                        <select name="period_type" x-model="exportPeriodType" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer bg-slate-50">
+                                                        <select name="period_type" x-model="exportPeriodType" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer bg-slate-50">
                                                             <option value="year">Per Tahun</option>
+                                                            <option value="semester">Per Semester</option>
+                                                            <option value="quarter">Per Triwulan</option>
                                                             <option value="month">Per Bulan</option>
+                                                        </select>
+                                                    </div>
+                                                    <div x-show="exportPeriodType === 'semester'" x-cloak>
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Semester</label>
+                                                        <select name="semester" x-model="exportSemester" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                            <option value="1">Semester 1 (Jan - Jun)</option>
+                                                            <option value="2">Semester 2 (Jul - Des)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div x-show="exportPeriodType === 'quarter'" x-cloak>
+                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Triwulan</label>
+                                                        <select name="quarter" x-model="exportQuarter" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                            <option value="1">Triwulan I (Q1)</option>
+                                                            <option value="2">Triwulan II (Q2)</option>
+                                                            <option value="3">Triwulan III (Q3)</option>
+                                                            <option value="4">Triwulan IV (Q4)</option>
                                                         </select>
                                                     </div>
                                                     <div x-show="exportPeriodType === 'month'" x-cloak>
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Bulan</label>
-                                                        <select name="month" x-model="exportMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer">
+                                                        <select name="month" x-model="exportMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
                                                             @php
                                                                 $bulanIndoStr = ['1'=>'Januari', '2'=>'Februari', '3'=>'Maret', '4'=>'April', '5'=>'Mei', '6'=>'Juni', '7'=>'Juli', '8'=>'Agustus', '9'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
                                                             @endphp
@@ -178,9 +208,9 @@
                                                             @endforeach
                                                         </select>
                                                     </div>
-                                                    <div :class="exportPeriodType === 'month' ? '' : 'col-span-1 md:col-span-2'">
+                                                    <div :class="exportPeriodType === 'year' ? 'col-span-1 md:col-span-2' : ''">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Tahun</label>
-                                                        <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 cursor-pointer">
+                                                        <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
                                                             @if(isset($availableYears) && $availableYears->isNotEmpty())
                                                                 @foreach($availableYears as $y)
                                                                     <option value="{{ $y }}">{{ $y }}</option>
