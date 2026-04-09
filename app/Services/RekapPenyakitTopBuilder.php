@@ -301,12 +301,12 @@ class RekapPenyakitTopBuilder
                 }
             })
             ->orderByDesc('jumlah_kasus')
-            ->get();
+            ->cursor();
 
         $this->insertTopRows($rows, $groupKeyFields);
     }
 
-    private function insertTopRows(Collection $rows, array $groupKeyFields): void
+    private function insertTopRows(iterable $rows, array $groupKeyFields): void
     {
         $buffer = [];
         $chunkSize = 1000;
