@@ -5,19 +5,19 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
+                    <a href="{{ route('home') }}">
                         <img src="{{ asset('images/dkk_logo.png') }}" alt="Logo" class="h-12 w-auto object-contain">
                     </a>
                 </div>
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'admin.dashboard')">
+                    {{-- <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'admin.dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
                     <x-nav-link :href="route('pasiens.index')" :active="request()->routeIs('pasiens.*')">
                         Daftar Pasien
-                    </x-nav-link>
+                    </x-nav-link> --}}
                     <x-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.index', 'recap.show', 'recap.kecamatan.show')">
                         Daftar Rekapitulasi
                     </x-nav-link>
@@ -39,12 +39,12 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'admin.dashboard')">
+            {{-- <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'admin.dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('pasiens.index')" :active="request()->routeIs('pasiens.*')">
                 Daftar Pasien
-            </x-responsive-nav-link>
+            </x-responsive-nav-link> --}}
             <x-responsive-nav-link :href="route('recap.index')" :active="request()->routeIs('recap.index', 'recap.show', 'recap.kecamatan.show')">
                 Daftar Rekapitulasi
             </x-responsive-nav-link>

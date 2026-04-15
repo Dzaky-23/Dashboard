@@ -40,12 +40,12 @@
                             
                             <!-- Main Menu Desktop -->
                             <div class="hidden space-x-6 sm:-my-px sm:ml-10 sm:flex">
-                                <a href="{{ route('home') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('home') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
+                                {{-- <a href="{{ route('home') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('home') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Dashboard
                                 </a>
                                 <a href="{{ route('pasiens.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('pasiens.*') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Daftar Pasien
-                                </a>
+                                </a> --}}
                                 <a href="{{ route('recap.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('recap.*') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Daftar Rekapitulasi
                                 </a>
