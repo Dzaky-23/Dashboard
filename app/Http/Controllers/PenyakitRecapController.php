@@ -17,6 +17,8 @@ class PenyakitRecapController extends Controller
         $limit = 10;
         $yearInput = $request->input('year', date('Y'));
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
+        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
+        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
 
         // Ambil daftar tahun unik yang ada datanya
         $availableYears = RekapPenyakitTop::query()
@@ -511,6 +513,7 @@ class PenyakitRecapController extends Controller
         $excludeLetters = !empty($excludeIcdStr) ? explode(',', $excludeIcdStr) : [];
         
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
+        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
 
         $query = RekapPenyakitTop::query()
             ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
@@ -596,7 +599,8 @@ class PenyakitRecapController extends Controller
         $puskesmasData = [];
         if (in_array('puskesmas', $exportScopes)) {
             $groupedPusk = $rawData->where('scope', 'puskesmas')->groupBy('kpusk');
-            foreach ($groupedPusk as $puskName => $items) {
+            foreach ($groupedPusk as $kodePuskesmas => $items) {
+                $namaPuskesmas = $puskesmasNames[$kodePuskesmas] ?? $kodePuskesmas;
                 $topPusk = collect();
                 $groupedPenyakit = $items->groupBy('kode_penyakit');
                 foreach ($groupedPenyakit as $kode => $penyakits) {
@@ -606,7 +610,7 @@ class PenyakitRecapController extends Controller
                         'count' => $penyakits->sum('count')
                     ]);
                 }
-                $puskesmasData[$puskName] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
+                $puskesmasData[$namaPuskesmas] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
             }
         }
 

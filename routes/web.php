@@ -9,22 +9,25 @@ use App\Http\Controllers\PenyakitRecapController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/', [DashboardController::class, 'index'])->name('home');
+    // Route::get('/', [DashboardController::class, 'index'])->name('home');
+    Route::get('/', function () {
+        return redirect()->route('recap.index');
+    })->name('home');
 
-    Route::get('/dashboard', function () {
-        return redirect()->route('home');
-    })->name('dashboard');
+    // Route::get('/dashboard', function () {
+    //     return redirect()->route('home');
+    // })->name('dashboard');
 
-    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+    // Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
-    Route::name('admin.api.')->prefix('/admin/api')->group(function () {
-        Route::apiResource('pasiens', ApiPasienController::class);
-        Route::apiResource('rekam-medis', ApiRekamMedisController::class);
-    });
+    // Route::name('admin.api.')->prefix('/admin/api')->group(function () {
+    //     Route::apiResource('pasiens', ApiPasienController::class);
+    //     Route::apiResource('rekam-medis', ApiRekamMedisController::class);
+    // });
 
-    Route::get('pasiens/{pasien}/rekam-medis', [PasienController::class, 'rekamMedis'])->name('pasiens.rekam_medis');
-    Route::get('pasiens/{pasien}/rekam-medis/{rekam_medis}', [PasienController::class, 'rekamMedisDetail'])->name('pasiens.rekam_medis.show');
-    Route::resource('pasiens', PasienController::class);
+    // Route::get('pasiens/{pasien}/rekam-medis', [PasienController::class, 'rekamMedis'])->name('pasiens.rekam_medis');
+    // Route::get('pasiens/{pasien}/rekam-medis/{rekam_medis}', [PasienController::class, 'rekamMedisDetail'])->name('pasiens.rekam_medis.show');
+    // Route::resource('pasiens', PasienController::class);
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
