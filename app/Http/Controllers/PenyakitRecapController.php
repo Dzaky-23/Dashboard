@@ -55,7 +55,7 @@ class PenyakitRecapController extends Controller
         $cacheKeyRekap = 'rekap:index:' . ($yearInput ?: 'all');
         $rekapData = collect(Cache::remember($cacheKeyRekap, now()->addMinutes(10), function () use ($queryRekap) {
             return $queryRekap->orderBy('kpusk')
-                ->orderBy('rank')
+                ->orderByDesc('jumlah_kasus')
                 ->get()
                 ->map(function ($row) {
                     return [
@@ -240,7 +240,7 @@ class PenyakitRecapController extends Controller
 
         $rekapData = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($puskesmas, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
                 ->where('scope', 'puskesmas')
                 ->where('kpusk', $puskesmas)
                 ->where('period_type', $periodType);
@@ -255,7 +255,7 @@ class PenyakitRecapController extends Controller
                 $query->where('year', $year)->where('month', $month);
             }
 
-            return $query->orderBy('rank')
+            return $query->orderByDesc('jumlah_kasus')
                 ->get()
                 ->map(function ($row) {
                     return [
@@ -366,7 +366,7 @@ class PenyakitRecapController extends Controller
 
         $rekapByPusk = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
                 ->where('scope', 'puskesmas')
                 ->where('kode_kecamatan', $kodeKecamatan)
                 ->where('period_type', $periodType);
@@ -382,7 +382,7 @@ class PenyakitRecapController extends Controller
             }
 
             return $query->orderBy('kpusk')
-                ->orderBy('rank')
+                ->orderByDesc('jumlah_kasus')
                 ->get()
                 ->map(function ($row) {
                     return [
@@ -415,7 +415,7 @@ class PenyakitRecapController extends Controller
 
         $rekapDataRaw = collect(Cache::remember($cacheKeyKec, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus', 'rank')
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
                 ->where('scope', 'kecamatan')
                 ->where('kode_kecamatan', $kodeKecamatan)
                 ->where('period_type', $periodType);
@@ -430,7 +430,7 @@ class PenyakitRecapController extends Controller
                 $query->where('year', $year)->where('month', $month);
             }
 
-            return $query->orderBy('rank')->get()->map(function ($row) {
+            return $query->orderByDesc('jumlah_kasus')->get()->map(function ($row) {
                 return [
                     'kode_penyakit' => $row->kode_penyakit,
                     'nama_penyakit' => $row->nama_penyakit,

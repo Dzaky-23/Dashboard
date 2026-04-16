@@ -2,378 +2,181 @@
 
 namespace App\Services;
 
+use App\Models\RekamMedis;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class RekapPenyakitTopBuilder
 {
-    private const TOP_LIMIT = 20;
+    private const CHUNK_SIZE = 5000;
 
     public function build(): void
     {
-        DB::table('rekap_penyakit_top')->truncate();
+        // 1. Get watermark
+        $log = DB::table('rekap_logs')->orderBy('id', 'desc')->first();
+        $lastProcessedId = $log ? $log->last_processed_id : 0;
 
-        $this->buildGlobal();
-        $this->buildKecamatan();
-        $this->buildPuskesmas();
-    }
+        $maxProcessedId = $lastProcessedId;
 
-    private function baseQuery(): Builder
-    {
-        return DB::table('history as h')
-            ->leftJoin('bpjs_ref_icd as i', 'h.kode_penyakit', '=', 'i.kdDiag')
-            ->leftJoin('ref_puskesmas as r', 'h.kpusk', '=', 'r.kode_puskesmas')
-            ->whereNotNull('h.kode_penyakit');
-    }
+        // 2. Chunk processing from history table
+        DB::table('history')
+            ->where('id', '>', $lastProcessedId)
+            ->orderBy('id')
+            ->chunkById(self::CHUNK_SIZE, function ($records) use (&$maxProcessedId) {
+                
+                $this->processChunk($records);
 
-    private function buildGlobal(): void
-    {
-        $this->buildForScope('global', [], function (Builder $query) {
-            return $query->selectRaw("
-                'global' as scope,
-                'all' as period_type,
-                NULL as year,
-                NULL as month,
-                NULL as quarter,
-                NULL as semester,
-                NULL as kpusk,
-                NULL as kode_kecamatan,
-                h.kode_penyakit,
-                COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                COUNT(*) as jumlah_kasus
-            ")->groupBy('h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('global', ['year'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'global' as scope,
-                    'year' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    NULL as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('global', ['year', 'semester'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'global' as scope,
-                    'semester' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    IF(MONTH(h.tanggal) <= 6, 1, 2) as semester,
-                    NULL as kpusk,
-                    NULL as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'semester', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('global', ['year', 'quarter'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'global' as scope,
-                    'quarter' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    QUARTER(h.tanggal) as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    NULL as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'quarter', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('global', ['year', 'month'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'global' as scope,
-                    'month' as period_type,
-                    YEAR(h.tanggal) as year,
-                    MONTH(h.tanggal) as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    NULL as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'month', 'h.kode_penyakit', 'i.nmDiag');
-        });
-    }
-
-    private function buildKecamatan(): void
-    {
-        $this->buildForScope('kecamatan', ['kode_kecamatan'], function (Builder $query) {
-            return $query->selectRaw("
-                'kecamatan' as scope,
-                'all' as period_type,
-                NULL as year,
-                NULL as month,
-                NULL as quarter,
-                NULL as semester,
-                NULL as kpusk,
-                r.kode_kecamatan as kode_kecamatan,
-                h.kode_penyakit,
-                COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                COUNT(*) as jumlah_kasus
-            ")->groupBy('r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('kecamatan', ['year', 'kode_kecamatan'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'kecamatan' as scope,
-                    'year' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('kecamatan', ['year', 'semester', 'kode_kecamatan'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'kecamatan' as scope,
-                    'semester' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    IF(MONTH(h.tanggal) <= 6, 1, 2) as semester,
-                    NULL as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'semester', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('kecamatan', ['year', 'quarter', 'kode_kecamatan'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'kecamatan' as scope,
-                    'quarter' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    QUARTER(h.tanggal) as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'quarter', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('kecamatan', ['year', 'month', 'kode_kecamatan'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'kecamatan' as scope,
-                    'month' as period_type,
-                    YEAR(h.tanggal) as year,
-                    MONTH(h.tanggal) as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    NULL as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'month', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-    }
-
-    private function buildPuskesmas(): void
-    {
-        $this->buildForScope('puskesmas', ['kpusk'], function (Builder $query) {
-            return $query->selectRaw("
-                'puskesmas' as scope,
-                'all' as period_type,
-                NULL as year,
-                NULL as month,
-                NULL as quarter,
-                NULL as semester,
-                h.kpusk as kpusk,
-                r.kode_kecamatan as kode_kecamatan,
-                h.kode_penyakit,
-                COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                COUNT(*) as jumlah_kasus
-            ")->groupBy('h.kpusk', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('puskesmas', ['year', 'kpusk'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'puskesmas' as scope,
-                    'year' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    h.kpusk as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'h.kpusk', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('puskesmas', ['year', 'semester', 'kpusk'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'puskesmas' as scope,
-                    'semester' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    NULL as quarter,
-                    IF(MONTH(h.tanggal) <= 6, 1, 2) as semester,
-                    h.kpusk as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'semester', 'h.kpusk', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('puskesmas', ['year', 'quarter', 'kpusk'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'puskesmas' as scope,
-                    'quarter' as period_type,
-                    YEAR(h.tanggal) as year,
-                    NULL as month,
-                    QUARTER(h.tanggal) as quarter,
-                    NULL as semester,
-                    h.kpusk as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'quarter', 'h.kpusk', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-
-        $this->buildForScope('puskesmas', ['year', 'month', 'kpusk'], function (Builder $query) {
-            return $query->whereNotNull('h.tanggal')
-                ->selectRaw("
-                    'puskesmas' as scope,
-                    'month' as period_type,
-                    YEAR(h.tanggal) as year,
-                    MONTH(h.tanggal) as month,
-                    NULL as quarter,
-                    NULL as semester,
-                    h.kpusk as kpusk,
-                    r.kode_kecamatan as kode_kecamatan,
-                    h.kode_penyakit,
-                    COALESCE(i.nmDiag, h.kode_penyakit) as nama_penyakit,
-                    COUNT(*) as jumlah_kasus
-                ")->groupBy('year', 'month', 'h.kpusk', 'r.kode_kecamatan', 'h.kode_penyakit', 'i.nmDiag');
-        });
-    }
-
-    private function buildForScope(string $scope, array $groupKeyFields, callable $builder): void
-    {
-        $query = $this->baseQuery();
-        $query = $builder($query);
-
-        $rows = $query
-            ->orderBy($groupKeyFields[0] ?? DB::raw('1'))
-            ->when(count($groupKeyFields) > 1, function (Builder $q) use ($groupKeyFields) {
-                foreach (array_slice($groupKeyFields, 1) as $field) {
-                    $q->orderBy($field);
+                $lastRecord = $records->last();
+                if ($lastRecord) {
+                    $maxProcessedId = max($maxProcessedId, $lastRecord->id);
                 }
-            })
-            ->orderByDesc('jumlah_kasus')
-            ->cursor();
+            });
 
-        $this->insertTopRows($rows, $groupKeyFields);
+        // 3. Update watermark
+        if ($maxProcessedId > $lastProcessedId) {
+            DB::table('rekap_logs')->insert([
+                'last_processed_id' => $maxProcessedId,
+                'last_processed_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
-    private function insertTopRows(iterable $rows, array $groupKeyFields): void
+    private function processChunk(iterable $records): void
     {
-        $buffer = [];
-        $chunkSize = 1000;
-        $now = now();
+        $aggGlobal = [];
+        $aggKecamatan = [];
+        $aggPuskesmas = [];
 
-        $currentKey = null;
-        $currentTop = [];
-        $currentTotal = 0;
-        $currentRank = 0;
+        $mapping = RecapLogicService::getMappingKodeToKecamatan();
+        $mappingKecNameId = RecapLogicService::MAPPING_NAMA_KECAMATAN;
 
-        $flushGroup = function () use (&$buffer, &$currentTop, &$currentTotal, &$chunkSize, $now) {
-            foreach ($currentTop as $item) {
-                $item['total_kasus'] = $currentTotal;
-                $item['created_at'] = $now;
-                $item['updated_at'] = $now;
-                $buffer[] = $item;
+        // Fetch ICD names mapping for the chunk to minimize queries
+        $kodePenyakitSet = [];
+        foreach ($records as $r) {
+            if ($r->kode_penyakit) {
+                $kodePenyakitSet[$r->kode_penyakit] = true;
+            }
+        }
+        
+        $icdNames = [];
+        if (!empty($kodePenyakitSet)) {
+            $icdNames = DB::table('bpjs_ref_icd')
+                ->whereIn('kdDiag', array_keys($kodePenyakitSet))
+                ->pluck('nmDiag', 'kdDiag')
+                ->toArray();
+        }
 
-                if (count($buffer) >= $chunkSize) {
-                    DB::table('rekap_penyakit_top')->insert($buffer);
-                    $buffer = [];
+        foreach ($records as $r) {
+            if (!$r->kode_penyakit) continue;
+
+            $kodePenyakit = $r->kode_penyakit;
+            $namaPenyakit = $icdNames[$kodePenyakit] ?? $kodePenyakit;
+            
+            $dt = $r->tanggal ? Carbon::parse($r->tanggal) : null;
+            $year = $dt ? $dt->year : 0;
+            $month = $dt ? $dt->month : 0;
+            $quarter = $dt ? ceil($dt->month / 3) : 0;
+            $semester = $dt ? ($dt->month <= 6 ? 1 : 2) : 0;
+
+            $kpusk = $r->kpusk ?? '';
+            $kecName = $mapping[$kpusk] ?? '';
+            $kodeKecamatan = $kecName ? (array_search($kecName, $mappingKecNameId) ?: '') : '';
+            if (!$kodeKecamatan && $kpusk) { 
+               $puskRow = DB::table('ref_puskesmas')->where('kode_puskesmas', $kpusk)->first();
+               if ($puskRow && isset($puskRow->kode_kecamatan)) {
+                   $kodeKecamatan = $puskRow->kode_kecamatan;
+               }
+            }
+
+            $pushAgg = function(&$aggArray, $scope, $periodType, $y, $m, $q, $s, $puskesmas, $kec, $icd, $nama) {
+                $puskesmas = ltrim(rtrim($puskesmas));
+                $kec = ltrim(rtrim($kec));
+                $key = "{$scope}|{$periodType}|{$y}|{$m}|{$q}|{$s}|{$puskesmas}|{$kec}|{$icd}";
+                
+                if (!isset($aggArray[$key])) {
+                    $aggArray[$key] = [
+                        'scope' => $scope,
+                        'period_type' => $periodType,
+                        'year' => $y,
+                        'month' => $m,
+                        'quarter' => $q,
+                        'semester' => $s,
+                        'kpusk' => $puskesmas,
+                        'kode_kecamatan' => $kec,
+                        'kode_penyakit' => $icd,
+                        'nama_penyakit' => $nama,
+                        'jumlah_kasus' => 0,
+                    ];
+                }
+                $aggArray[$key]['jumlah_kasus']++;
+            };
+
+            // GLOBAL
+            $pushAgg($aggGlobal, 'global', 'all', 0, 0, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
+            if ($year > 0) {
+                $pushAgg($aggGlobal, 'global', 'year', $year, 0, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
+                $pushAgg($aggGlobal, 'global', 'semester', $year, 0, 0, $semester, '', '', $kodePenyakit, $namaPenyakit);
+                $pushAgg($aggGlobal, 'global', 'quarter', $year, 0, $quarter, 0, '', '', $kodePenyakit, $namaPenyakit);
+                $pushAgg($aggGlobal, 'global', 'month', $year, $month, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
+            }
+
+            // KECAMATAN
+            if ($kodeKecamatan) {
+                $pushAgg($aggKecamatan, 'kecamatan', 'all', 0, 0, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                if ($year > 0) {
+                    $pushAgg($aggKecamatan, 'kecamatan', 'year', $year, 0, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggKecamatan, 'kecamatan', 'semester', $year, 0, 0, $semester, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggKecamatan, 'kecamatan', 'quarter', $year, 0, $quarter, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggKecamatan, 'kecamatan', 'month', $year, $month, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
                 }
             }
-            $currentTop = [];
-            $currentTotal = 0;
-        };
 
-        foreach ($rows as $row) {
-            $rowArr = (array) $row;
-            $keyParts = [];
-            foreach ($groupKeyFields as $field) {
-                $keyParts[] = $rowArr[$field] ?? '';
-            }
-            $groupKey = implode('|', $keyParts);
-
-            if ($currentKey !== null && $groupKey !== $currentKey) {
-                $flushGroup();
-                $currentRank = 0;
-            }
-
-            $currentKey = $groupKey;
-            $currentTotal += (int) $rowArr['jumlah_kasus'];
-
-            if ($currentRank < self::TOP_LIMIT) {
-                $currentRank++;
-                $currentTop[] = [
-                    'scope' => $rowArr['scope'],
-                    'period_type' => $rowArr['period_type'],
-                    'year' => $rowArr['year'] ?? null,
-                    'month' => $rowArr['month'] ?? null,
-                    'quarter' => $rowArr['quarter'] ?? null,
-                    'semester' => $rowArr['semester'] ?? null,
-                    'kpusk' => $rowArr['kpusk'] ?? null,
-                    'kode_kecamatan' => $rowArr['kode_kecamatan'] ?? null,
-                    'rank' => $currentRank,
-                    'kode_penyakit' => $rowArr['kode_penyakit'],
-                    'nama_penyakit' => $rowArr['nama_penyakit'] ?? null,
-                    'jumlah_kasus' => (int) $rowArr['jumlah_kasus'],
-                ];
+            // PUSKESMAS
+            if ($kpusk) {
+                $pushAgg($aggPuskesmas, 'puskesmas', 'all', 0, 0, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                if ($year > 0) {
+                    $pushAgg($aggPuskesmas, 'puskesmas', 'year', $year, 0, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggPuskesmas, 'puskesmas', 'semester', $year, 0, 0, $semester, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggPuskesmas, 'puskesmas', 'quarter', $year, 0, $quarter, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                    $pushAgg($aggPuskesmas, 'puskesmas', 'month', $year, $month, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
+                }
             }
         }
 
-        if ($currentKey !== null) {
-            $flushGroup();
-        }
+        $upserts = array_merge(array_values($aggGlobal), array_values($aggKecamatan), array_values($aggPuskesmas));
+        
+        // Execute manual upsert loop to prevent complex SQL syntax issues
+        // and because unique records per batch is usually small (e.g. 200).
+        foreach ($upserts as $item) {
+            $existing = DB::table('rekap_penyakit_top')
+                ->where('scope', $item['scope'])
+                ->where('period_type', $item['period_type'])
+                ->where('year', $item['year'])
+                ->where('month', $item['month'])
+                ->where('quarter', $item['quarter'])
+                ->where('semester', $item['semester'])
+                ->where('kpusk', $item['kpusk'])
+                ->where('kode_kecamatan', $item['kode_kecamatan'])
+                ->where('kode_penyakit', $item['kode_penyakit'])
+                ->first();
 
-        if (!empty($buffer)) {
-            DB::table('rekap_penyakit_top')->insert($buffer);
+            if ($existing) {
+                DB::table('rekap_penyakit_top')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'jumlah_kasus' => $existing->jumlah_kasus + $item['jumlah_kasus'],
+                        'updated_at' => now()
+                    ]);
+            } else {
+                $item['created_at'] = now();
+                $item['updated_at'] = now();
+                $item['total_kasus'] = 0; // Legacy unused column
+                DB::table('rekap_penyakit_top')->insert($item);
+            }
         }
     }
 }
+
