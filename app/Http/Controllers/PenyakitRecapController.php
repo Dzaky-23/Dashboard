@@ -39,7 +39,7 @@ class PenyakitRecapController extends Controller
         }
 
         $queryRekap = RekapPenyakitTop::query()
-            ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
+            ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
             ->where('scope', 'puskesmas');
 
         if ($yearInput) {
@@ -63,7 +63,6 @@ class PenyakitRecapController extends Controller
                         'kode_penyakit' => $row->kode_penyakit,
                         'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
-                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -122,7 +121,7 @@ class PenyakitRecapController extends Controller
         sort($listKecamatan);
         
         // Data Global Stats Overview untuk Recap.Index
-        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
+        $totalKasus = $rekapData->sum('count');
         $icdNames = $rekapData->pluck('nama_penyakit', 'kode_penyakit')
             ->filter()
             ->toArray();
@@ -240,7 +239,7 @@ class PenyakitRecapController extends Controller
 
         $rekapData = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($puskesmas, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
                 ->where('scope', 'puskesmas')
                 ->where('kpusk', $puskesmas)
                 ->where('period_type', $periodType);
@@ -262,7 +261,6 @@ class PenyakitRecapController extends Controller
                         'kode_penyakit' => $row->kode_penyakit,
                         'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
-                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -277,7 +275,7 @@ class PenyakitRecapController extends Controller
             $limit = $totalDiagnosaUnik;
         }
 
-        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
+        $totalKasus = $rekapData->sum('count');
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
 
@@ -366,7 +364,7 @@ class PenyakitRecapController extends Controller
 
         $rekapByPusk = collect(Cache::remember($cacheKey, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
+                ->select('kpusk', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
                 ->where('scope', 'puskesmas')
                 ->where('kode_kecamatan', $kodeKecamatan)
                 ->where('period_type', $periodType);
@@ -390,7 +388,6 @@ class PenyakitRecapController extends Controller
                         'kode_penyakit' => $row->kode_penyakit,
                         'nama_penyakit' => $row->nama_penyakit,
                         'count' => (int) $row->count,
-                        'total_kasus' => (int) $row->total_kasus,
                     ];
                 })
                 ->all();
@@ -415,7 +412,7 @@ class PenyakitRecapController extends Controller
 
         $rekapDataRaw = collect(Cache::remember($cacheKeyKec, now()->addMinutes(10), function () use ($kodeKecamatan, $periodType, $year, $month, $semester, $quarter) {
             $query = RekapPenyakitTop::query()
-                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'total_kasus')
+                ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
                 ->where('scope', 'kecamatan')
                 ->where('kode_kecamatan', $kodeKecamatan)
                 ->where('period_type', $periodType);
@@ -435,7 +432,6 @@ class PenyakitRecapController extends Controller
                     'kode_penyakit' => $row->kode_penyakit,
                     'nama_penyakit' => $row->nama_penyakit,
                     'count' => (int) $row->count,
-                    'total_kasus' => (int) $row->total_kasus,
                 ];
             })->all();
         }));
@@ -451,7 +447,7 @@ class PenyakitRecapController extends Controller
             $limit = $totalDiagnosaUnik;
         }
 
-        $totalKasus = $rekapData->max('total_kasus') ?: $rekapData->sum('count');
+        $totalKasus = $rekapData->sum('count');
         $totalPuskesmas = count($puskesmasInKecamatan);
         $rekapChartData = $rekapData->take($limit);
         $maxChartWidth = $rekapChartData->isNotEmpty() ? $rekapChartData->max('count') : 1;
@@ -467,8 +463,7 @@ class PenyakitRecapController extends Controller
             $top = $items->sortByDesc('count')->first();
             $puskesmasStats[] = (object)[
                 'nama' => $puskName,
-                // Mengambil nilai total_kasus murni dari database, bukan dari sum array (karena array mungkin terpotong limit)
-                'total_kasus' => $top ? $top->total_kasus : $items->sum('count'),
+                'total_kasus' => $items->sum('count'),
                 'top_penyakit' => $top ? (object)[
                     'kode_penyakit' => $top->kode_penyakit,
                     'count' => $top->count,
@@ -823,35 +818,25 @@ class PenyakitRecapController extends Controller
         $search = $request->input('search');
         $sort = $request->input('sort', 'cases_desc');
 
-        $startDate = null;
-        $endDate = null;
+        $query = RekapPenyakitTop::query()
+            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->where('scope', 'puskesmas')
+            ->where('kpusk', $puskesmas)
+            ->where('period_type', $periodType);
 
         if ($periodType === 'month') {
-            $startDate = Carbon::create($year, $periodValue, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $periodValue, 1)->endOfMonth();
+            $query->where('year', $year)->where('month', $periodValue);
         } elseif ($periodType === 'quarter') {
-            $startMonth = ($periodValue - 1) * 3 + 1;
-            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+            $query->where('year', $year)->where('quarter', $periodValue);
         } elseif ($periodType === 'semester') {
-            $startMonth = ($periodValue - 1) * 6 + 1;
-            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $startMonth + 5, 1)->endOfMonth();
+            $query->where('year', $year)->where('semester', $periodValue);
         } else {
-            $startDate = Carbon::create($year)->startOfYear();
-            $endDate = Carbon::create($year)->endOfYear();
+            $query->where('year', $year);
         }
-
-        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
-            ->whereNotNull('kode_penyakit')
-            ->where('kpusk', $puskesmas)
-            ->whereBetween('tanggal', [$startDate, $endDate]);
 
         if ($search) {
             $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
         }
-
-        $query->groupBy('kode_penyakit');
 
         // Logic Sorting
         if ($sort === 'cases_asc') {
@@ -888,35 +873,30 @@ class PenyakitRecapController extends Controller
             abort(404, 'Kecamatan tidak ditemukan.');
         }
 
-        $startDate = null;
-        $endDate = null;
-
-        if ($periodType === 'month') {
-            $startDate = Carbon::create($year, $periodValue, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $periodValue, 1)->endOfMonth();
-        } elseif ($periodType === 'quarter') {
-            $startMonth = ($periodValue - 1) * 3 + 1;
-            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
-        } elseif ($periodType === 'semester') {
-            $startMonth = ($periodValue - 1) * 6 + 1;
-            $startDate = Carbon::create($year, $startMonth, 1)->startOfMonth();
-            $endDate = Carbon::create($year, $startMonth + 5, 1)->endOfMonth();
-        } else {
-            $startDate = Carbon::create($year)->startOfYear();
-            $endDate = Carbon::create($year)->endOfYear();
+        $kodeKecamatan = array_search($kecamatan, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
+        if ($kodeKecamatan === false) {
+            abort(404, 'Kecamatan tidak ditemukan.');
         }
 
-        $query = RekamMedis::select('kode_penyakit', DB::raw('count(*) as count'))
-            ->whereNotNull('kode_penyakit')
-            ->whereIn('kpusk', $puskesmasList)
-            ->whereBetween('tanggal', [$startDate, $endDate]);
+        $query = RekapPenyakitTop::query()
+            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->where('scope', 'kecamatan')
+            ->where('kode_kecamatan', $kodeKecamatan)
+            ->where('period_type', $periodType);
+
+        if ($periodType === 'month') {
+            $query->where('year', $year)->where('month', $periodValue);
+        } elseif ($periodType === 'quarter') {
+            $query->where('year', $year)->where('quarter', $periodValue);
+        } elseif ($periodType === 'semester') {
+            $query->where('year', $year)->where('semester', $periodValue);
+        } else {
+            $query->where('year', $year);
+        }
 
         if ($search) {
             $query->where('kode_penyakit', 'LIKE', '%' . $search . '%');
         }
-
-        $query->groupBy('kode_penyakit');
 
         // Logic Sorting
         if ($sort === 'cases_asc') {

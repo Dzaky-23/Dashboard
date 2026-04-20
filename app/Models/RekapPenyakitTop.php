@@ -21,6 +21,5 @@ class RekapPenyakitTop extends Model
         'kode_penyakit',
         'nama_penyakit',
         'jumlah_kasus',
-        'total_kasus',
     ];
 }
