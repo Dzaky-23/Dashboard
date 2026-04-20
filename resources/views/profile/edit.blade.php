@@ -21,10 +21,6 @@
         </div>
     </div>
 
-    <div class="bg-white shadow-sm ring-1 ring-slate-100 rounded-2xl overflow-hidden p-6 sm:p-8">
-        <div class="max-w-xl">
-            @include('profile.partials.delete-user-form')
-        </div>
-    </div>
+
 </div>
 @endsection
