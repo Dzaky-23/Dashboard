@@ -59,6 +59,8 @@
                     Periode: Semester {{ $semester }} Tahun {{ $year }}
                 @elseif(isset($periodType) && $periodType === 'quarter')
                     Periode: Triwulan {{ $quarter }} (Q{{ $quarter }}) Tahun {{ $year }}
+                @elseif(isset($periodType) && $periodType === 'custom_date')
+                    Periode: {{ \Carbon\Carbon::parse($startDate)->format('d-m-Y') }} s.d. {{ \Carbon\Carbon::parse($endDate)->format('d-m-Y') }}
                 @else
                     Periode: Tahun {{ $year }}
                 @endif
