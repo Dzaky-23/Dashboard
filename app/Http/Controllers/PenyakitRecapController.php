@@ -490,6 +490,24 @@ class PenyakitRecapController extends Controller
 
     public function export(Request $request)
     {
+        $validated = $request->validate([
+            'format' => ['nullable', 'in:pdf,excel'],
+            'top_n_umum' => ['nullable', 'integer', 'min:1'],
+            'top_n_kecamatan' => ['nullable', 'integer', 'min:1'],
+            'top_n_puskesmas' => ['nullable', 'integer', 'min:1'],
+            'period_type' => ['nullable', 'in:year,semester,quarter,month,custom_date'],
+            'year' => ['nullable', 'integer'],
+            'month' => ['nullable', 'integer', 'between:1,12'],
+            'semester' => ['nullable', 'integer', 'between:1,2'],
+            'quarter' => ['nullable', 'integer', 'between:1,4'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date'],
+            'export_scope' => ['nullable', 'array'],
+            'export_scope.*' => ['in:umum,kecamatan,puskesmas'],
+            'include_icd' => ['nullable', 'string'],
+            'exclude_icd' => ['nullable', 'string'],
+        ]);
+
         $format = $request->input('format', 'pdf');
         $topNUmum = (int) $request->input('top_n_umum', 10);
         $topNKecamatan = (int) $request->input('top_n_kecamatan', 10);
@@ -500,55 +518,30 @@ class PenyakitRecapController extends Controller
         $month = $request->input('month', date('n'));
         $semester = $request->input('semester', '1');
         $quarter = $request->input('quarter', '1');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if ($periodType === 'custom_date') {
+            $request->validate([
+                'start_date' => ['required', 'date'],
+                'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            ]);
+
+            $startDate = Carbon::parse($startDate)->toDateString();
+            $endDate = Carbon::parse($endDate)->toDateString();
+        }
         
         $exportScopes = $request->input('export_scope', []);
         $includeIcdStr = $request->input('include_icd');
         $excludeIcdStr = $request->input('exclude_icd');
-        $includeLetters = !empty($includeIcdStr) ? explode(',', $includeIcdStr) : [];
-        $excludeLetters = !empty($excludeIcdStr) ? explode(',', $excludeIcdStr) : [];
+        $includeLetters = !empty($includeIcdStr) ? array_values(array_filter(array_map('trim', explode(',', $includeIcdStr)))) : [];
+        $excludeLetters = !empty($excludeIcdStr) ? array_values(array_filter(array_map('trim', explode(',', $excludeIcdStr)))) : [];
         
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
-
-        $query = RekapPenyakitTop::query()
-            ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
-            ->whereIn('scope', ['global', 'kecamatan', 'puskesmas']);
-
-        if ($periodType === 'month') {
-            $query->where('period_type', 'month')
-                  ->where('year', $year)
-                  ->where('month', $month);
-        } elseif ($periodType === 'semester') {
-            $query->where('period_type', 'semester')
-                  ->where('year', $year)
-                  ->where('semester', $semester);
-        } elseif ($periodType === 'quarter') {
-            $query->where('period_type', 'quarter')
-                  ->where('year', $year)
-                  ->where('quarter', $quarter);
-        } else {
-            $query->where('period_type', 'year')
-                  ->where('year', $year);
-        }
-
-        // Terapkan Filter Kategori Huruf A-Z (pada tingkat SQL)
-        if (!empty($includeLetters)) {
-            $query->where(function ($q) use ($includeLetters) {
-                foreach ($includeLetters as $letter) {
-                    $q->orWhere('kode_penyakit', 'LIKE', trim($letter) . '%');
-                }
-            });
-        }
-
-        if (!empty($excludeLetters)) {
-            $query->where(function ($q) use ($excludeLetters) {
-                foreach ($excludeLetters as $letter) {
-                    $q->where('kode_penyakit', 'NOT LIKE', trim($letter) . '%');
-                }
-            });
-        }
-
-        $rawData = $query->get();
+        $rawData = $periodType === 'custom_date'
+            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includeLetters, $excludeLetters)
+            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includeLetters, $excludeLetters);
 
         // 1. Data Top N Umum
         $topUmum = collect();
@@ -800,10 +793,155 @@ class PenyakitRecapController extends Controller
             'month',
             'semester',
             'quarter',
+            'startDate',
+            'endDate',
             'exportScopes',
             'includeLetters',
             'excludeLetters'
         ));
+    }
+
+    private function getAggregateExportData(
+        string $periodType,
+        string|int|null $year,
+        string|int|null $month,
+        string|int|null $semester,
+        string|int|null $quarter,
+        array $includeLetters,
+        array $excludeLetters
+    ) {
+        $query = RekapPenyakitTop::query()
+            ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
+            ->whereIn('scope', ['global', 'kecamatan', 'puskesmas']);
+
+        if ($periodType === 'month') {
+            $query->where('period_type', 'month')
+                ->where('year', $year)
+                ->where('month', $month);
+        } elseif ($periodType === 'semester') {
+            $query->where('period_type', 'semester')
+                ->where('year', $year)
+                ->where('semester', $semester);
+        } elseif ($periodType === 'quarter') {
+            $query->where('period_type', 'quarter')
+                ->where('year', $year)
+                ->where('quarter', $quarter);
+        } else {
+            $query->where('period_type', 'year')
+                ->where('year', $year);
+        }
+
+        $this->applyKodePenyakitLetterFilters($query, 'kode_penyakit', $includeLetters, $excludeLetters);
+
+        return $query->get();
+    }
+
+    private function getRawHistoryExportData(
+        array $exportScopes,
+        string $startDate,
+        string $endDate,
+        array $includeLetters,
+        array $excludeLetters
+    ) {
+        $baseQuery = DB::table('history as h')
+            ->leftJoin('ref_puskesmas as rp', DB::raw("TRIM(COALESCE(h.kpusk, ''))"), '=', DB::raw("TRIM(COALESCE(rp.kode_puskesmas, ''))"))
+            ->leftJoin('bpjs_ref_icd as icd', DB::raw('TRIM(h.kode_penyakit)'), '=', DB::raw('TRIM(icd.kdDiag)'))
+            ->whereNotNull('h.tanggal')
+            ->whereBetween('h.tanggal', [$startDate, $endDate])
+            ->whereRaw("TRIM(COALESCE(h.kode_penyakit, '')) <> ''");
+
+        $this->applyKodePenyakitLetterFilters($baseQuery, 'h.kode_penyakit', $includeLetters, $excludeLetters);
+
+        $rawData = collect();
+
+        if (in_array('umum', $exportScopes, true)) {
+            $rawData = $rawData->concat(
+                (clone $baseQuery)
+                    ->selectRaw("
+                        'global' as scope,
+                        '' as kpusk,
+                        '' as kode_kecamatan,
+                        TRIM(h.kode_penyakit) as kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
+                        COUNT(*) as count,
+                        ? as period_type,
+                        NULL as year,
+                        NULL as month
+                    ", ['custom_date'])
+                    ->groupByRaw("TRIM(h.kode_penyakit), COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))")
+                    ->get()
+            );
+        }
+
+        if (in_array('kecamatan', $exportScopes, true)) {
+            $rawData = $rawData->concat(
+                (clone $baseQuery)
+                    ->whereRaw("TRIM(COALESCE(rp.kode_kecamatan, '')) <> ''")
+                    ->selectRaw("
+                        'kecamatan' as scope,
+                        '' as kpusk,
+                        TRIM(COALESCE(rp.kode_kecamatan, '')) as kode_kecamatan,
+                        TRIM(h.kode_penyakit) as kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
+                        COUNT(*) as count,
+                        ? as period_type,
+                        NULL as year,
+                        NULL as month
+                    ", ['custom_date'])
+                    ->groupByRaw("
+                        TRIM(COALESCE(rp.kode_kecamatan, '')),
+                        TRIM(h.kode_penyakit),
+                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))
+                    ")
+                    ->get()
+            );
+        }
+
+        if (in_array('puskesmas', $exportScopes, true)) {
+            $rawData = $rawData->concat(
+                (clone $baseQuery)
+                    ->whereRaw("TRIM(COALESCE(h.kpusk, '')) <> ''")
+                    ->selectRaw("
+                        'puskesmas' as scope,
+                        TRIM(COALESCE(h.kpusk, '')) as kpusk,
+                        TRIM(COALESCE(rp.kode_kecamatan, '')) as kode_kecamatan,
+                        TRIM(h.kode_penyakit) as kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
+                        COUNT(*) as count,
+                        ? as period_type,
+                        NULL as year,
+                        NULL as month
+                    ", ['custom_date'])
+                    ->groupByRaw("
+                        TRIM(COALESCE(h.kpusk, '')),
+                        TRIM(COALESCE(rp.kode_kecamatan, '')),
+                        TRIM(h.kode_penyakit),
+                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))
+                    ")
+                    ->get()
+            );
+        }
+
+        return $rawData->values();
+    }
+
+    private function applyKodePenyakitLetterFilters($query, string $column, array $includeLetters, array $excludeLetters): void
+    {
+        if (!empty($includeLetters)) {
+            $query->where(function ($q) use ($includeLetters, $column) {
+                foreach ($includeLetters as $letter) {
+                    $q->orWhere($column, 'LIKE', trim($letter) . '%');
+                }
+            });
+        }
+
+        if (!empty($excludeLetters)) {
+            $query->where(function ($q) use ($excludeLetters, $column) {
+                foreach ($excludeLetters as $letter) {
+                    $q->where($column, 'NOT LIKE', trim($letter) . '%');
+                }
+            });
+        }
     }
 
     // ==========================================

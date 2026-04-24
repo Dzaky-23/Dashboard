@@ -2,46 +2,44 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RekapPenyakitTopBuilder
 {
     private const CHUNK_SIZE = 5000;
-    private const UPSERT_BATCH_SIZE = 500;
+    private const JOB_NAME = 'recap-top-build';
 
     public function build(): void
     {
         // 1. Get watermark
-        $log = DB::table('rekap_logs')->orderBy('id', 'desc')->first();
+        $log = DB::table('rekap_logs')
+            ->where('job_name', self::JOB_NAME)
+            ->first();
         $lastProcessedId = $log ? $log->last_processed_id : 0;
-
-        $maxProcessedId = $lastProcessedId;
 
         // 2. Chunk processing from history table
         DB::table('history')
+            ->select('id')
             ->where('id', '>', $lastProcessedId)
             ->orderBy('id')
-            ->chunkById(self::CHUNK_SIZE, function ($records) use (&$maxProcessedId) {
-                
+            ->chunkById(self::CHUNK_SIZE, function ($records) {
                 $this->processChunk($records);
 
-                $lastRecord = $records->last();
-                if ($lastRecord) {
-                    $maxProcessedId = max($maxProcessedId, $lastRecord->id);
+                $lastId = $records->last()?->id;
+                if ($lastId) {
+                    $now = now();
+                    DB::table('rekap_logs')->updateOrInsert(
+                        ['job_name' => self::JOB_NAME],
+                        [
+                            'last_processed_id' => $lastId,
+                            'last_processed_at' => $now,
+                            'updated_at'        => $now,
+                            'created_at'        => $now,
+                        ]
+                    );
                 }
             });
-
-        // 3. Update watermark
-        if ($maxProcessedId > $lastProcessedId) {
-            DB::table('rekap_logs')->insert([
-                'last_processed_id' => $maxProcessedId,
-                'last_processed_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
     }
 
     private function processChunk(iterable $records): void
@@ -56,193 +54,119 @@ class RekapPenyakitTopBuilder
             return;
         }
 
-        $aggGlobal = [];
-        $aggKecamatan = [];
-        $aggPuskesmas = [];
+        $minId = (int) $records->first()->id;
+        $maxId = (int) $records->last()->id;
 
-        $mapping = RecapLogicService::getMappingKodeToKecamatan();
-        $namaToKodeKecamatan = array_flip(RecapLogicService::MAPPING_NAMA_KECAMATAN);
-
-        $kodePenyakitSet = [];
-        $kpuskSet = [];
-        foreach ($records as $record) {
-            if (!empty($record->kode_penyakit)) {
-                $kodePenyakitSet[$record->kode_penyakit] = true;
-            }
-            if (!empty($record->kpusk)) {
-                $kpuskSet[trim((string) $record->kpusk)] = true;
-            }
-        }
-
-        $icdNames = [];
-        if (!empty($kodePenyakitSet)) {
-            $icdNames = DB::table('bpjs_ref_icd')
-                ->whereIn('kdDiag', array_keys($kodePenyakitSet))
-                ->pluck('nmDiag', 'kdDiag')
-                ->toArray();
-        }
-
-        $puskesmasKecMap = [];
-        if (!empty($kpuskSet)) {
-            $puskesmasKecMap = DB::table('ref_puskesmas')
-                ->whereIn('kode_puskesmas', array_keys($kpuskSet))
-                ->pluck('kode_kecamatan', 'kode_puskesmas')
-                ->map(fn ($kode) => trim((string) $kode))
-                ->toArray();
-        }
-
-        foreach ($records as $r) {
-            if (!$r->kode_penyakit) {
-                continue;
-            }
-
-            $kodePenyakit = $r->kode_penyakit;
-            $namaPenyakit = $icdNames[$kodePenyakit] ?? $kodePenyakit;
-            $dt = $r->tanggal ? Carbon::parse($r->tanggal) : null;
-            $year = $dt ? $dt->year : 0;
-            $month = $dt ? $dt->month : 0;
-            $quarter = $dt ? (int) ceil($dt->month / 3) : 0;
-            $semester = $dt ? ($dt->month <= 6 ? 1 : 2) : 0;
-
-            $kpusk = trim((string) ($r->kpusk ?? ''));
-            $kecName = $mapping[$kpusk] ?? '';
-            $kodeKecamatan = $kecName ? ($namaToKodeKecamatan[$kecName] ?? '') : '';
-            if (!$kodeKecamatan && $kpusk) {
-                $kodeKecamatan = $puskesmasKecMap[$kpusk] ?? '';
-            }
-
-            // GLOBAL
-            $this->pushAggregate($aggGlobal, 'global', 'all', 0, 0, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
-            if ($year > 0) {
-                $this->pushAggregate($aggGlobal, 'global', 'year', $year, 0, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
-                $this->pushAggregate($aggGlobal, 'global', 'semester', $year, 0, 0, $semester, '', '', $kodePenyakit, $namaPenyakit);
-                $this->pushAggregate($aggGlobal, 'global', 'quarter', $year, 0, $quarter, 0, '', '', $kodePenyakit, $namaPenyakit);
-                $this->pushAggregate($aggGlobal, 'global', 'month', $year, $month, 0, 0, '', '', $kodePenyakit, $namaPenyakit);
-            }
-
-            // KECAMATAN
-            if ($kodeKecamatan) {
-                $this->pushAggregate($aggKecamatan, 'kecamatan', 'all', 0, 0, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                if ($year > 0) {
-                    $this->pushAggregate($aggKecamatan, 'kecamatan', 'year', $year, 0, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggKecamatan, 'kecamatan', 'semester', $year, 0, 0, $semester, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggKecamatan, 'kecamatan', 'quarter', $year, 0, $quarter, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggKecamatan, 'kecamatan', 'month', $year, $month, 0, 0, '', $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                }
-            }
-
-            // PUSKESMAS
-            if ($kpusk) {
-                $this->pushAggregate($aggPuskesmas, 'puskesmas', 'all', 0, 0, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                if ($year > 0) {
-                    $this->pushAggregate($aggPuskesmas, 'puskesmas', 'year', $year, 0, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggPuskesmas, 'puskesmas', 'semester', $year, 0, 0, $semester, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggPuskesmas, 'puskesmas', 'quarter', $year, 0, $quarter, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                    $this->pushAggregate($aggPuskesmas, 'puskesmas', 'month', $year, $month, 0, 0, $kpusk, $kodeKecamatan, $kodePenyakit, $namaPenyakit);
-                }
-            }
-        }
-
-        $upserts = array_merge(array_values($aggGlobal), array_values($aggKecamatan), array_values($aggPuskesmas));
-        if (empty($upserts)) {
-            return;
-        }
-
-        $now = now();
-        $upserts = array_map(function (array $item) use ($now) {
-            $item['created_at'] = $now;
-            $item['updated_at'] = $now;
-
-            return $item;
-        }, $upserts);
-
-        foreach (array_chunk($upserts, self::UPSERT_BATCH_SIZE) as $batch) {
-            $this->upsertAggregateBatch($batch);
+        foreach ($this->aggregateDefinitions() as $definition) {
+            $this->upsertAggregateRange($minId, $maxId, $definition);
         }
     }
 
     /**
-     * Tambahkan hitungan untuk kombinasi agregasi tertentu.
-     *
-     * @param array<string, array<string, int|string|null>> $aggArray
+     * @return array<int, array<string, mixed>>
      */
-    private function pushAggregate(
-        array &$aggArray,
-        string $scope,
-        string $periodType,
-        int $year,
-        int $month,
-        int $quarter,
-        int $semester,
-        string $kpusk,
-        string $kodeKecamatan,
-        string $kodePenyakit,
-        string $namaPenyakit
-    ): void {
-        $kpusk = trim($kpusk);
-        $kodeKecamatan = trim($kodeKecamatan);
-        $key = "{$scope}|{$periodType}|{$year}|{$month}|{$quarter}|{$semester}|{$kpusk}|{$kodeKecamatan}|{$kodePenyakit}";
-
-        if (!isset($aggArray[$key])) {
-            $aggArray[$key] = [
-                'scope' => $scope,
-                'period_type' => $periodType,
-                'year' => $year,
-                'month' => $month,
-                'quarter' => $quarter,
-                'semester' => $semester,
-                'kpusk' => $kpusk,
-                'kode_kecamatan' => $kodeKecamatan,
-                'kode_penyakit' => $kodePenyakit,
-                'nama_penyakit' => $namaPenyakit,
-                'jumlah_kasus' => 0,
-            ];
-        }
-
-        $aggArray[$key]['jumlah_kasus']++;
-    }
-
-    /**
-     * Lakukan batch upsert menggunakan sintaks ON DUPLICATE KEY UPDATE
-     * agar jumlah kasus tetap diakumulasi secara incremental.
-     *
-     * @param array<int, array<string, int|string|null>> $batch
-     */
-    private function upsertAggregateBatch(array $batch): void
+    private function aggregateDefinitions(): array
     {
-        $columns = [
-            'scope',
-            'period_type',
-            'year',
-            'month',
-            'quarter',
-            'semester',
-            'kpusk',
-            'kode_kecamatan',
-            'kode_penyakit',
-            'nama_penyakit',
-            'jumlah_kasus',
-            'created_at',
-            'updated_at',
+        $types = [
+            ['period_type' => 'all', 'year' => '0', 'month' => '0', 'quarter' => '0', 'semester' => '0', 'where' => [], 'group_by' => []],
+            ['period_type' => 'year', 'year' => 'YEAR(h.tanggal)', 'month' => '0', 'quarter' => '0', 'semester' => '0', 'where' => ['h.tanggal IS NOT NULL'], 'group_by' => ['YEAR(h.tanggal)']],
+            ['period_type' => 'semester', 'year' => 'YEAR(h.tanggal)', 'month' => '0', 'quarter' => '0', 'semester' => 'CASE WHEN MONTH(h.tanggal) <= 6 THEN 1 ELSE 2 END', 'where' => ['h.tanggal IS NOT NULL'], 'group_by' => ['YEAR(h.tanggal)', 'CASE WHEN MONTH(h.tanggal) <= 6 THEN 1 ELSE 2 END']],
+            ['period_type' => 'quarter', 'year' => 'YEAR(h.tanggal)', 'month' => '0', 'quarter' => 'QUARTER(h.tanggal)', 'semester' => '0', 'where' => ['h.tanggal IS NOT NULL'], 'group_by' => ['YEAR(h.tanggal)', 'QUARTER(h.tanggal)']],
+            ['period_type' => 'month', 'year' => 'YEAR(h.tanggal)', 'month' => 'MONTH(h.tanggal)', 'quarter' => '0', 'semester' => '0', 'where' => ['h.tanggal IS NOT NULL'], 'group_by' => ['YEAR(h.tanggal)', 'MONTH(h.tanggal)']],
         ];
 
-        $rowPlaceholder = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
-        $placeholders = implode(', ', array_fill(0, count($batch), $rowPlaceholder));
-        $quotedColumns = implode(', ', array_map(fn (string $column) => "`{$column}`", $columns));
+        $scopes = [
+            [
+                'scope' => 'global',
+                'kpusk' => "''",
+                'kode_kecamatan' => "''",
+                'where' => [],
+                'group_by' => [],
+            ],
+            [
+                'scope' => 'kecamatan',
+                'kpusk' => "''",
+                'kode_kecamatan' => "TRIM(COALESCE(rp.kode_kecamatan, ''))",
+                'where' => ["TRIM(COALESCE(rp.kode_kecamatan, '')) <> ''"],
+                'group_by' => ["TRIM(COALESCE(rp.kode_kecamatan, ''))"],
+            ],
+            [
+                'scope' => 'puskesmas',
+                'kpusk' => "TRIM(COALESCE(h.kpusk, ''))",
+                'kode_kecamatan' => "TRIM(COALESCE(rp.kode_kecamatan, ''))",
+                'where' => ["TRIM(COALESCE(h.kpusk, '')) <> ''"],
+                'group_by' => ["TRIM(COALESCE(h.kpusk, ''))", "TRIM(COALESCE(rp.kode_kecamatan, ''))"],
+            ],
+        ];
 
-        $sql = "INSERT INTO `rekap_penyakit_top` ({$quotedColumns}) VALUES {$placeholders} "
+        $definitions = [];
+        foreach ($scopes as $scope) {
+            foreach ($types as $type) {
+                $definitions[] = [
+                    'scope' => $scope['scope'],
+                    'period_type' => $type['period_type'],
+                    'year' => $type['year'],
+                    'month' => $type['month'],
+                    'quarter' => $type['quarter'],
+                    'semester' => $type['semester'],
+                    'kpusk' => $scope['kpusk'],
+                    'kode_kecamatan' => $scope['kode_kecamatan'],
+                    'where' => array_merge($scope['where'], $type['where']),
+                    'group_by' => array_merge(
+                        $scope['group_by'],
+                        $type['group_by'],
+                        ['TRIM(h.kode_penyakit)', "COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))"]
+                    ),
+                ];
+            }
+        }
+
+        return $definitions;
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     */
+    private function upsertAggregateRange(int $minId, int $maxId, array $definition): void
+    {
+        $selectColumns = [
+            "'{$definition['scope']}' AS scope",
+            "'{$definition['period_type']}' AS period_type",
+            "{$definition['year']} AS year",
+            "{$definition['month']} AS month",
+            "{$definition['quarter']} AS quarter",
+            "{$definition['semester']} AS semester",
+            "{$definition['kpusk']} AS kpusk",
+            "{$definition['kode_kecamatan']} AS kode_kecamatan",
+            "TRIM(h.kode_penyakit) AS kode_penyakit",
+            "COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) AS nama_penyakit",
+            'COUNT(*) AS jumlah_kasus',
+            'NOW() AS created_at',
+            'NOW() AS updated_at',
+        ];
+
+        $where = array_merge(
+            [
+                'h.id >= ?',
+                'h.id <= ?',
+                "TRIM(COALESCE(h.kode_penyakit, '')) <> ''",
+            ],
+            $definition['where']
+        );
+
+        $sql = "INSERT INTO `rekap_penyakit_top` "
+            . "(`scope`, `period_type`, `year`, `month`, `quarter`, `semester`, `kpusk`, `kode_kecamatan`, `kode_penyakit`, `nama_penyakit`, `jumlah_kasus`, `created_at`, `updated_at`) "
+            . "SELECT " . implode(",\n                ", $selectColumns) . "\n"
+            . "FROM `history` h\n"
+            . "LEFT JOIN `ref_puskesmas` rp ON TRIM(COALESCE(h.kpusk, '')) = TRIM(COALESCE(rp.kode_puskesmas, ''))\n"
+            . "LEFT JOIN `bpjs_ref_icd` icd ON TRIM(h.kode_penyakit) = TRIM(icd.kdDiag)\n"
+            . "WHERE " . implode("\n  AND ", $where) . "\n"
+            . "GROUP BY " . implode(",\n                ", $definition['group_by']) . "\n"
             . "ON DUPLICATE KEY UPDATE "
             . "`nama_penyakit` = VALUES(`nama_penyakit`), "
             . "`jumlah_kasus` = `jumlah_kasus` + VALUES(`jumlah_kasus`), "
             . "`updated_at` = VALUES(`updated_at`)";
 
-        $bindings = [];
-        foreach ($batch as $item) {
-            foreach ($columns as $column) {
-                $bindings[] = $item[$column];
-            }
-        }
-
-        DB::statement($sql, $bindings);
+        DB::statement($sql, [$minId, $maxId]);
     }
 }

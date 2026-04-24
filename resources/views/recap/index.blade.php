@@ -15,6 +15,8 @@
                     exportMonth: '{{ date('n') }}',
                     exportSemester: '1',
                     exportQuarter: '1',
+                    exportStartDate: '{{ date('Y-m-01') }}',
+                    exportEndDate: '{{ date('Y-m-d') }}',
                     isIncludeOpen: false,
                     isExcludeOpen: false,
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
@@ -179,7 +181,18 @@
                                                             <option value="semester">Per Semester</option>
                                                             <option value="quarter">Per Triwulan</option>
                                                             <option value="month">Per Bulan</option>
+                                                            <option value="custom_date">Rentang Tanggal</option>
                                                         </select>
+                                                    </div>
+                                                    <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4" x-show="exportPeriodType === 'custom_date'" x-cloak>
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Mulai</label>
+                                                            <input type="date" name="start_date" x-model="exportStartDate" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2">
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Selesai</label>
+                                                            <input type="date" name="end_date" x-model="exportEndDate" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2">
+                                                        </div>
                                                     </div>
                                                     <div x-show="exportPeriodType === 'semester'" x-cloak>
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Semester</label>
@@ -208,7 +221,7 @@
                                                             @endforeach
                                                         </select>
                                                     </div>
-                                                    <div :class="exportPeriodType === 'year' ? 'col-span-1 md:col-span-2' : ''">
+                                                    <div x-show="exportPeriodType !== 'custom_date'" :class="exportPeriodType === 'year' ? 'col-span-1 md:col-span-2' : ''">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Tahun</label>
                                                         <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
                                                             @if(isset($availableYears) && $availableYears->isNotEmpty())
