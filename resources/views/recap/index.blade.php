@@ -7,8 +7,16 @@
                     search: '',
                     openExportModal: false,
                     exportFormat: 'pdf',
-                    exportIncludeLetters: [],
-                    exportExcludeLetters: [],
+                    exportIncludePrefixes: [],
+                    exportExcludePrefixes: [],
+                    exportIncludeCodes: [],
+                    exportExcludeCodes: [],
+                    exportIncludeCodeSearch: '',
+                    exportExcludeCodeSearch: '',
+                    includeCodeOptions: [],
+                    excludeCodeOptions: [],
+                    includeCodeLoading: false,
+                    excludeCodeLoading: false,
                     exportScope: { umum: true, kecamatan: true, puskesmas: true },
                     exportPeriodType: 'year',
                     exportYear: '{{ date('Y') }}',
@@ -19,6 +27,7 @@
                     exportEndDate: '{{ date('Y-m-d') }}',
                     isIncludeOpen: false,
                     isExcludeOpen: false,
+                    icdSearchUrl: '{{ route('recap.icd.search') }}',
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
                     get hasResults() {
                         if (this.search === '') return true;
@@ -33,6 +42,58 @@
                             elements = Array.from($el.querySelectorAll('.tab-puskesmas [data-search-key]'));
                         }
                         return elements.some(el => el.dataset.searchKey.includes(q));
+                    },
+                    togglePrefix(type, prefix) {
+                        const key = type === 'include' ? 'exportIncludePrefixes' : 'exportExcludePrefixes';
+                        this[key] = this[key].includes(prefix)
+                            ? this[key].filter(item => item !== prefix)
+                            : [...this[key], prefix];
+                    },
+                    removeCode(type, code) {
+                        const key = type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes';
+                        this[key] = this[key].filter(item => item.code !== code);
+                    },
+                    async searchIcd(type) {
+                        const searchKey = type === 'include' ? 'exportIncludeCodeSearch' : 'exportExcludeCodeSearch';
+                        const resultsKey = type === 'include' ? 'includeCodeOptions' : 'excludeCodeOptions';
+                        const loadingKey = type === 'include' ? 'includeCodeLoading' : 'excludeCodeLoading';
+                        const query = this[searchKey].trim();
+
+                        if (query.length < 2) {
+                            this[resultsKey] = [];
+                            return;
+                        }
+
+                        this[loadingKey] = true;
+
+                        try {
+                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const payload = await response.json();
+                            const selected = new Set(this[type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes'].map(item => item.code));
+                            this[resultsKey] = (payload.data || []).filter(item => !selected.has(item.code));
+                        } catch (error) {
+                            this[resultsKey] = [];
+                        } finally {
+                            this[loadingKey] = false;
+                        }
+                    },
+                    addCode(type, option) {
+                        const codesKey = type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes';
+                        const searchKey = type === 'include' ? 'exportIncludeCodeSearch' : 'exportExcludeCodeSearch';
+                        const resultsKey = type === 'include' ? 'includeCodeOptions' : 'excludeCodeOptions';
+
+                        if (this[codesKey].some(item => item.code === option.code)) {
+                            return;
+                        }
+
+                        this[codesKey] = [...this[codesKey], option];
+                        this[searchKey] = '';
+                        this[resultsKey] = [];
                     }
                 }">
                     @if($groupedByPusk->isEmpty())
@@ -99,9 +160,18 @@
                                     class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-2xl">
                                     
                                     <form action="{{ route('recap.export') }}" method="GET">
-                                        <!-- Hidden Inputs untuk A-Z -->
-                                        <input type="hidden" name="include_icd" :value="exportIncludeLetters.join(',')">
-                                        <input type="hidden" name="exclude_icd" :value="exportExcludeLetters.join(',')">
+                                        <template x-for="prefix in exportIncludePrefixes" :key="'include-prefix-' + prefix">
+                                            <input type="hidden" name="include_prefixes[]" :value="prefix">
+                                        </template>
+                                        <template x-for="prefix in exportExcludePrefixes" :key="'exclude-prefix-' + prefix">
+                                            <input type="hidden" name="exclude_prefixes[]" :value="prefix">
+                                        </template>
+                                        <template x-for="item in exportIncludeCodes" :key="'include-code-' + item.code">
+                                            <input type="hidden" name="include_codes[]" :value="item.code">
+                                        </template>
+                                        <template x-for="item in exportExcludeCodes" :key="'exclude-code-' + item.code">
+                                            <input type="hidden" name="exclude_codes[]" :value="item.code">
+                                        </template>
 
                                         <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
                                             <div>
@@ -174,6 +244,15 @@
                                             <div>
                                                 <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Spesifik</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-4 border border-slate-200 rounded-lg">
+                                                    <div class="col-span-1 md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                                        <h5 class="text-xs font-bold uppercase tracking-wide text-blue-800">Panduan Filter</h5>
+                                                        <div class="mt-2 space-y-1 text-xs text-blue-900 leading-relaxed">
+                                                            <p><span class="font-semibold">Include Awalan Kode</span> untuk menampilkan kelompok kode berdasarkan huruf depan, misalnya <span class="font-mono">A</span>.</p>
+                                                            <p><span class="font-semibold">Include Kode Spesifik</span> untuk menampilkan kode tertentu saja, misalnya <span class="font-mono">A01</span>.</p>
+                                                            <p><span class="font-semibold">Exclude</span> untuk mengeluarkan data dari hasil export, baik per awalan maupun per kode spesifik.</p>
+                                                            <p><span class="font-semibold">Prioritas filter:</span> jika kode masuk include dan exclude sekaligus, maka <span class="font-semibold">exclude</span> yang akan dipakai.</p>
+                                                        </div>
+                                                    </div>
                                                     <div class="col-span-1 md:col-span-2">
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Periode Export</label>
                                                         <select name="period_type" x-model="exportPeriodType" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer bg-slate-50">
@@ -234,52 +313,108 @@
                                                             @endif
                                                         </select>
                                                     </div>
-                                                    <div class="pt-2">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Include Kategori (A-Z)</label>
+                                                    <div class="pt-2 space-y-3">
+                                                        <label class="block text-xs font-bold text-slate-500">Include Awalan Kode</label>
                                                         <div class="relative w-full" @click.outside="isIncludeOpen = false">
                                                             <div @click="isIncludeOpen = !isIncludeOpen; isExcludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isIncludeOpen ? 'ring-2 ring-red-500 border-red-500' : ''">
-                                                                <span x-show="exportIncludeLetters.length === 0" class="text-slate-400 text-sm">Pilih Kategori (Bisa >1)...</span>
-                                                                <div x-show="exportIncludeLetters.length > 0" class="flex flex-wrap gap-1">
-                                                                    <template x-for="l in exportIncludeLetters" :key="l">
-                                                                        <span class="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
+                                                                <span x-show="exportIncludePrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
+                                                                <div x-show="exportIncludePrefixes.length > 0" class="flex flex-wrap gap-1">
+                                                                    <template x-for="prefix in exportIncludePrefixes" :key="prefix">
+                                                                        <span class="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="prefix"></span>
                                                                     </template>
                                                                 </div>
                                                                 <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                             </div>
-                                                            <!-- Menu Dropdown Jatuh ke bawah -->
                                                             <div x-show="isIncludeOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-xl p-3" style="display: none;">
                                                                 <div class="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
-                                                                    <template x-for="l in letters" :key="l">
-                                                                        <button type="button" @click.stop="exportIncludeLetters.includes(l) ? exportIncludeLetters = exportIncludeLetters.filter(x => x !== l) : exportIncludeLetters.push(l)"
-                                                                        :class="exportIncludeLetters.includes(l) ? 'bg-red-600 text-white border-red-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:border-red-300'"
-                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="l"></button>
+                                                                    <template x-for="prefix in letters" :key="prefix">
+                                                                        <button type="button" @click.stop="togglePrefix('include', prefix)"
+                                                                        :class="exportIncludePrefixes.includes(prefix) ? 'bg-red-600 text-white border-red-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:border-red-300'"
+                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="prefix"></button>
                                                                     </template>
                                                                 </div>
                                                             </div>
                                                         </div>
+
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Include Kode Spesifik</label>
+                                                            <input
+                                                                type="text"
+                                                                x-model="exportIncludeCodeSearch"
+                                                                @input.debounce.300ms="searchIcd('include')"
+                                                                placeholder="Cari kode atau nama penyakit, mis. A01"
+                                                                class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2"
+                                                            >
+                                                            <p class="text-[10px] text-slate-400 mt-1">Ketik minimal 2 karakter untuk mencari ICD spesifik.</p>
+                                                            <div x-show="includeCodeLoading" class="text-xs text-slate-400 mt-2">Mencari kode ICD...</div>
+                                                            <div x-show="includeCodeOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-white divide-y divide-slate-100">
+                                                                <template x-for="option in includeCodeOptions" :key="option.code">
+                                                                    <button type="button" @click="addCode('include', option)" class="w-full px-3 py-2 text-left hover:bg-slate-50">
+                                                                        <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
+                                                                        <div class="text-xs text-slate-500" x-text="option.name"></div>
+                                                                    </button>
+                                                                </template>
+                                                            </div>
+                                                            <div x-show="exportIncludeCodes.length > 0" class="mt-2 flex flex-wrap gap-2">
+                                                                <template x-for="item in exportIncludeCodes" :key="item.code">
+                                                                    <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 border border-red-200">
+                                                                        <span x-text="item.code"></span>
+                                                                        <button type="button" @click="removeCode('include', item.code)" class="text-red-500 hover:text-red-700">&times;</button>
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
-                                                    <div class="pt-2">
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Exclude Kategori (A-Z)</label>
+                                                    <div class="pt-2 space-y-3">
+                                                        <label class="block text-xs font-bold text-slate-500">Exclude Awalan Kode</label>
                                                         <div class="relative w-full" @click.outside="isExcludeOpen = false">
                                                             <div @click="isExcludeOpen = !isExcludeOpen; isIncludeOpen = false" class="w-full border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-colors hover:bg-slate-50" :class="isExcludeOpen ? 'ring-2 ring-red-500 border-red-500' : ''">
-                                                                <span x-show="exportExcludeLetters.length === 0" class="text-slate-400 text-sm">Pilih Kategori (Bisa >1)...</span>
-                                                                <div x-show="exportExcludeLetters.length > 0" class="flex flex-wrap gap-1">
-                                                                    <template x-for="l in exportExcludeLetters" :key="l">
-                                                                        <span class="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="l"></span>
+                                                                <span x-show="exportExcludePrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
+                                                                <div x-show="exportExcludePrefixes.length > 0" class="flex flex-wrap gap-1">
+                                                                    <template x-for="prefix in exportExcludePrefixes" :key="prefix">
+                                                                        <span class="bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[10px]" x-text="prefix"></span>
                                                                     </template>
                                                                 </div>
                                                                 <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                             </div>
-                                                            <!-- Menu Dropdown Jatuh ke atas (bottom-full) agar tidak terpotong window jika di HP -->
                                                             <div x-show="isExcludeOpen" x-transition class="absolute bottom-full mb-1 z-50 w-full bg-white border border-slate-200 rounded-md shadow-xl p-3" style="display: none;">
                                                                 <div class="grid grid-cols-6 sm:grid-cols-7 gap-1.5">
-                                                                    <template x-for="l in letters" :key="l">
-                                                                        <button type="button" @click.stop="exportExcludeLetters.includes(l) ? exportExcludeLetters = exportExcludeLetters.filter(x => x !== l) : exportExcludeLetters.push(l)"
-                                                                        :class="exportExcludeLetters.includes(l) ? 'bg-red-600 text-white border-red-600 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:border-red-300'"
-                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="l"></button>
+                                                                    <template x-for="prefix in letters" :key="prefix">
+                                                                        <button type="button" @click.stop="togglePrefix('exclude', prefix)"
+                                                                        :class="exportExcludePrefixes.includes(prefix) ? 'bg-slate-700 text-white border-slate-700 shadow-inner' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'"
+                                                                        class="rounded border py-1.5 text-xs font-bold transition-colors shadow-sm" x-text="prefix"></button>
                                                                     </template>
                                                                 </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Exclude Kode Spesifik</label>
+                                                            <input
+                                                                type="text"
+                                                                x-model="exportExcludeCodeSearch"
+                                                                @input.debounce.300ms="searchIcd('exclude')"
+                                                                placeholder="Cari kode atau nama penyakit yang ingin dikecualikan"
+                                                                class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2"
+                                                            >
+                                                            <p class="text-[10px] text-slate-400 mt-1">Contoh: A01 agar kode tersebut tidak masuk ke hasil export.</p>
+                                                            <div x-show="excludeCodeLoading" class="text-xs text-slate-400 mt-2">Mencari kode ICD...</div>
+                                                            <div x-show="excludeCodeOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-white divide-y divide-slate-100">
+                                                                <template x-for="option in excludeCodeOptions" :key="option.code">
+                                                                    <button type="button" @click="addCode('exclude', option)" class="w-full px-3 py-2 text-left hover:bg-slate-50">
+                                                                        <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
+                                                                        <div class="text-xs text-slate-500" x-text="option.name"></div>
+                                                                    </button>
+                                                                </template>
+                                                            </div>
+                                                            <div x-show="exportExcludeCodes.length > 0" class="mt-2 flex flex-wrap gap-2">
+                                                                <template x-for="item in exportExcludeCodes" :key="item.code">
+                                                                    <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 border border-slate-200">
+                                                                        <span x-text="item.code"></span>
+                                                                        <button type="button" @click="removeCode('exclude', item.code)" class="text-slate-500 hover:text-slate-700">&times;</button>
+                                                                    </span>
+                                                                </template>
                                                             </div>
                                                         </div>
                                                     </div>

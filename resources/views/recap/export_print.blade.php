@@ -66,14 +66,24 @@
                 @endif
             </p>
             
-            @if(!empty($includeLetters))
+            @if(!empty($includePrefixes))
             <p class="text-xs text-blue-600 font-bold mt-2">
-                *Hanya Menampilkan Kategori: {{ implode(', ', $includeLetters) }}
+                *Hanya Menampilkan Awalan Kode: {{ implode(', ', $includePrefixes) }}
             </p>
             @endif
-            @if(!empty($excludeLetters))
+            @if(!empty($includeCodes))
+            <p class="text-xs text-blue-600 font-bold mt-1">
+                *Hanya Menampilkan Kode Spesifik: {{ implode(', ', $includeCodes) }}
+            </p>
+            @endif
+            @if(!empty($excludePrefixes))
             <p class="text-xs text-red-600 font-bold mt-1">
-                *Mengecualikan Kategori: {{ implode(', ', $excludeLetters) }}
+                *Mengecualikan Awalan Kode: {{ implode(', ', $excludePrefixes) }}
+            </p>
+            @endif
+            @if(!empty($excludeCodes))
+            <p class="text-xs text-red-600 font-bold mt-1">
+                *Mengecualikan Kode Spesifik: {{ implode(', ', $excludeCodes) }}
             </p>
             @endif
         </div>
