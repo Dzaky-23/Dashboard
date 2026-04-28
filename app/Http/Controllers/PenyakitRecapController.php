@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BpjsRefIcd;
 use App\Models\RekamMedis;
 use App\Models\RekapPenyakitTop;
 use App\Services\RecapLogicService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -181,6 +183,31 @@ class PenyakitRecapController extends Controller
             'totalPuskesmas', 'totalKecamatan', 'chartData', 'maxChartWidth',
             'availableYears', 'yearInput', 'puskesmasNames', 'icdNames'
         ));
+    }
+
+    public function searchIcd(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $query = $this->normalizeFilterToken($validated['q'] ?? '');
+
+        $results = BpjsRefIcd::query()
+            ->selectRaw("TRIM(kdDiag) as code, COALESCE(NULLIF(TRIM(nmDiag), ''), TRIM(kdDiag)) as name")
+            ->when($query !== '', function ($builder) use ($query) {
+                $builder->where(function ($nested) use ($query): void {
+                    $nested->whereRaw('UPPER(TRIM(kdDiag)) LIKE ?', ['%' . $query . '%'])
+                        ->orWhereRaw('UPPER(TRIM(nmDiag)) LIKE ?', ['%' . $query . '%']);
+                });
+            })
+            ->orderByRaw('TRIM(kdDiag) ASC')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => $results,
+        ]);
     }
 
     public function show(Request $request, $puskesmas)
@@ -504,6 +531,14 @@ class PenyakitRecapController extends Controller
             'end_date' => ['nullable', 'date'],
             'export_scope' => ['nullable', 'array'],
             'export_scope.*' => ['in:umum,kecamatan,puskesmas'],
+            'include_prefixes' => ['nullable', 'array'],
+            'include_prefixes.*' => ['nullable', 'string', 'max:20'],
+            'exclude_prefixes' => ['nullable', 'array'],
+            'exclude_prefixes.*' => ['nullable', 'string', 'max:20'],
+            'include_codes' => ['nullable', 'array'],
+            'include_codes.*' => ['nullable', 'string', 'max:20'],
+            'exclude_codes' => ['nullable', 'array'],
+            'exclude_codes.*' => ['nullable', 'string', 'max:20'],
             'include_icd' => ['nullable', 'string'],
             'exclude_icd' => ['nullable', 'string'],
         ]);
@@ -532,16 +567,22 @@ class PenyakitRecapController extends Controller
         }
         
         $exportScopes = $request->input('export_scope', []);
-        $includeIcdStr = $request->input('include_icd');
-        $excludeIcdStr = $request->input('exclude_icd');
-        $includeLetters = !empty($includeIcdStr) ? array_values(array_filter(array_map('trim', explode(',', $includeIcdStr)))) : [];
-        $excludeLetters = !empty($excludeIcdStr) ? array_values(array_filter(array_map('trim', explode(',', $excludeIcdStr)))) : [];
+        $includePrefixes = $this->mergePrefixFilters(
+            $request->input('include_prefixes', []),
+            $request->input('include_icd')
+        );
+        $excludePrefixes = $this->mergePrefixFilters(
+            $request->input('exclude_prefixes', []),
+            $request->input('exclude_icd')
+        );
+        $includeCodes = $this->normalizeCodeFilters($request->input('include_codes', []));
+        $excludeCodes = $this->normalizeCodeFilters($request->input('exclude_codes', []));
         
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
         $rawData = $periodType === 'custom_date'
-            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includeLetters, $excludeLetters)
-            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includeLetters, $excludeLetters);
+            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes)
+            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
 
         // 1. Data Top N Umum
         $topUmum = collect();
@@ -796,8 +837,10 @@ class PenyakitRecapController extends Controller
             'startDate',
             'endDate',
             'exportScopes',
-            'includeLetters',
-            'excludeLetters'
+            'includePrefixes',
+            'excludePrefixes',
+            'includeCodes',
+            'excludeCodes'
         ));
     }
 
@@ -807,8 +850,10 @@ class PenyakitRecapController extends Controller
         string|int|null $month,
         string|int|null $semester,
         string|int|null $quarter,
-        array $includeLetters,
-        array $excludeLetters
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes
     ) {
         $query = RekapPenyakitTop::query()
             ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
@@ -831,7 +876,7 @@ class PenyakitRecapController extends Controller
                 ->where('year', $year);
         }
 
-        $this->applyKodePenyakitLetterFilters($query, 'kode_penyakit', $includeLetters, $excludeLetters);
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
 
         return $query->get();
     }
@@ -840,8 +885,10 @@ class PenyakitRecapController extends Controller
         array $exportScopes,
         string $startDate,
         string $endDate,
-        array $includeLetters,
-        array $excludeLetters
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes
     ) {
         $baseQuery = DB::table('history as h')
             ->leftJoin('ref_puskesmas as rp', DB::raw("TRIM(COALESCE(h.kpusk, ''))"), '=', DB::raw("TRIM(COALESCE(rp.kode_puskesmas, ''))"))
@@ -850,7 +897,7 @@ class PenyakitRecapController extends Controller
             ->whereBetween('h.tanggal', [$startDate, $endDate])
             ->whereRaw("TRIM(COALESCE(h.kode_penyakit, '')) <> ''");
 
-        $this->applyKodePenyakitLetterFilters($baseQuery, 'h.kode_penyakit', $includeLetters, $excludeLetters);
+        $this->applyKodePenyakitFilters($baseQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
 
         $rawData = collect();
 
@@ -925,23 +972,82 @@ class PenyakitRecapController extends Controller
         return $rawData->values();
     }
 
-    private function applyKodePenyakitLetterFilters($query, string $column, array $includeLetters, array $excludeLetters): void
+    private function applyKodePenyakitFilters(
+        $query,
+        string $column,
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes
+    ): void
     {
-        if (!empty($includeLetters)) {
-            $query->where(function ($q) use ($includeLetters, $column) {
-                foreach ($includeLetters as $letter) {
-                    $q->orWhere($column, 'LIKE', trim($letter) . '%');
+        $normalizedColumn = 'UPPER(TRIM(' . $column . '))';
+
+        if (!empty($includePrefixes) || !empty($includeCodes)) {
+            $query->where(function ($q) use ($includePrefixes, $includeCodes, $normalizedColumn) {
+                $hasCondition = false;
+
+                if (!empty($includeCodes)) {
+                    $q->whereIn(DB::raw($normalizedColumn), $includeCodes);
+                    $hasCondition = true;
+                }
+
+                foreach ($includePrefixes as $index => $prefix) {
+                    $method = ($hasCondition || $index > 0) ? 'orWhereRaw' : 'whereRaw';
+                    $q->{$method}($normalizedColumn . ' LIKE ?', [$prefix . '%']);
                 }
             });
         }
 
-        if (!empty($excludeLetters)) {
-            $query->where(function ($q) use ($excludeLetters, $column) {
-                foreach ($excludeLetters as $letter) {
-                    $q->where($column, 'NOT LIKE', trim($letter) . '%');
-                }
-            });
+        if (!empty($excludeCodes)) {
+            $query->whereNotIn(DB::raw($normalizedColumn), $excludeCodes);
         }
+
+        foreach ($excludePrefixes as $prefix) {
+            $query->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+        }
+    }
+
+    private function mergePrefixFilters(array $input, ?string $legacyCsv = null): array
+    {
+        $legacy = $legacyCsv ? explode(',', $legacyCsv) : [];
+
+        return $this->normalizePrefixFilters(array_merge($input, $legacy));
+    }
+
+    private function normalizePrefixFilters(array $values): array
+    {
+        $normalized = [];
+
+        foreach ($values as $value) {
+            $token = $this->normalizeFilterToken($value);
+
+            if ($token !== '') {
+                $normalized[] = $token;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function normalizeCodeFilters(array $values): array
+    {
+        $normalized = [];
+
+        foreach ($values as $value) {
+            $token = $this->normalizeFilterToken($value);
+
+            if ($token !== '') {
+                $normalized[] = $token;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function normalizeFilterToken(?string $value): string
+    {
+        return strtoupper(trim((string) $value));
     }
 
     // ==========================================
