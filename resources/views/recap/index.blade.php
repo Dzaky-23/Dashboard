@@ -18,6 +18,15 @@
                     includeCodeLoading: false,
                     excludeCodeLoading: false,
                     exportScope: { umum: true, kecamatan: true, puskesmas: true },
+                    kecamatanFilterMode: 'all',
+                    selectedKecamatan: [],
+                    kecamatanSearch: '',
+                    kecamatanOptions: @js($exportKecamatanOptions),
+                    puskesmasFilterMode: 'all',
+                    selectedPuskesmas: [],
+                    puskesmasSearch: '',
+                    puskesmasKecamatanCodes: [],
+                    puskesmasOptions: @js($exportPuskesmasOptions),
                     exportPeriodType: 'year',
                     exportYear: '{{ date('Y') }}',
                     exportMonth: '{{ date('n') }}',
@@ -29,6 +38,32 @@
                     isExcludeOpen: false,
                     icdSearchUrl: '{{ route('recap.icd.search') }}',
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+                    get filteredKecamatanOptions() {
+                        const q = this.kecamatanSearch.trim().toLowerCase();
+                        if (q === '') {
+                            return this.kecamatanOptions;
+                        }
+                        return this.kecamatanOptions.filter(option =>
+                            option.name.toLowerCase().includes(q) || option.code.toLowerCase().includes(q)
+                        );
+                    },
+                    get filteredPuskesmasOptions() {
+                        const q = this.puskesmasSearch.trim().toLowerCase();
+                        return this.puskesmasOptions.filter(option => {
+                            const matchKecamatan = this.puskesmasKecamatanCodes.length === 0
+                                || this.puskesmasKecamatanCodes.includes(option.kecamatan_code);
+                            if (!matchKecamatan) {
+                                return false;
+                            }
+                            if (q === '') {
+                                return true;
+                            }
+                            return option.name.toLowerCase().includes(q)
+                                || option.code.toLowerCase().includes(q)
+                                || option.kecamatan_name.toLowerCase().includes(q)
+                                || option.kecamatan_code.toLowerCase().includes(q);
+                        });
+                    },
                     get hasResults() {
                         if (this.search === '') return true;
                         const q = this.search.toLowerCase();
@@ -42,6 +77,54 @@
                             elements = Array.from($el.querySelectorAll('.tab-puskesmas [data-search-key]'));
                         }
                         return elements.some(el => el.dataset.searchKey.includes(q));
+                    },
+                    getKecamatanName(code) {
+                        const option = this.kecamatanOptions.find(item => item.code === code);
+                        return option ? option.name : code;
+                    },
+                    getPuskesmasName(code) {
+                        const option = this.puskesmasOptions.find(item => item.code === code);
+                        return option ? option.name : code;
+                    },
+                    toggleSelection(type, code) {
+                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
+                        this[key] = this[key].includes(code)
+                            ? this[key].filter(item => item !== code)
+                            : [...this[key], code];
+                    },
+                    selectAllFiltered(type) {
+                        const source = type === 'kecamatan' ? this.filteredKecamatanOptions : this.filteredPuskesmasOptions;
+                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
+                        const next = new Set(this[key]);
+                        source.forEach(option => next.add(option.code));
+                        this[key] = Array.from(next);
+                    },
+                    clearSelections(type) {
+                        if (type === 'kecamatan') {
+                            this.selectedKecamatan = [];
+                            return;
+                        }
+                        if (type === 'puskesmas') {
+                            this.selectedPuskesmas = [];
+                            return;
+                        }
+                        this.puskesmasKecamatanCodes = [];
+                    },
+                    togglePuskesmasKecamatan(code) {
+                        this.puskesmasKecamatanCodes = this.puskesmasKecamatanCodes.includes(code)
+                            ? this.puskesmasKecamatanCodes.filter(item => item !== code)
+                            : [...this.puskesmasKecamatanCodes, code];
+
+                        if (this.puskesmasKecamatanCodes.length === 0) {
+                            return;
+                        }
+
+                        const allowed = new Set(
+                            this.puskesmasOptions
+                                .filter(option => this.puskesmasKecamatanCodes.includes(option.kecamatan_code))
+                                .map(option => option.code)
+                        );
+                        this.selectedPuskesmas = this.selectedPuskesmas.filter(codeItem => allowed.has(codeItem));
                     },
                     togglePrefix(type, prefix) {
                         const key = type === 'include' ? 'exportIncludePrefixes' : 'exportExcludePrefixes';
@@ -172,6 +255,14 @@
                                         <template x-for="item in exportExcludeCodes" :key="'exclude-code-' + item.code">
                                             <input type="hidden" name="exclude_codes[]" :value="item.code">
                                         </template>
+                                        <input type="hidden" name="kecamatan_filter_mode" :value="kecamatanFilterMode">
+                                        <template x-for="code in selectedKecamatan" :key="'selected-kecamatan-' + code">
+                                            <input type="hidden" name="selected_kecamatan[]" :value="code">
+                                        </template>
+                                        <input type="hidden" name="puskesmas_filter_mode" :value="puskesmasFilterMode">
+                                        <template x-for="code in selectedPuskesmas" :key="'selected-puskesmas-' + code">
+                                            <input type="hidden" name="selected_puskesmas[]" :value="code">
+                                        </template>
 
                                         <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
                                             <div>
@@ -241,8 +332,167 @@
                                                 </div>
                                             </div>
 
+                                            <div class="mb-6">
+                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Wilayah Export</h4>
+                                                <div class="space-y-4">
+                                                    <div class="rounded-xl border border-slate-200 bg-white p-4" :class="!exportScope.kecamatan ? 'opacity-60' : ''">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <h5 class="text-sm font-bold text-slate-800">Top N Per Kecamatan</h5>
+                                                                <p class="mt-1 text-xs text-slate-500">Pilih semua kecamatan atau batasi hanya kecamatan tertentu saat section ini ikut di-export.</p>
+                                                            </div>
+                                                            <span class="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700" x-text="kecamatanFilterMode === 'selected' && selectedKecamatan.length > 0 ? selectedKecamatan.length + ' dipilih' : 'Semua kecamatan'"></span>
+                                                        </div>
+
+                                                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            <label class="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
+                                                                :class="kecamatanFilterMode === 'all' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'">
+                                                                <input type="radio" value="all" x-model="kecamatanFilterMode" :disabled="!exportScope.kecamatan" class="text-red-600 border-slate-300 focus:ring-red-500">
+                                                                <div>
+                                                                    <div class="text-sm font-semibold text-slate-800">Semua Kecamatan</div>
+                                                                    <div class="text-[11px] text-slate-500">Perilaku default seperti export saat ini.</div>
+                                                                </div>
+                                                            </label>
+                                                            <label class="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
+                                                                :class="kecamatanFilterMode === 'selected' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'">
+                                                                <input type="radio" value="selected" x-model="kecamatanFilterMode" :disabled="!exportScope.kecamatan" class="text-red-600 border-slate-300 focus:ring-red-500">
+                                                                <div>
+                                                                    <div class="text-sm font-semibold text-slate-800">Kecamatan Tertentu</div>
+                                                                    <div class="text-[11px] text-slate-500">Export hanya untuk kecamatan yang dipilih.</div>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+
+                                                        <div x-show="exportScope.kecamatan && kecamatanFilterMode === 'selected'" x-cloak class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                                                            <p class="text-[11px] text-slate-500">Jika belum ada kecamatan yang dipilih, export tetap memakai semua kecamatan.</p>
+                                                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                                                <input
+                                                                    type="text"
+                                                                    x-model="kecamatanSearch"
+                                                                    placeholder="Cari nama atau kode kecamatan..."
+                                                                    class="w-full md:max-w-xs border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 bg-white"
+                                                                >
+                                                                <div class="flex flex-wrap gap-2">
+                                                                    <button type="button" @click="selectAllFiltered('kecamatan')" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Pilih hasil pencarian</button>
+                                                                    <button type="button" @click="clearSelections('kecamatan')" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Kosongkan</button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+                                                                <template x-for="option in filteredKecamatanOptions" :key="'kec-option-' + option.code">
+                                                                    <label class="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50">
+                                                                        <input type="checkbox" :checked="selectedKecamatan.includes(option.code)" @change="toggleSelection('kecamatan', option.code)" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                                                        <div>
+                                                                            <div class="text-sm font-semibold text-slate-800" x-text="option.name"></div>
+                                                                            <div class="text-[11px] text-slate-500" x-text="option.code"></div>
+                                                                        </div>
+                                                                    </label>
+                                                                </template>
+                                                                <div x-show="filteredKecamatanOptions.length === 0" x-cloak class="px-3 py-4 text-xs text-slate-500">Kecamatan tidak ditemukan.</div>
+                                                            </div>
+
+                                                            <div x-show="selectedKecamatan.length > 0" class="flex flex-wrap gap-2">
+                                                                <template x-for="code in selectedKecamatan" :key="'kec-chip-' + code">
+                                                                    <span class="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
+                                                                        <span x-text="getKecamatanName(code)"></span>
+                                                                        <button type="button" @click="toggleSelection('kecamatan', code)" class="text-red-500 hover:text-red-700">&times;</button>
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="rounded-xl border border-slate-200 bg-white p-4" :class="!exportScope.puskesmas ? 'opacity-60' : ''">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <h5 class="text-sm font-bold text-slate-800">Top N Per Puskesmas</h5>
+                                                                <p class="mt-1 text-xs text-slate-500">Gunakan filter kecamatan sebagai penyaring daftar, lalu pilih puskesmas yang memang ingin diikutkan dalam export.</p>
+                                                            </div>
+                                                            <span class="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700" x-text="puskesmasFilterMode === 'selected' && selectedPuskesmas.length > 0 ? selectedPuskesmas.length + ' dipilih' : 'Semua puskesmas'"></span>
+                                                        </div>
+
+                                                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            <label class="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
+                                                                :class="puskesmasFilterMode === 'all' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'">
+                                                                <input type="radio" value="all" x-model="puskesmasFilterMode" :disabled="!exportScope.puskesmas" class="text-red-600 border-slate-300 focus:ring-red-500">
+                                                                <div>
+                                                                    <div class="text-sm font-semibold text-slate-800">Semua Puskesmas</div>
+                                                                    <div class="text-[11px] text-slate-500">Seluruh puskesmas tetap ikut pada section ini.</div>
+                                                                </div>
+                                                            </label>
+                                                            <label class="flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
+                                                                :class="puskesmasFilterMode === 'selected' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'">
+                                                                <input type="radio" value="selected" x-model="puskesmasFilterMode" :disabled="!exportScope.puskesmas" class="text-red-600 border-slate-300 focus:ring-red-500">
+                                                                <div>
+                                                                    <div class="text-sm font-semibold text-slate-800">Puskesmas Tertentu</div>
+                                                                    <div class="text-[11px] text-slate-500">Export hanya untuk unit puskesmas yang dipilih.</div>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+
+                                                        <div x-show="exportScope.puskesmas && puskesmasFilterMode === 'selected'" x-cloak class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                                                            <p class="text-[11px] text-slate-500">Jika belum ada puskesmas yang dipilih, export tetap memakai semua puskesmas.</p>
+                                                            <div>
+                                                                <div class="flex items-center justify-between gap-3">
+                                                                    <label class="block text-xs font-bold text-slate-500">Saring daftar puskesmas berdasarkan kecamatan</label>
+                                                                    <button type="button" @click="clearSelections('puskesmas-kecamatan')" class="text-xs font-semibold text-slate-500 hover:text-slate-700">Reset filter kecamatan</button>
+                                                                </div>
+                                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                                    <template x-for="option in kecamatanOptions" :key="'pusk-kec-filter-' + option.code">
+                                                                        <button type="button" @click="togglePuskesmasKecamatan(option.code)"
+                                                                            :class="puskesmasKecamatanCodes.includes(option.code) ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                                                                            class="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors">
+                                                                            <span x-text="option.name"></span>
+                                                                        </button>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                                                <input
+                                                                    type="text"
+                                                                    x-model="puskesmasSearch"
+                                                                    placeholder="Cari nama, kode, atau kecamatan puskesmas..."
+                                                                    class="w-full md:max-w-xs border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 bg-white"
+                                                                >
+                                                                <div class="flex flex-wrap gap-2">
+                                                                    <button type="button" @click="selectAllFiltered('puskesmas')" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Pilih hasil pencarian</button>
+                                                                    <button type="button" @click="clearSelections('puskesmas')" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Kosongkan pilihan</button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="max-h-60 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+                                                                <template x-for="option in filteredPuskesmasOptions" :key="'pusk-option-' + option.code">
+                                                                    <label class="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50">
+                                                                        <input type="checkbox" :checked="selectedPuskesmas.includes(option.code)" @change="toggleSelection('puskesmas', option.code)" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                                                        <div>
+                                                                            <div class="text-sm font-semibold text-slate-800" x-text="option.name"></div>
+                                                                            <div class="text-[11px] text-slate-500">
+                                                                                <span x-text="option.code"></span>
+                                                                                <span> | </span>
+                                                                                <span x-text="option.kecamatan_name"></span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </label>
+                                                                </template>
+                                                                <div x-show="filteredPuskesmasOptions.length === 0" x-cloak class="px-3 py-4 text-xs text-slate-500">Puskesmas tidak ditemukan dengan filter saat ini.</div>
+                                                            </div>
+
+                                                            <div x-show="selectedPuskesmas.length > 0" class="flex flex-wrap gap-2">
+                                                                <template x-for="code in selectedPuskesmas" :key="'pusk-chip-' + code">
+                                                                    <span class="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
+                                                                        <span x-text="getPuskesmasName(code)"></span>
+                                                                        <button type="button" @click="toggleSelection('puskesmas', code)" class="text-red-500 hover:text-red-700">&times;</button>
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div>
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Spesifik</h4>
+                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">4. Filter Spesifik</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-4 border border-slate-200 rounded-lg">
                                                     <div class="col-span-1 md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                                                         <h5 class="text-xs font-bold uppercase tracking-wide text-blue-800">Panduan Filter</h5>
