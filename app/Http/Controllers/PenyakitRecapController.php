@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BpjsRefIcd;
 use App\Models\RekamMedis;
 use App\Models\RekapPenyakitTop;
+use App\Models\RefPuskesmas;
 use App\Services\RecapLogicService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,6 @@ class PenyakitRecapController extends Controller
         $limit = 10;
         $yearInput = $request->input('year', date('Y'));
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
-        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
         $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
 
         // Ambil daftar tahun unik yang ada datanya
@@ -121,6 +121,30 @@ class PenyakitRecapController extends Controller
         sort($listPuskesmas);
         $listKecamatan = array_unique(array_values($mapping));
         sort($listKecamatan);
+
+        $exportKecamatanOptions = collect(RecapLogicService::MAPPING_NAMA_KECAMATAN)
+            ->map(fn(string $name, string $code) => [
+                'code' => $code,
+                'name' => $name,
+            ])
+            ->values();
+
+        $exportPuskesmasOptions = RefPuskesmas::query()
+            ->select('kode_puskesmas', 'puskesmas', 'kode_kecamatan')
+            ->orderBy('puskesmas')
+            ->get()
+            ->toBase()
+            ->map(function (RefPuskesmas $puskesmas) {
+                $kodeKecamatan = strtoupper(trim((string) $puskesmas->kode_kecamatan));
+
+                return [
+                    'code' => trim((string) $puskesmas->kode_puskesmas),
+                    'name' => trim((string) ($puskesmas->puskesmas ?: $puskesmas->kode_puskesmas)),
+                    'kecamatan_code' => $kodeKecamatan,
+                    'kecamatan_name' => RecapLogicService::MAPPING_NAMA_KECAMATAN[$kodeKecamatan] ?? $kodeKecamatan,
+                ];
+            })
+            ->values();
         
         // Data Global Stats Overview untuk Recap.Index
         $totalKasus = $rekapData->sum('count');
@@ -175,13 +199,12 @@ class PenyakitRecapController extends Controller
 
         $maxChartWidth = $chartData->max('total') ?: 1;
 
-        $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
-
         return view('recap.index', compact(
             'groupedByPusk', 'mapping', 'listPuskesmas', 'listKecamatan', 
             'kecamatanDataList', 'totalKasus', 'topPenyakit', 
             'totalPuskesmas', 'totalKecamatan', 'chartData', 'maxChartWidth',
-            'availableYears', 'yearInput', 'puskesmasNames', 'icdNames'
+            'availableYears', 'yearInput', 'puskesmasNames', 'icdNames',
+            'exportKecamatanOptions', 'exportPuskesmasOptions'
         ));
     }
 
@@ -522,6 +545,12 @@ class PenyakitRecapController extends Controller
             'top_n_umum' => ['nullable', 'integer', 'min:1'],
             'top_n_kecamatan' => ['nullable', 'integer', 'min:1'],
             'top_n_puskesmas' => ['nullable', 'integer', 'min:1'],
+            'kecamatan_filter_mode' => ['nullable', 'in:all,selected'],
+            'selected_kecamatan' => ['nullable', 'array'],
+            'selected_kecamatan.*' => ['nullable', 'string', 'max:20'],
+            'puskesmas_filter_mode' => ['nullable', 'in:all,selected'],
+            'selected_puskesmas' => ['nullable', 'array'],
+            'selected_puskesmas.*' => ['nullable', 'string', 'max:50'],
             'period_type' => ['nullable', 'in:year,semester,quarter,month,custom_date'],
             'year' => ['nullable', 'integer'],
             'month' => ['nullable', 'integer', 'between:1,12'],
@@ -547,6 +576,10 @@ class PenyakitRecapController extends Controller
         $topNUmum = (int) $request->input('top_n_umum', 10);
         $topNKecamatan = (int) $request->input('top_n_kecamatan', 10);
         $topNPuskesmas = (int) $request->input('top_n_puskesmas', 10);
+        $kecamatanFilterMode = $request->input('kecamatan_filter_mode', 'all');
+        $puskesmasFilterMode = $request->input('puskesmas_filter_mode', 'all');
+        $selectedKecamatan = $this->normalizeSelectionFilters($request->input('selected_kecamatan', []));
+        $selectedPuskesmas = $this->normalizeSelectionFilters($request->input('selected_puskesmas', []));
         
         $periodType = $request->input('period_type', 'year');
         $year = $request->input('year', date('Y'));
@@ -584,6 +617,18 @@ class PenyakitRecapController extends Controller
             ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes)
             : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
 
+        if ($kecamatanFilterMode === 'selected' && !empty($selectedKecamatan)) {
+            $rawData = $rawData->reject(function ($row) use ($selectedKecamatan) {
+                return $row->scope === 'kecamatan' && !in_array($row->kode_kecamatan, $selectedKecamatan, true);
+            })->values();
+        }
+
+        if ($puskesmasFilterMode === 'selected' && !empty($selectedPuskesmas)) {
+            $rawData = $rawData->reject(function ($row) use ($selectedPuskesmas) {
+                return $row->scope === 'puskesmas' && !in_array($row->kpusk, $selectedPuskesmas, true);
+            })->values();
+        }
+
         // 1. Data Top N Umum
         $topUmum = collect();
         if (in_array('umum', $exportScopes)) {
@@ -602,6 +647,15 @@ class PenyakitRecapController extends Controller
         $kecamatanData = [];
         if (in_array('kecamatan', $exportScopes)) {
             $listKecamatan = array_unique(array_values($mapping));
+            sort($listKecamatan);
+
+            if ($kecamatanFilterMode === 'selected' && !empty($selectedKecamatan)) {
+                $listKecamatan = array_values(array_filter($listKecamatan, function (string $kecName) use ($selectedKecamatan) {
+                    $kodeKecamatan = array_search($kecName, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
+                    return $kodeKecamatan !== false && in_array($kodeKecamatan, $selectedKecamatan, true);
+                }));
+            }
+
             foreach ($listKecamatan as $kecName) {
                 $kodeKecamatan = array_search($kecName, RecapLogicService::MAPPING_NAMA_KECAMATAN, true);
                 if ($kodeKecamatan === false) {
@@ -627,7 +681,12 @@ class PenyakitRecapController extends Controller
         // 3. Data Top N Per Puskesmas
         $puskesmasData = [];
         if (in_array('puskesmas', $exportScopes)) {
-            $groupedPusk = $rawData->where('scope', 'puskesmas')->groupBy('kpusk');
+            $groupedPusk = collect($rawData->where('scope', 'puskesmas')->groupBy('kpusk')->all());
+
+            if ($puskesmasFilterMode === 'selected' && !empty($selectedPuskesmas)) {
+                $groupedPusk = $groupedPusk->only($selectedPuskesmas);
+            }
+
             foreach ($groupedPusk as $kodePuskesmas => $items) {
                 $namaPuskesmas = $puskesmasNames[$kodePuskesmas] ?? $kodePuskesmas;
                 $topPusk = collect();
@@ -1036,6 +1095,21 @@ class PenyakitRecapController extends Controller
 
         foreach ($values as $value) {
             $token = $this->normalizeFilterToken($value);
+
+            if ($token !== '') {
+                $normalized[] = $token;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function normalizeSelectionFilters(array $values): array
+    {
+        $normalized = [];
+
+        foreach ($values as $value) {
+            $token = strtoupper(trim((string) $value));
 
             if ($token !== '') {
                 $normalized[] = $token;
