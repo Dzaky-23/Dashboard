@@ -240,7 +240,7 @@
                                     x-transition:leave="ease-in duration-200" 
                                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
                                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
-                                    class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-2xl">
+                                    class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl">
                                     
                                     <form action="{{ route('recap.export') }}" method="GET">
                                         <template x-for="prefix in exportIncludePrefixes" :key="'include-prefix-' + prefix">
@@ -334,7 +334,7 @@
 
                                             <div class="mb-6">
                                                 <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Wilayah Export</h4>
-                                                <div class="space-y-4">
+                                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                                     <div class="rounded-xl border border-slate-200 bg-white p-5 transition-opacity" :class="!exportScope.kecamatan ? 'opacity-50' : ''">
                                                         <h5 class="text-sm font-bold text-slate-800 mb-4">Top N Per Kecamatan</h5>
 
@@ -370,7 +370,7 @@
                                                                 </div>
                                                             </div>
 
-                                                            <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm ring-1 ring-slate-900/5 divide-y divide-slate-50">
+                                                            <div class="h-64 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm ring-1 ring-slate-900/5 divide-y divide-slate-50">
                                                                 <template x-for="option in filteredKecamatanOptions" :key="'kec-option-' + option.code">
                                                                     <label class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
                                                                         <input type="checkbox" :checked="selectedKecamatan.includes(option.code)" @change="toggleSelection('kecamatan', option.code)" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
@@ -438,7 +438,7 @@
                                                                 </div>
                                                             </div>
 
-                                                            <div class="max-h-56 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm ring-1 ring-slate-900/5 divide-y divide-slate-50">
+                                                            <div class="h-64 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm ring-1 ring-slate-900/5 divide-y divide-slate-50">
                                                                 <template x-for="option in filteredPuskesmasOptions" :key="'pusk-option-' + option.code">
                                                                     <label class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
                                                                         <input type="checkbox" :checked="selectedPuskesmas.includes(option.code)" @change="toggleSelection('puskesmas', option.code)" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
