@@ -1137,7 +1137,7 @@ class PenyakitRecapController extends Controller
         $sort = $request->input('sort', 'cases_desc');
 
         $query = RekapPenyakitTop::query()
-            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
             ->where('scope', 'puskesmas')
             ->where('kpusk', $puskesmas)
             ->where('period_type', $periodType);
@@ -1169,7 +1169,17 @@ class PenyakitRecapController extends Controller
 
         $penyakits = $query->paginate(10)->withQueryString();
 
-        return view('recap.puskesmas.full_list', compact('puskesmas', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
+        $icdNames = $penyakits->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
+        $missingCodes = $penyakits->pluck('kode_penyakit')
+            ->unique()
+            ->diff(array_keys($icdNames))
+            ->values()
+            ->toArray();
+        if (!empty($missingCodes)) {
+            $icdNames = array_replace($icdNames, \App\Services\RecapLogicService::getIcdNames($missingCodes));
+        }
+
+        return view('recap.puskesmas.full_list', compact('puskesmas', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
     }
 
     // ==========================================
@@ -1197,7 +1207,7 @@ class PenyakitRecapController extends Controller
         }
 
         $query = RekapPenyakitTop::query()
-            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
             ->where('scope', 'kecamatan')
             ->where('kode_kecamatan', $kodeKecamatan)
             ->where('period_type', $periodType);
@@ -1229,7 +1239,17 @@ class PenyakitRecapController extends Controller
 
         $penyakits = $query->paginate(10)->withQueryString();
 
-        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
+        $icdNames = $penyakits->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
+        $missingCodes = $penyakits->pluck('kode_penyakit')
+            ->unique()
+            ->diff(array_keys($icdNames))
+            ->values()
+            ->toArray();
+        if (!empty($missingCodes)) {
+            $icdNames = array_replace($icdNames, \App\Services\RecapLogicService::getIcdNames($missingCodes));
+        }
+
+        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
     }
 
 }

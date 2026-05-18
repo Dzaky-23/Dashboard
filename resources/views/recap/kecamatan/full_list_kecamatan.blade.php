@@ -79,6 +79,7 @@
                 <tr>
                     <th scope="col" class="w-20 py-4 pl-6 pr-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">No</th>
                     <th scope="col" class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Penyakit (ICD-X)</th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Penyakit</th>
                     <th scope="col" class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Total Kasus</th>
                 </tr>
             </thead>
@@ -91,6 +92,9 @@
                     <td class="whitespace-nowrap px-6 py-4 text-sm font-bold text-slate-800">
                         {{ $item->kode_penyakit }}
                     </td>
+                    <td class="px-6 py-4 text-sm text-slate-700 max-w-md truncate" title="{{ $icdNames[$item->kode_penyakit] ?? $item->nama_penyakit ?? 'Tidak diketahui' }}">
+                        {{ $icdNames[$item->kode_penyakit] ?? $item->nama_penyakit ?? 'Tidak diketahui' }}
+                    </td>
                     <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-right">
                         <span class="inline-flex items-center justify-center px-3 py-1 text-sm font-bold leading-none rounded-full min-w-[3rem] text-slate-700 bg-slate-100">
                             {{ number_format($item->count, 0, ',', '.') }}
@@ -99,7 +103,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="3" class="px-6 py-12 text-center text-slate-500">
+                    <td colspan="4" class="px-6 py-12 text-center text-slate-500">
                         <div class="flex flex-col items-center justify-center">
                             <svg class="w-12 h-12 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                             @if(request('search'))

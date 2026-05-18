@@ -86,16 +86,16 @@ class RekapPenyakitTopBuilder
             [
                 'scope' => 'kecamatan',
                 'kpusk' => "''",
-                'kode_kecamatan' => "TRIM(COALESCE(rp.kode_kecamatan, ''))",
-                'where' => ["TRIM(COALESCE(rp.kode_kecamatan, '')) <> ''"],
-                'group_by' => ["TRIM(COALESCE(rp.kode_kecamatan, ''))"],
+                'kode_kecamatan' => "COALESCE(rp.kode_kecamatan, '')",
+                'where' => ["COALESCE(rp.kode_kecamatan, '') <> ''"],
+                'group_by' => ["COALESCE(rp.kode_kecamatan, '')"],
             ],
             [
                 'scope' => 'puskesmas',
-                'kpusk' => "TRIM(COALESCE(h.kpusk, ''))",
-                'kode_kecamatan' => "TRIM(COALESCE(rp.kode_kecamatan, ''))",
-                'where' => ["TRIM(COALESCE(h.kpusk, '')) <> ''"],
-                'group_by' => ["TRIM(COALESCE(h.kpusk, ''))", "TRIM(COALESCE(rp.kode_kecamatan, ''))"],
+                'kpusk' => "COALESCE(h.kpusk, '')",
+                'kode_kecamatan' => "COALESCE(rp.kode_kecamatan, '')",
+                'where' => ["COALESCE(h.kpusk, '') <> ''"],
+                'group_by' => ["COALESCE(h.kpusk, '')", "COALESCE(rp.kode_kecamatan, '')"],
             ],
         ];
 
@@ -115,7 +115,7 @@ class RekapPenyakitTopBuilder
                     'group_by' => array_merge(
                         $scope['group_by'],
                         $type['group_by'],
-                        ['TRIM(h.kode_penyakit)', "COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))"]
+                        ['h.kode_penyakit', "COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit)"]
                     ),
                 ];
             }
@@ -138,8 +138,8 @@ class RekapPenyakitTopBuilder
             "{$definition['semester']} AS semester",
             "{$definition['kpusk']} AS kpusk",
             "{$definition['kode_kecamatan']} AS kode_kecamatan",
-            "TRIM(h.kode_penyakit) AS kode_penyakit",
-            "COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) AS nama_penyakit",
+            "h.kode_penyakit AS kode_penyakit",
+            "COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) AS nama_penyakit",
             'COUNT(*) AS jumlah_kasus',
             'NOW() AS created_at',
             'NOW() AS updated_at',
@@ -149,7 +149,7 @@ class RekapPenyakitTopBuilder
             [
                 'h.id >= ?',
                 'h.id <= ?',
-                "TRIM(COALESCE(h.kode_penyakit, '')) <> ''",
+                "COALESCE(h.kode_penyakit, '') <> ''",
             ],
             $definition['where']
         );
@@ -158,8 +158,8 @@ class RekapPenyakitTopBuilder
             . "(`scope`, `period_type`, `year`, `month`, `quarter`, `semester`, `kpusk`, `kode_kecamatan`, `kode_penyakit`, `nama_penyakit`, `jumlah_kasus`, `created_at`, `updated_at`) "
             . "SELECT " . implode(",\n                ", $selectColumns) . "\n"
             . "FROM `history` h\n"
-            . "LEFT JOIN `ref_puskesmas` rp ON TRIM(COALESCE(h.kpusk, '')) = TRIM(COALESCE(rp.kode_puskesmas, ''))\n"
-            . "LEFT JOIN `bpjs_ref_icd` icd ON TRIM(h.kode_penyakit) = TRIM(icd.kdDiag)\n"
+            . "LEFT JOIN `ref_puskesmas` rp ON h.kpusk = rp.kode_puskesmas\n"
+            . "LEFT JOIN `bpjs_ref_icd` icd ON h.kode_penyakit = icd.kdDiag\n"
             . "WHERE " . implode("\n  AND ", $where) . "\n"
             . "GROUP BY " . implode(",\n                ", $definition['group_by']) . "\n"
             . "ON DUPLICATE KEY UPDATE "
