@@ -96,19 +96,20 @@ class RekamMedisController extends Controller
         }
 
         $data = DB::table('history as h')
-            ->leftJoin('bpjs_ref_icd as icd', DB::raw('TRIM(h.kode_penyakit)'), '=', DB::raw('TRIM(icd.kdDiag)'))
+            ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
             ->whereNotNull('h.tanggal')
             ->whereBetween('h.tanggal', [$mulai->toDateString(), $sampai->toDateString()])
-            ->whereRaw("TRIM(COALESCE(h.kode_penyakit, '')) <> ''")
+            ->where('h.kode_penyakit', '<>', '')
+            ->whereNotNull('h.kode_penyakit')
             ->selectRaw("
-                TRIM(h.kode_penyakit) as kode_penyakit,
-                COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
+                h.kode_penyakit,
+                COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
                 COUNT(*) as jumlah_kasus
             ")
-            ->groupByRaw("
-                TRIM(h.kode_penyakit),
-                COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))
-            ")
+            ->groupBy(
+                'h.kode_penyakit',
+                DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit)")
+            )
             ->orderByDesc('jumlah_kasus')
             ->limit(10)
             ->get();
