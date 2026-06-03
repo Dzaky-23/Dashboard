@@ -7,7 +7,8 @@
         @endphp
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6" 
              data-search-key="{{ $searchKeyContainer }}"
-             x-show="search === '' || '{{ strtolower($kecName) }}'.includes(search.toLowerCase()) || {{ $puskesmasListJson }}.some(p => p.includes(search.toLowerCase()))">
+             x-show="isKecamatanVisible('{{ $kecName }}')"
+             x-transition>
             
             <!-- Header Kecamatan di Tab Semua -->
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200/80">
