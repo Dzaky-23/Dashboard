@@ -20,4 +20,4 @@ Artisan::command('recap-top:build {--reset}', function (RekapPenyakitTopBuilder 
     $this->info('Rekap penyakit top-N berhasil dibuat ulang.');
 })->purpose('Membangun ulang tabel rekap penyakit top-N.');
 
-Schedule::command('recap-top:build')->dailyAt('10:00')->withoutOverlapping();
+Schedule::command('recap-top:build')->dailyAt('11:00')->withoutOverlapping();
