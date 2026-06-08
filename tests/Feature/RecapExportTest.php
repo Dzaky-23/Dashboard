@@ -266,4 +266,92 @@ it('exports using custom date range without errors', function () {
     $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 });
 
+it('supports exclude exceptions during export', function () {
+    actingAsAdmin();
+
+    // Seed test data with codes starting with Z
+    RekapPenyakitTop::query()->insert([
+        [
+            'scope' => 'global',
+            'period_type' => 'year',
+            'year' => 2026,
+            'month' => 0,
+            'quarter' => 0,
+            'semester' => 0,
+            'kpusk' => '',
+            'kode_kecamatan' => '',
+            'kode_penyakit' => 'Z01',
+            'nama_penyakit' => 'Penyakit Z01',
+            'jumlah_kasus' => 15,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'scope' => 'global',
+            'period_type' => 'year',
+            'year' => 2026,
+            'month' => 0,
+            'quarter' => 0,
+            'semester' => 0,
+            'kpusk' => '',
+            'kode_kecamatan' => '',
+            'kode_penyakit' => 'Z02',
+            'nama_penyakit' => 'Penyakit Z02',
+            'jumlah_kasus' => 12,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'scope' => 'global',
+            'period_type' => 'year',
+            'year' => 2026,
+            'month' => 0,
+            'quarter' => 0,
+            'semester' => 0,
+            'kpusk' => '',
+            'kode_kecamatan' => '',
+            'kode_penyakit' => 'Z09',
+            'nama_penyakit' => 'Penyakit Z09',
+            'jumlah_kasus' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    // Request export with exclude_prefixes = Z and exclude_exceptions = Z01, Z02
+    $response = $this->get(route('recap.export', [
+        'format' => 'excel',
+        'period_type' => 'year',
+        'year' => 2026,
+        'export_scope' => ['umum'],
+        'top_n_umum' => 10,
+        'exclude_prefixes' => ['Z'],
+        'exclude_exceptions' => 'Z01, Z02',
+    ]));
+
+    $response->assertOk();
+    
+    // Save response to temp file and parse with PhpSpreadsheet
+    $tempFile = tempnam(sys_get_temp_dir(), 'excel_test');
+    file_put_contents($tempFile, $response->getContent());
+
+    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+    $spreadsheet = $reader->load($tempFile);
+    $detailSheet = $spreadsheet->getSheetByName('Detail Sebaran Penyakit');
+    
+    // Check that we see Penyakit Z01 and Penyakit Z02 but NOT Penyakit Z09
+    $content = '';
+    foreach ($detailSheet->getRowIterator() as $row) {
+        foreach ($row->getCellIterator() as $cell) {
+            $content .= ' ' . $cell->getValue();
+        }
+    }
+
+    expect($content)->toContain('Penyakit Z01');
+    expect($content)->toContain('Penyakit Z02');
+    expect($content)->not->toContain('Penyakit Z09');
+
+    unlink($tempFile);
+});
+
 

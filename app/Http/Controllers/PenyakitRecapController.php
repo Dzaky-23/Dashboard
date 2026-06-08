@@ -573,6 +573,7 @@ class PenyakitRecapController extends Controller
             'exclude_codes.*' => ['nullable', 'string', 'max:20'],
             'include_icd' => ['nullable', 'string'],
             'exclude_icd' => ['nullable', 'string'],
+            'exclude_exceptions' => ['nullable', 'string', 'max:255'],
         ]);
 
         $format = $request->input('format', 'pdf');
@@ -618,12 +619,15 @@ class PenyakitRecapController extends Controller
         );
         $includeCodes = $this->normalizeCodeFilters($request->input('include_codes', []));
         $excludeCodes = $this->normalizeCodeFilters($request->input('exclude_codes', []));
+        $excludeExceptions = $this->normalizePrefixFilters(
+            $request->filled('exclude_exceptions') ? explode(',', $request->input('exclude_exceptions')) : []
+        );
         
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
         $rawData = $periodType === 'custom_date'
-            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes)
-            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions)
+            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
         if ($kecamatanFilterMode === 'selected' && !empty($selectedKecamatan)) {
             $rawData = $rawData->reject(function ($row) use ($selectedKecamatan) {
@@ -717,11 +721,11 @@ class PenyakitRecapController extends Controller
             $topDiseaseCodes = $topUmum->pluck('kode_penyakit')->toArray();
 
             if ($periodType === 'custom_date') {
-                $kecBreakdown = $this->getRawHistoryBreakdownData('kecamatan', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
-                $puskBreakdown = $this->getRawHistoryBreakdownData('puskesmas', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $kecBreakdown = $this->getRawHistoryBreakdownData('kecamatan', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $puskBreakdown = $this->getRawHistoryBreakdownData('puskesmas', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
             } else {
-                $kecBreakdown = $this->getAggregateBreakdownData('kecamatan', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
-                $puskBreakdown = $this->getAggregateBreakdownData('puskesmas', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $kecBreakdown = $this->getAggregateBreakdownData('kecamatan', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $puskBreakdown = $this->getAggregateBreakdownData('puskesmas', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
             }
         }
 
@@ -1025,7 +1029,8 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
         $query = RekapPenyakitTop::query()
             ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
@@ -1048,7 +1053,7 @@ class PenyakitRecapController extends Controller
                 ->where('year', $year);
         }
 
-        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
         return $query->get();
     }
@@ -1060,7 +1065,8 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
         list($rawRanges, $aggregateMonths) = $this->parseCustomDateRanges($startDate, $endDate);
 
@@ -1079,7 +1085,7 @@ class PenyakitRecapController extends Controller
                             $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
                         }
                     });
-                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $rawUmum = $rawQuery
                     ->selectRaw("
                         'global' as scope,
@@ -1106,7 +1112,7 @@ class PenyakitRecapController extends Controller
                             });
                         }
                     });
-                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $aggUmum = $aggQuery
                     ->selectRaw("
                         'global' as scope,
@@ -1157,7 +1163,7 @@ class PenyakitRecapController extends Controller
                             $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
                         }
                     });
-                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $rawKec = $rawQuery
                     ->selectRaw("
                         'kecamatan' as scope,
@@ -1184,7 +1190,7 @@ class PenyakitRecapController extends Controller
                             });
                         }
                     });
-                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $aggKec = $aggQuery
                     ->selectRaw("
                         'kecamatan' as scope,
@@ -1235,7 +1241,7 @@ class PenyakitRecapController extends Controller
                             $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
                         }
                     });
-                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $rawPusk = $rawQuery
                     ->selectRaw("
                         'puskesmas' as scope,
@@ -1262,7 +1268,7 @@ class PenyakitRecapController extends Controller
                             });
                         }
                     });
-                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
                 $aggPusk = $aggQuery
                     ->selectRaw("
                         'puskesmas' as scope,
@@ -1349,10 +1355,14 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ): void
     {
-        $normalizedColumn = 'UPPER(TRIM(' . $column . '))';
+        $normalizedColumn = $column;
+
+        // Gabungkan semua inklusi dan pengecualian khusus sebagai calon bypass filter exclude
+        $allExceptions = array_values(array_unique(array_merge($includePrefixes, $includeCodes, $excludeExceptions)));
 
         if (!empty($includePrefixes) || !empty($includeCodes)) {
             $query->where(function ($q) use ($includePrefixes, $includeCodes, $normalizedColumn) {
@@ -1375,7 +1385,24 @@ class PenyakitRecapController extends Controller
         }
 
         foreach ($excludePrefixes as $prefix) {
-            $query->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+            // Cari apakah ada exception yang lebih spesifik atau sama dengan prefix pengecualian saat ini
+            $prefixExceptions = [];
+            foreach ($allExceptions as $exc) {
+                if (strpos(strtoupper($exc), strtoupper($prefix)) === 0) {
+                    $prefixExceptions[] = $exc;
+                }
+            }
+
+            if (!empty($prefixExceptions)) {
+                $query->where(function ($q) use ($normalizedColumn, $prefix, $prefixExceptions) {
+                    $q->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+                    foreach ($prefixExceptions as $exc) {
+                        $q->orWhereRaw($normalizedColumn . ' LIKE ?', [$exc . '%']);
+                    }
+                });
+            } else {
+                $query->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+            }
         }
     }
 
@@ -1572,7 +1599,8 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
         $raw = collect();
         if (!empty($rawRanges)) {
@@ -1595,7 +1623,7 @@ class PenyakitRecapController extends Controller
                 }
             });
 
-            $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
             if ($scope === 'kecamatan') {
                 $raw = $rawQuery
@@ -1636,7 +1664,7 @@ class PenyakitRecapController extends Controller
                     }
                 });
 
-            $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
             if ($scope === 'kecamatan') {
                 $agg = $aggQuery
@@ -1707,7 +1735,8 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
         $query = RekapPenyakitTop::query();
         if ($scope === 'kecamatan') {
@@ -1736,7 +1765,7 @@ class PenyakitRecapController extends Controller
                 ->where('year', $year);
         }
 
-        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
         return $query->get();
     }
