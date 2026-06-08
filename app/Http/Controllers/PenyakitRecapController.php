@@ -540,6 +540,9 @@ class PenyakitRecapController extends Controller
 
     public function export(Request $request)
     {
+        ini_set('memory_limit', '512M');
+        set_time_limit(300); 
+
         $validated = $request->validate([
             'format' => ['nullable', 'in:pdf,excel'],
             'top_n_umum' => ['nullable', 'integer', 'min:1'],
@@ -589,6 +592,9 @@ class PenyakitRecapController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
+        $rawRanges = [];
+        $aggregateMonths = [];
+
         if ($periodType === 'custom_date') {
             $request->validate([
                 'start_date' => ['required', 'date'],
@@ -597,6 +603,8 @@ class PenyakitRecapController extends Controller
 
             $startDate = Carbon::parse($startDate)->toDateString();
             $endDate = Carbon::parse($endDate)->toDateString();
+
+            list($rawRanges, $aggregateMonths) = $this->parseCustomDateRanges($startDate, $endDate);
         }
         
         $exportScopes = $request->input('export_scope', []);
@@ -701,6 +709,24 @@ class PenyakitRecapController extends Controller
                 $puskesmasData[$namaPuskesmas] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
             }
         }
+
+        $kecBreakdown = collect();
+        $puskBreakdown = collect();
+
+        if (in_array('umum', $exportScopes) && $topUmum->isNotEmpty()) {
+            $topDiseaseCodes = $topUmum->pluck('kode_penyakit')->toArray();
+
+            if ($periodType === 'custom_date') {
+                $kecBreakdown = $this->getRawHistoryBreakdownData('kecamatan', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $puskBreakdown = $this->getRawHistoryBreakdownData('puskesmas', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            } else {
+                $kecBreakdown = $this->getAggregateBreakdownData('kecamatan', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+                $puskBreakdown = $this->getAggregateBreakdownData('puskesmas', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            }
+        }
+
+        $kecBreakdownGrouped = $kecBreakdown->groupBy('kode_penyakit');
+        $puskBreakdownGrouped = $puskBreakdown->groupBy('kode_penyakit');
 
         // ====== GENERATE EXCEL (BINARY XLSX) ======
         if ($format === 'excel') {
@@ -867,6 +893,93 @@ class PenyakitRecapController extends Controller
                 $sheet->addChart($chart);
             }
 
+            if (in_array('umum', $exportScopes) && $topUmum->isNotEmpty()) {
+                $detailSheet = $spreadsheet->createSheet();
+                $detailSheet->setTitle('Detail Sebaran Penyakit');
+                
+                $detailSheet->getColumnDimension('A')->setWidth(8);
+                $detailSheet->getColumnDimension('B')->setWidth(25);
+                $detailSheet->getColumnDimension('C')->setWidth(15);
+                $detailSheet->getColumnDimension('D')->setWidth(5);
+                $detailSheet->getColumnDimension('E')->setWidth(8);
+                $detailSheet->getColumnDimension('F')->setWidth(25);
+                $detailSheet->getColumnDimension('G')->setWidth(15);
+
+                $rowNum = 1;
+
+                foreach ($topUmum as $index => $disease) {
+                    $kode = $disease->kode_penyakit;
+                    $nama = $disease->nama_penyakit ?? $kode;
+                    $total = $disease->count;
+
+                    // 1. Header Penyakit
+                    $detailSheet->mergeCells("A{$rowNum}:G{$rowNum}");
+                    $detailSheet->setCellValue("A{$rowNum}", "Peringkat #" . ($index + 1) . ": {$nama} ({$kode}) - Total: {$total} Kasus");
+                    $detailSheet->getStyle("A{$rowNum}")->getFont()->setBold(true)->setSize(12);
+                    $detailSheet->getStyle("A{$rowNum}")->getFill()
+                        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB('FFE0E0E0');
+                    $rowNum++;
+
+                    // 2. Sub-Header Tabel (Kecamatan vs Puskesmas)
+                    $detailSheet->mergeCells("A{$rowNum}:C{$rowNum}");
+                    $detailSheet->setCellValue("A{$rowNum}", 'Peringkat Sebaran Kecamatan');
+                    $detailSheet->getStyle("A{$rowNum}")->getFont()->setBold(true);
+
+                    $detailSheet->mergeCells("E{$rowNum}:G{$rowNum}");
+                    $detailSheet->setCellValue("E{$rowNum}", 'Peringkat Sebaran Puskesmas');
+                    $detailSheet->getStyle("E{$rowNum}")->getFont()->setBold(true);
+                    $rowNum++;
+
+                    // Header Kolom
+                    $detailSheet->setCellValue("A{$rowNum}", 'Rank');
+                    $detailSheet->setCellValue("B{$rowNum}", 'Nama Kecamatan');
+                    $detailSheet->setCellValue("C{$rowNum}", 'Kasus');
+
+                    $detailSheet->setCellValue("E{$rowNum}", 'Rank');
+                    $detailSheet->setCellValue("F{$rowNum}", 'Nama Puskesmas');
+                    $detailSheet->setCellValue("G{$rowNum}", 'Kasus');
+
+                    $detailSheet->getStyle("A{$rowNum}:C{$rowNum}")->getFont()->setItalic(true);
+                    $detailSheet->getStyle("E{$rowNum}:G{$rowNum}")->getFont()->setItalic(true);
+                    $rowNum++;
+
+                    // 3. Ambil Seluruh Data Sebaran & Urutkan secara Menurun
+                    $diseaseKec = $kecBreakdownGrouped->get($kode, collect())->sortByDesc('count')->values();
+                    $diseasePusk = $puskBreakdownGrouped->get($kode, collect())->sortByDesc('count')->values();
+
+                    $maxRows = max($diseaseKec->count(), $diseasePusk->count(), 1);
+
+                    for ($i = 0; $i < $maxRows; $i++) {
+                        // Tulis Kecamatan
+                        if ($i < $diseaseKec->count()) {
+                            $kecItem = $diseaseKec[$i];
+                            $namaKec = \App\Services\RecapLogicService::MAPPING_NAMA_KECAMATAN[$kecItem->kode_kecamatan] ?? $kecItem->kode_kecamatan;
+                            $detailSheet->setCellValue("A{$rowNum}", $i + 1);
+                            $detailSheet->setCellValue("B{$rowNum}", $namaKec);
+                            $detailSheet->setCellValue("C{$rowNum}", $kecItem->count);
+                        } else if ($i == 0 && $diseaseKec->isEmpty()) {
+                            $detailSheet->setCellValue("B{$rowNum}", 'Tidak ada data');
+                        }
+
+                        // Tulis Puskesmas
+                        if ($i < $diseasePusk->count()) {
+                            $puskItem = $diseasePusk[$i];
+                            $namaPusk = $puskesmasNames[$puskItem->kpusk] ?? $puskItem->kpusk;
+                            $detailSheet->setCellValue("E{$rowNum}", $i + 1);
+                            $detailSheet->setCellValue("F{$rowNum}", $namaPusk);
+                            $detailSheet->setCellValue("G{$rowNum}", $puskItem->count);
+                        } else if ($i == 0 && $diseasePusk->isEmpty()) {
+                            $detailSheet->setCellValue("F{$rowNum}", 'Tidak ada data');
+                        }
+                        $rowNum++;
+                    }
+
+                    // Beri jarak antar penyakit
+                    $rowNum += 2;
+                }
+            }
+
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $writer->setIncludeCharts(true);
             
@@ -949,42 +1062,7 @@ class PenyakitRecapController extends Controller
         array $includeCodes,
         array $excludeCodes
     ) {
-        $start = Carbon::parse($startDate);
-        $end = Carbon::parse($endDate);
-
-        $rawRanges = [];
-        $aggregateMonths = [];
-
-        if ($start->format('Y-m') === $end->format('Y-m')) {
-            if ($start->day == 1 && $start->copy()->endOfMonth()->day == $end->day) {
-                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
-            } else {
-                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $end->toDateString()];
-            }
-        } else {
-            if ($start->day == 1) {
-                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
-            } else {
-                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $start->copy()->endOfMonth()->toDateString()];
-            }
-
-            $middleStart = $start->copy()->addMonth()->startOfMonth();
-            $middleEnd = $end->copy()->subMonth()->endOfMonth();
-
-            if ($middleStart->lte($middleEnd)) {
-                $temp = clone $middleStart;
-                while ($temp->lte($middleEnd)) {
-                    $aggregateMonths[] = ['year' => $temp->year, 'month' => $temp->month];
-                    $temp->addMonth();
-                }
-            }
-
-            if ($end->day == $end->copy()->endOfMonth()->day) {
-                $aggregateMonths[] = ['year' => $end->year, 'month' => $end->month];
-            } else {
-                $rawRanges[] = ['start' => $end->copy()->startOfMonth()->toDateString(), 'end' => $end->toDateString()];
-            }
-        }
+        list($rawRanges, $aggregateMonths) = $this->parseCustomDateRanges($startDate, $endDate);
 
         $rawData = collect();
 
@@ -1223,6 +1301,48 @@ class PenyakitRecapController extends Controller
         return $rawData->values();
     }
 
+    private function parseCustomDateRanges(string $startDate, string $endDate): array
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        $rawRanges = [];
+        $aggregateMonths = [];
+
+        if ($start->format('Y-m') === $end->format('Y-m')) {
+            if ($start->day == 1 && $start->copy()->endOfMonth()->day == $end->day) {
+                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
+            } else {
+                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $end->toDateString()];
+            }
+        } else {
+            if ($start->day == 1) {
+                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
+            } else {
+                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $start->copy()->endOfMonth()->toDateString()];
+            }
+
+            $middleStart = $start->copy()->addMonth()->startOfMonth();
+            $middleEnd = $end->copy()->subMonth()->endOfMonth();
+
+            if ($middleStart->lte($middleEnd)) {
+                $temp = clone $middleStart;
+                while ($temp->lte($middleEnd)) {
+                    $aggregateMonths[] = ['year' => $temp->year, 'month' => $temp->month];
+                    $temp->addMonth();
+                }
+            }
+
+            if ($end->day == $end->copy()->endOfMonth()->day) {
+                $aggregateMonths[] = ['year' => $end->year, 'month' => $end->month];
+            } else {
+                $rawRanges[] = ['start' => $end->copy()->startOfMonth()->toDateString(), 'end' => $end->toDateString()];
+            }
+        }
+
+        return [$rawRanges, $aggregateMonths];
+    }
+
     private function applyKodePenyakitFilters(
         $query,
         string $column,
@@ -1442,6 +1562,183 @@ class PenyakitRecapController extends Controller
         }
 
         return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
+    }
+
+    private function getRawHistoryBreakdownData(
+        string $scope,
+        array $topDiseaseCodes,
+        array $rawRanges,
+        array $aggregateMonths,
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes
+    ) {
+        $raw = collect();
+        if (!empty($rawRanges)) {
+            $rawQuery = DB::table('history as h')
+                ->leftJoin('ref_puskesmas as rp', 'h.kpusk', '=', 'rp.kode_puskesmas')
+                ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
+                ->whereIn('h.kode_penyakit', $topDiseaseCodes);
+
+            if ($scope === 'kecamatan') {
+                $rawQuery->whereNotNull('rp.kode_kecamatan')
+                    ->where('rp.kode_kecamatan', '<>', '');
+            } else {
+                $rawQuery->whereNotNull('h.kpusk')
+                    ->where('h.kpusk', '<>', '');
+            }
+
+            $rawQuery->where(function ($q) use ($rawRanges) {
+                foreach ($rawRanges as $range) {
+                    $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
+                }
+            });
+
+            $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+
+            if ($scope === 'kecamatan') {
+                $raw = $rawQuery
+                    ->selectRaw("
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
+                    ")
+                    ->groupBy('rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            } else {
+                $raw = $rawQuery
+                    ->selectRaw("
+                        h.kpusk,
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
+                    ")
+                    ->groupBy('h.kpusk', 'rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            }
+        }
+
+        $agg = collect();
+        if (!empty($aggregateMonths)) {
+            $aggQuery = DB::table('rekap_penyakit_top')
+                ->where('scope', $scope)
+                ->where('period_type', 'month')
+                ->whereIn('kode_penyakit', $topDiseaseCodes)
+                ->where(function ($q) use ($aggregateMonths) {
+                    foreach ($aggregateMonths as $monthData) {
+                        $q->orWhere(function ($sub) use ($monthData) {
+                            $sub->where('year', $monthData['year'])
+                                ->where('month', $monthData['month']);
+                        });
+                    }
+                });
+
+            $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+
+            if ($scope === 'kecamatan') {
+                $agg = $aggQuery
+                    ->selectRaw("
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            } else {
+                $agg = $aggQuery
+                    ->selectRaw("
+                        kpusk,
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            }
+        }
+
+        if ($scope === 'kecamatan') {
+            return $raw->concat($agg)
+                ->groupBy(function ($item) {
+                    return $item->kode_kecamatan . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count')
+                    ];
+                })
+                ->values();
+        } else {
+            return $raw->concat($agg)
+                ->groupBy(function ($item) {
+                    return $item->kpusk . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'kpusk' => $first->kpusk,
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count')
+                    ];
+                })
+                ->values();
+        }
+    }
+
+    private function getAggregateBreakdownData(
+        string $scope,
+        array $topDiseaseCodes,
+        string $periodType,
+        $year,
+        $month,
+        $semester,
+        $quarter,
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes
+    ) {
+        $query = RekapPenyakitTop::query();
+        if ($scope === 'kecamatan') {
+            $query->select('kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'));
+        } else {
+            $query->select('kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'));
+        }
+
+        $query->where('scope', $scope)
+            ->whereIn('kode_penyakit', $topDiseaseCodes);
+
+        if ($periodType === 'month') {
+            $query->where('period_type', 'month')
+                ->where('year', $year)
+                ->where('month', $month);
+        } elseif ($periodType === 'semester') {
+            $query->where('period_type', 'semester')
+                ->where('year', $year)
+                ->where('semester', $semester);
+        } elseif ($periodType === 'quarter') {
+            $query->where('period_type', 'quarter')
+                ->where('year', $year)
+                ->where('quarter', $quarter);
+        } else {
+            $query->where('period_type', 'year')
+                ->where('year', $year);
+        }
+
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+
+        return $query->get();
     }
 
 }

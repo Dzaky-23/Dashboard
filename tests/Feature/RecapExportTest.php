@@ -19,6 +19,16 @@ beforeEach(function () {
         });
     }
 
+    if (! Schema::hasTable('bpjs_ref_icd')) {
+        Schema::create('bpjs_ref_icd', function (Blueprint $table) {
+            $table->id('id_icd');
+            $table->string('kdDiag')->nullable();
+            $table->string('nmDiag')->nullable();
+            $table->boolean('nonSpesialis')->nullable();
+            $table->timestamp('last_update')->nullable();
+        });
+    }
+
     RefPuskesmas::query()->insert([
         [
             'kode_puskesmas' => 'P001',
@@ -206,3 +216,54 @@ it('returns an excel response for selected puskesmas export', function () {
     $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     expect($response->headers->get('Content-Disposition'))->toContain('.xlsx');
 });
+
+it('returns an excel response with detail sheet for global export', function () {
+    actingAsAdmin();
+
+    $response = $this->get(route('recap.export', [
+        'format' => 'excel',
+        'period_type' => 'year',
+        'year' => 2026,
+        'export_scope' => ['umum'],
+        'top_n_umum' => 10,
+    ]));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    
+    // Save response content to a temp file and load it with PhpSpreadsheet
+    $tempFile = tempnam(sys_get_temp_dir(), 'excel_test');
+    file_put_contents($tempFile, $response->getContent());
+
+    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+    $spreadsheet = $reader->load($tempFile);
+    
+    // Check sheet names
+    $sheetNames = $spreadsheet->getSheetNames();
+    expect($sheetNames)->toContain('Worksheet');
+    expect($sheetNames)->toContain('Detail Sebaran Penyakit');
+
+    // Check content in detail sheet
+    $detailSheet = $spreadsheet->getSheetByName('Detail Sebaran Penyakit');
+    expect($detailSheet->getCell('A1')->getValue())->toContain('Demam Tifoid'); // First ranked disease in beforeEach seeding is A01 (Demam Tifoid)
+
+    unlink($tempFile);
+});
+
+it('exports using custom date range without errors', function () {
+    actingAsAdmin();
+
+    $response = $this->get(route('recap.export', [
+        'format' => 'excel',
+        'period_type' => 'custom_date',
+        'start_date' => '2024-01-15',
+        'end_date' => '2024-11-25',
+        'export_scope' => ['umum'],
+        'top_n_umum' => 10,
+    ]));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
+
