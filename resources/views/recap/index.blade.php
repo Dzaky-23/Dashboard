@@ -11,6 +11,7 @@
                     exportExcludePrefixes: [],
                     exportIncludeCodes: [],
                     exportExcludeCodes: [],
+                    exportExcludeExceptions: '',
                     exportIncludeCodeSearch: '',
                     exportExcludeCodeSearch: '',
                     includeCodeOptions: [],
@@ -38,6 +39,71 @@
                     isExcludeOpen: false,
                     icdSearchUrl: '{{ route('recap.icd.search') }}',
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+                    currentPageSemua: 1,
+                    perPageSemua: 5,
+                    currentPagePuskesmas: 1,
+                    perPagePuskesmas: 9,
+                    init() {
+                        this.$watch('search', value => {
+                            this.currentPageSemua = 1;
+                            this.currentPagePuskesmas = 1;
+                        });
+                        this.$watch('activeFilter', value => {
+                            this.currentPageSemua = 1;
+                            this.currentPagePuskesmas = 1;
+                        });
+                    },
+                    get filteredKecamatans() {
+                        const q = this.search.trim().toLowerCase();
+                        const list = @js($kecamatanDataList);
+                        const keys = Object.keys(list);
+                        if (q === '') return keys;
+                        return keys.filter(kecName => {
+                            const kecData = list[kecName];
+                            const matchKec = kecName.toLowerCase().includes(q);
+                            const matchPusk = kecData.list_puskesmas.some(p => p.toLowerCase().includes(q));
+                            return matchKec || matchPusk;
+                        });
+                    },
+                    get filteredPuskesmas() {
+                        const q = this.search.trim().toLowerCase();
+                        const puskNames = @js($puskesmasNames);
+                        const mapping = @js($mapping);
+                        const keys = Object.keys(@js($groupedByPusk->toArray()));
+                        if (q === '') return keys;
+                        return keys.filter(puskCode => {
+                            const name = (puskNames[puskCode] || puskCode).toLowerCase();
+                            const kecName = (mapping[puskCode] || '').toLowerCase();
+                            const code = puskCode.toLowerCase();
+                            return name.includes(q) || kecName.includes(q) || code.includes(q);
+                        });
+                    },
+                    isKecamatanVisible(kecName) {
+                        const idx = this.filteredKecamatans.indexOf(kecName);
+                        if (idx === -1) return false;
+                        const start = (this.currentPageSemua - 1) * this.perPageSemua;
+                        const end = start + this.perPageSemua;
+                        return idx >= start && idx < end;
+                    },
+                    isPuskesmasVisible(puskCode) {
+                        const idx = this.filteredPuskesmas.indexOf(puskCode);
+                        if (idx === -1) return false;
+                        const start = (this.currentPagePuskesmas - 1) * this.perPagePuskesmas;
+                        const end = start + this.perPagePuskesmas;
+                        return idx >= start && idx < end;
+                    },
+                    getPages(totalPages, currentPage) {
+                        const range = [];
+                        const delta = 1;
+                        for (let i = 1; i <= totalPages; i++) {
+                            if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+                                range.push(i);
+                            } else if (range[range.length - 1] !== '...') {
+                                range.push('...');
+                            }
+                        }
+                        return range;
+                    },
                     get filteredKecamatanOptions() {
                         const q = this.kecamatanSearch.trim().toLowerCase();
                         if (q === '') {
@@ -65,18 +131,13 @@
                         });
                     },
                     get hasResults() {
-                        if (this.search === '') return true;
-                        const q = this.search.toLowerCase();
-                        
-                        let elements = [];
                         if (this.activeFilter === 'semua') {
-                            elements = Array.from($el.querySelectorAll('.tab-semua [data-search-key]'));
+                            return this.filteredKecamatans.length > 0;
                         } else if (this.activeFilter === 'kecamatan') {
-                            elements = Array.from($el.querySelectorAll('.tab-kecamatan [data-search-key]'));
+                            return this.filteredKecamatans.length > 0;
                         } else {
-                            elements = Array.from($el.querySelectorAll('.tab-puskesmas [data-search-key]'));
+                            return this.filteredPuskesmas.length > 0;
                         }
-                        return elements.some(el => el.dataset.searchKey.includes(q));
                     },
                     getKecamatanName(code) {
                         const option = this.kecamatanOptions.find(item => item.code === code);
@@ -220,6 +281,72 @@
                             @include('recap.tab_puskesmas')
                         </div>
 
+                        <!-- Pagination Controls -->
+                        <div x-show="hasResults" class="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <!-- Info Text -->
+                            <div>
+                                <!-- Info for Tab Semua -->
+                                <span x-show="activeFilter === 'semua'" class="text-sm text-slate-500 font-medium">
+                                    Menampilkan <span class="font-bold text-slate-800" x-text="filteredKecamatans.length === 0 ? 0 : (currentPageSemua - 1) * perPageSemua + 1"></span>
+                                    sampai <span class="font-bold text-slate-800" x-text="Math.min(currentPageSemua * perPageSemua, filteredKecamatans.length)"></span>
+                                    dari <span class="font-bold text-slate-800" x-text="filteredKecamatans.length"></span> Kecamatan
+                                </span>
+                                <!-- Info for Tab Puskesmas -->
+                                <span x-show="activeFilter === 'puskesmas'" class="text-sm text-slate-500 font-medium">
+                                    Menampilkan <span class="font-bold text-slate-800" x-text="filteredPuskesmas.length === 0 ? 0 : (currentPagePuskesmas - 1) * perPagePuskesmas + 1"></span>
+                                    sampai <span class="font-bold text-slate-800" x-text="Math.min(currentPagePuskesmas * perPagePuskesmas, filteredPuskesmas.length)"></span>
+                                    dari <span class="font-bold text-slate-800" x-text="filteredPuskesmas.length"></span> Puskesmas
+                                </span>
+                            </div>
+
+                            <!-- Buttons -->
+                            <div>
+                                <!-- Pagination for Tab Semua -->
+                                <nav x-show="activeFilter === 'semua' && Math.ceil(filteredKecamatans.length / perPageSemua) > 1" class="inline-flex items-center -space-x-px rounded-lg border border-slate-300 bg-white overflow-hidden shadow-sm" aria-label="Pagination Semua">
+                                    <button type="button" @click="currentPageSemua = Math.max(1, currentPageSemua - 1)" :disabled="currentPageSemua === 1" class="inline-flex h-10 w-10 items-center justify-center border-r border-slate-300 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                                    </button>
+                                    
+                                    <template x-for="(page, idx) in getPages(Math.ceil(filteredKecamatans.length / perPageSemua), currentPageSemua)" :key="'page-semua-' + idx">
+                                        <button 
+                                            type="button"
+                                            @click="page !== '...' ? currentPageSemua = page : null" 
+                                            :class="page === '...' ? 'cursor-default pointer-events-none text-slate-400 border-r border-slate-300 bg-white' : (currentPageSemua === page ? 'bg-slate-100 text-slate-800 font-semibold border-r border-slate-300' : 'text-slate-600 hover:bg-slate-50 border-r border-slate-300')" 
+                                            class="inline-flex h-10 min-w-[2.5rem] px-3 items-center justify-center text-sm font-medium transition-colors"
+                                            x-text="page">
+                                        </button>
+                                    </template>
+
+                                    <button type="button" @click="currentPageSemua = Math.min(Math.ceil(filteredKecamatans.length / perPageSemua), currentPageSemua + 1)" :disabled="currentPageSemua === Math.ceil(filteredKecamatans.length / perPageSemua)" class="inline-flex h-10 w-10 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                    </button>
+                                </nav>
+
+                                <!-- Pagination for Tab Puskesmas -->
+                                <nav x-show="activeFilter === 'puskesmas' && Math.ceil(filteredPuskesmas.length / perPagePuskesmas) > 1" class="inline-flex items-center -space-x-px rounded-lg shadow-sm" aria-label="Pagination Puskesmas">
+                                    <button type="button" @click="currentPagePuskesmas = Math.max(1, currentPagePuskesmas - 1)" :disabled="currentPagePuskesmas === 1" class="inline-flex h-10 w-10 items-center justify-center border-r border-slate-300 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                                    </button>
+                                    
+                                    <template x-for="(page, idx) in getPages(Math.ceil(filteredPuskesmas.length / perPagePuskesmas), currentPagePuskesmas)" :key="'page-pusk-' + idx">
+                                        <button 
+                                            type="button"
+                                            @click="page !== '...' ? currentPagePuskesmas = page : null" 
+                                            :class="page === '...' ? 'cursor-default pointer-events-none text-slate-400 border-r border-slate-300 bg-white' : (currentPagePuskesmas === page ? 'bg-slate-100 text-slate-800 font-semibold border-r border-slate-300' : 'text-slate-600 hover:bg-slate-50 border-r border-slate-300')" 
+                                            class="inline-flex h-10 min-w-[2.5rem] px-3 items-center justify-center text-sm font-medium transition-colors"
+                                            x-text="page">
+                                        </button>
+                                    </template>
+
+                                    <button type="button" @click="currentPagePuskesmas = Math.min(Math.ceil(filteredPuskesmas.length / perPagePuskesmas), currentPagePuskesmas + 1)" :disabled="currentPagePuskesmas === Math.ceil(filteredPuskesmas.length / perPagePuskesmas)" class="inline-flex h-10 w-10 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+
+
+
                         <div x-show="!hasResults" x-cloak class="p-10 mt-6 text-center bg-slate-50 border border-dashed border-slate-300 rounded-xl">
                             <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200 mb-4">
                                 <svg class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -310,7 +437,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="umum" x-model="exportScope.umum" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.umum ? 'text-slate-800' : 'text-slate-500'">Top N Umum</span>
                                                         </label>
-                                                        <input type="number" name="top_n_umum" value="10" min="1" :disabled="!exportScope.umum" :class="exportScope.umum ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_umum" value="10" min="1" max="20" :disabled="!exportScope.umum" :class="exportScope.umum ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Secara keseluruhan wilayah</p>
                                                     </div>
                                                     <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.kecamatan ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
@@ -318,7 +445,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="kecamatan" x-model="exportScope.kecamatan" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.kecamatan ? 'text-slate-800' : 'text-slate-500'">Top N Per Kecamatan</span>
                                                         </label>
-                                                        <input type="number" name="top_n_kecamatan" value="10" min="1" :disabled="!exportScope.kecamatan" :class="exportScope.kecamatan ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_kecamatan" value="10" min="1" max="20" :disabled="!exportScope.kecamatan" :class="exportScope.kecamatan ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap kecamatan</p>
                                                     </div>
                                                     <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.puskesmas ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
@@ -326,7 +453,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="puskesmas" x-model="exportScope.puskesmas" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.puskesmas ? 'text-slate-800' : 'text-slate-500'">Top N Per Puskesmas</span>
                                                         </label>
-                                                        <input type="number" name="top_n_puskesmas" value="10" min="1" :disabled="!exportScope.puskesmas" :class="exportScope.puskesmas ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_puskesmas" value="10" min="1" max="20" :disabled="!exportScope.puskesmas" :class="exportScope.puskesmas ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap faskes</p>
                                                     </div>
                                                 </div>
@@ -632,6 +759,18 @@
                                                                     </span>
                                                                 </template>
                                                             </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pengecualian dari Exclude (Tetap Dimasukkan)</label>
+                                                            <input
+                                                                type="text"
+                                                                name="exclude_exceptions"
+                                                                x-model="exportExcludeExceptions"
+                                                                placeholder="Contoh: Z01, Z02 (pisahkan dengan koma)"
+                                                                class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 bg-white"
+                                                            >
+                                                            <p class="text-[10px] text-slate-400 mt-1">Kode atau awalan di sini akan diabaikan dari filter exclude (tetap dicatat/direkap).</p>
                                                         </div>
                                                     </div>
                                                 </div>

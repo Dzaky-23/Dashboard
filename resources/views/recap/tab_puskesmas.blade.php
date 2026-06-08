@@ -5,7 +5,7 @@
             $totalKasusPusk = $dataPenyakit->sum('count');
             $topPenyakitPusk = $dataPenyakit->first();
         @endphp
-        <a data-search-key="{{ strtolower($puskesmas ?? '') }}" x-show="search === '' || '{{ strtolower($puskesmas ?? '') }}'.includes(search.toLowerCase())" href="{{ route('recap.show', $puskesmas) }}" class="group block bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-red-300 hover:shadow-md hover:ring-1 hover:ring-red-300 transition-all duration-300 relative">
+        <a data-search-key="{{ strtolower($puskesmas ?? '') }}" x-show="isPuskesmasVisible('{{ $puskesmas }}')" x-transition href="{{ route('recap.show', $puskesmas) }}" class="group block bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-red-300 hover:shadow-md hover:ring-1 hover:ring-red-300 transition-all duration-300 relative">
             <div class="flex justify-between items-start mb-2">
                 <h4 class="font-bold text-slate-800 text-base group-hover:text-red-700 transition-colors duration-200 pr-2 truncate">
                     {{ $puskesmasNames[$puskesmas] ?? $puskesmas }}

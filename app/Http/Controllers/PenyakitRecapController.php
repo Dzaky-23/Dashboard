@@ -540,6 +540,9 @@ class PenyakitRecapController extends Controller
 
     public function export(Request $request)
     {
+        ini_set('memory_limit', '512M');
+        set_time_limit(300); 
+
         $validated = $request->validate([
             'format' => ['nullable', 'in:pdf,excel'],
             'top_n_umum' => ['nullable', 'integer', 'min:1'],
@@ -570,6 +573,7 @@ class PenyakitRecapController extends Controller
             'exclude_codes.*' => ['nullable', 'string', 'max:20'],
             'include_icd' => ['nullable', 'string'],
             'exclude_icd' => ['nullable', 'string'],
+            'exclude_exceptions' => ['nullable', 'string', 'max:255'],
         ]);
 
         $format = $request->input('format', 'pdf');
@@ -589,6 +593,9 @@ class PenyakitRecapController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
+        $rawRanges = [];
+        $aggregateMonths = [];
+
         if ($periodType === 'custom_date') {
             $request->validate([
                 'start_date' => ['required', 'date'],
@@ -597,6 +604,8 @@ class PenyakitRecapController extends Controller
 
             $startDate = Carbon::parse($startDate)->toDateString();
             $endDate = Carbon::parse($endDate)->toDateString();
+
+            list($rawRanges, $aggregateMonths) = $this->parseCustomDateRanges($startDate, $endDate);
         }
         
         $exportScopes = $request->input('export_scope', []);
@@ -610,12 +619,15 @@ class PenyakitRecapController extends Controller
         );
         $includeCodes = $this->normalizeCodeFilters($request->input('include_codes', []));
         $excludeCodes = $this->normalizeCodeFilters($request->input('exclude_codes', []));
+        $excludeExceptions = $this->normalizePrefixFilters(
+            $request->filled('exclude_exceptions') ? explode(',', $request->input('exclude_exceptions')) : []
+        );
         
         $mapping = \App\Services\RecapLogicService::getMappingKodeToKecamatan();
         $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
         $rawData = $periodType === 'custom_date'
-            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes)
-            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+            ? $this->getRawHistoryExportData($exportScopes, $startDate, $endDate, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions)
+            : $this->getAggregateExportData($periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
         if ($kecamatanFilterMode === 'selected' && !empty($selectedKecamatan)) {
             $rawData = $rawData->reject(function ($row) use ($selectedKecamatan) {
@@ -701,6 +713,24 @@ class PenyakitRecapController extends Controller
                 $puskesmasData[$namaPuskesmas] = $topPusk->sortByDesc('count')->take($topNPuskesmas)->values();
             }
         }
+
+        $kecBreakdown = collect();
+        $puskBreakdown = collect();
+
+        if (in_array('umum', $exportScopes) && $topUmum->isNotEmpty()) {
+            $topDiseaseCodes = $topUmum->pluck('kode_penyakit')->toArray();
+
+            if ($periodType === 'custom_date') {
+                $kecBreakdown = $this->getRawHistoryBreakdownData('kecamatan', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $puskBreakdown = $this->getRawHistoryBreakdownData('puskesmas', $topDiseaseCodes, $rawRanges, $aggregateMonths, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+            } else {
+                $kecBreakdown = $this->getAggregateBreakdownData('kecamatan', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $puskBreakdown = $this->getAggregateBreakdownData('puskesmas', $topDiseaseCodes, $periodType, $year, $month, $semester, $quarter, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+            }
+        }
+
+        $kecBreakdownGrouped = $kecBreakdown->groupBy('kode_penyakit');
+        $puskBreakdownGrouped = $puskBreakdown->groupBy('kode_penyakit');
 
         // ====== GENERATE EXCEL (BINARY XLSX) ======
         if ($format === 'excel') {
@@ -867,6 +897,93 @@ class PenyakitRecapController extends Controller
                 $sheet->addChart($chart);
             }
 
+            if (in_array('umum', $exportScopes) && $topUmum->isNotEmpty()) {
+                $detailSheet = $spreadsheet->createSheet();
+                $detailSheet->setTitle('Detail Sebaran Penyakit');
+                
+                $detailSheet->getColumnDimension('A')->setWidth(8);
+                $detailSheet->getColumnDimension('B')->setWidth(25);
+                $detailSheet->getColumnDimension('C')->setWidth(15);
+                $detailSheet->getColumnDimension('D')->setWidth(5);
+                $detailSheet->getColumnDimension('E')->setWidth(8);
+                $detailSheet->getColumnDimension('F')->setWidth(25);
+                $detailSheet->getColumnDimension('G')->setWidth(15);
+
+                $rowNum = 1;
+
+                foreach ($topUmum as $index => $disease) {
+                    $kode = $disease->kode_penyakit;
+                    $nama = $disease->nama_penyakit ?? $kode;
+                    $total = $disease->count;
+
+                    // 1. Header Penyakit
+                    $detailSheet->mergeCells("A{$rowNum}:G{$rowNum}");
+                    $detailSheet->setCellValue("A{$rowNum}", "Peringkat #" . ($index + 1) . ": {$nama} ({$kode}) - Total: {$total} Kasus");
+                    $detailSheet->getStyle("A{$rowNum}")->getFont()->setBold(true)->setSize(12);
+                    $detailSheet->getStyle("A{$rowNum}")->getFill()
+                        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB('FFE0E0E0');
+                    $rowNum++;
+
+                    // 2. Sub-Header Tabel (Kecamatan vs Puskesmas)
+                    $detailSheet->mergeCells("A{$rowNum}:C{$rowNum}");
+                    $detailSheet->setCellValue("A{$rowNum}", 'Peringkat Sebaran Kecamatan');
+                    $detailSheet->getStyle("A{$rowNum}")->getFont()->setBold(true);
+
+                    $detailSheet->mergeCells("E{$rowNum}:G{$rowNum}");
+                    $detailSheet->setCellValue("E{$rowNum}", 'Peringkat Sebaran Puskesmas');
+                    $detailSheet->getStyle("E{$rowNum}")->getFont()->setBold(true);
+                    $rowNum++;
+
+                    // Header Kolom
+                    $detailSheet->setCellValue("A{$rowNum}", 'Rank');
+                    $detailSheet->setCellValue("B{$rowNum}", 'Nama Kecamatan');
+                    $detailSheet->setCellValue("C{$rowNum}", 'Kasus');
+
+                    $detailSheet->setCellValue("E{$rowNum}", 'Rank');
+                    $detailSheet->setCellValue("F{$rowNum}", 'Nama Puskesmas');
+                    $detailSheet->setCellValue("G{$rowNum}", 'Kasus');
+
+                    $detailSheet->getStyle("A{$rowNum}:C{$rowNum}")->getFont()->setItalic(true);
+                    $detailSheet->getStyle("E{$rowNum}:G{$rowNum}")->getFont()->setItalic(true);
+                    $rowNum++;
+
+                    // 3. Ambil Seluruh Data Sebaran & Urutkan secara Menurun
+                    $diseaseKec = $kecBreakdownGrouped->get($kode, collect())->sortByDesc('count')->values();
+                    $diseasePusk = $puskBreakdownGrouped->get($kode, collect())->sortByDesc('count')->values();
+
+                    $maxRows = max($diseaseKec->count(), $diseasePusk->count(), 1);
+
+                    for ($i = 0; $i < $maxRows; $i++) {
+                        // Tulis Kecamatan
+                        if ($i < $diseaseKec->count()) {
+                            $kecItem = $diseaseKec[$i];
+                            $namaKec = \App\Services\RecapLogicService::MAPPING_NAMA_KECAMATAN[$kecItem->kode_kecamatan] ?? $kecItem->kode_kecamatan;
+                            $detailSheet->setCellValue("A{$rowNum}", $i + 1);
+                            $detailSheet->setCellValue("B{$rowNum}", $namaKec);
+                            $detailSheet->setCellValue("C{$rowNum}", $kecItem->count);
+                        } else if ($i == 0 && $diseaseKec->isEmpty()) {
+                            $detailSheet->setCellValue("B{$rowNum}", 'Tidak ada data');
+                        }
+
+                        // Tulis Puskesmas
+                        if ($i < $diseasePusk->count()) {
+                            $puskItem = $diseasePusk[$i];
+                            $namaPusk = $puskesmasNames[$puskItem->kpusk] ?? $puskItem->kpusk;
+                            $detailSheet->setCellValue("E{$rowNum}", $i + 1);
+                            $detailSheet->setCellValue("F{$rowNum}", $namaPusk);
+                            $detailSheet->setCellValue("G{$rowNum}", $puskItem->count);
+                        } else if ($i == 0 && $diseasePusk->isEmpty()) {
+                            $detailSheet->setCellValue("F{$rowNum}", 'Tidak ada data');
+                        }
+                        $rowNum++;
+                    }
+
+                    // Beri jarak antar penyakit
+                    $rowNum += 2;
+                }
+            }
+
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $writer->setIncludeCharts(true);
             
@@ -912,7 +1029,8 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
         $query = RekapPenyakitTop::query()
             ->select('scope', 'kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'), 'year', 'month', 'period_type')
@@ -935,7 +1053,7 @@ class PenyakitRecapController extends Controller
                 ->where('year', $year);
         }
 
-        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
         return $query->get();
     }
@@ -947,88 +1065,288 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ) {
-        $baseQuery = DB::table('history as h')
-            ->leftJoin('ref_puskesmas as rp', DB::raw("TRIM(COALESCE(h.kpusk, ''))"), '=', DB::raw("TRIM(COALESCE(rp.kode_puskesmas, ''))"))
-            ->leftJoin('bpjs_ref_icd as icd', DB::raw('TRIM(h.kode_penyakit)'), '=', DB::raw('TRIM(icd.kdDiag)'))
-            ->whereNotNull('h.tanggal')
-            ->whereBetween('h.tanggal', [$startDate, $endDate])
-            ->whereRaw("TRIM(COALESCE(h.kode_penyakit, '')) <> ''");
-
-        $this->applyKodePenyakitFilters($baseQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes);
+        list($rawRanges, $aggregateMonths) = $this->parseCustomDateRanges($startDate, $endDate);
 
         $rawData = collect();
 
         if (in_array('umum', $exportScopes, true)) {
-            $rawData = $rawData->concat(
-                (clone $baseQuery)
+            $rawUmum = collect();
+            if (!empty($rawRanges)) {
+                $rawQuery = DB::table('history as h')
+                    ->leftJoin('ref_puskesmas as rp', 'h.kpusk', '=', 'rp.kode_puskesmas')
+                    ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
+                    ->whereNotNull('h.kode_penyakit')
+                    ->where('h.kode_penyakit', '<>', '')
+                    ->where(function ($q) use ($rawRanges) {
+                        foreach ($rawRanges as $range) {
+                            $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
+                        }
+                    });
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $rawUmum = $rawQuery
                     ->selectRaw("
                         'global' as scope,
                         '' as kpusk,
                         '' as kode_kecamatan,
-                        TRIM(h.kode_penyakit) as kode_penyakit,
-                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
-                        COUNT(*) as count,
-                        ? as period_type,
-                        NULL as year,
-                        NULL as month
-                    ", ['custom_date'])
-                    ->groupByRaw("TRIM(h.kode_penyakit), COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))")
-                    ->get()
-            );
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
+                    ")
+                    ->groupBy('h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            }
+
+            $aggUmum = collect();
+            if (!empty($aggregateMonths)) {
+                $aggQuery = DB::table('rekap_penyakit_top')
+                    ->where('scope', 'global')
+                    ->where('period_type', 'month')
+                    ->where(function ($q) use ($aggregateMonths) {
+                        foreach ($aggregateMonths as $monthData) {
+                            $q->orWhere(function ($sub) use ($monthData) {
+                                $sub->where('year', $monthData['year'])
+                                    ->where('month', $monthData['month']);
+                            });
+                        }
+                    });
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $aggUmum = $aggQuery
+                    ->selectRaw("
+                        'global' as scope,
+                        '' as kpusk,
+                        '' as kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kode_penyakit', 'nama_penyakit')
+                    ->get();
+            }
+
+            $mergedUmum = $rawUmum->concat($aggUmum)
+                ->groupBy(function ($item) {
+                    return $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'scope' => 'global',
+                        'kpusk' => '',
+                        'kode_kecamatan' => '',
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count'),
+                        'period_type' => 'custom_date',
+                        'year' => null,
+                        'month' => null
+                    ];
+                })
+                ->values();
+            $rawData = $rawData->concat($mergedUmum);
         }
 
         if (in_array('kecamatan', $exportScopes, true)) {
-            $rawData = $rawData->concat(
-                (clone $baseQuery)
-                    ->whereRaw("TRIM(COALESCE(rp.kode_kecamatan, '')) <> ''")
+            $rawKec = collect();
+            if (!empty($rawRanges)) {
+                $rawQuery = DB::table('history as h')
+                    ->leftJoin('ref_puskesmas as rp', 'h.kpusk', '=', 'rp.kode_puskesmas')
+                    ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
+                    ->whereNotNull('rp.kode_kecamatan')
+                    ->where('rp.kode_kecamatan', '<>', '')
+                    ->whereNotNull('h.kode_penyakit')
+                    ->where('h.kode_penyakit', '<>', '')
+                    ->where(function ($q) use ($rawRanges) {
+                        foreach ($rawRanges as $range) {
+                            $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
+                        }
+                    });
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $rawKec = $rawQuery
                     ->selectRaw("
                         'kecamatan' as scope,
                         '' as kpusk,
-                        TRIM(COALESCE(rp.kode_kecamatan, '')) as kode_kecamatan,
-                        TRIM(h.kode_penyakit) as kode_penyakit,
-                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
-                        COUNT(*) as count,
-                        ? as period_type,
-                        NULL as year,
-                        NULL as month
-                    ", ['custom_date'])
-                    ->groupByRaw("
-                        TRIM(COALESCE(rp.kode_kecamatan, '')),
-                        TRIM(h.kode_penyakit),
-                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
                     ")
-                    ->get()
-            );
+                    ->groupBy('rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            }
+
+            $aggKec = collect();
+            if (!empty($aggregateMonths)) {
+                $aggQuery = DB::table('rekap_penyakit_top')
+                    ->where('scope', 'kecamatan')
+                    ->where('period_type', 'month')
+                    ->where(function ($q) use ($aggregateMonths) {
+                        foreach ($aggregateMonths as $monthData) {
+                            $q->orWhere(function ($sub) use ($monthData) {
+                                $sub->where('year', $monthData['year'])
+                                    ->where('month', $monthData['month']);
+                            });
+                        }
+                    });
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $aggKec = $aggQuery
+                    ->selectRaw("
+                        'kecamatan' as scope,
+                        '' as kpusk,
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            }
+
+            $mergedKec = $rawKec->concat($aggKec)
+                ->groupBy(function ($item) {
+                    return $item->kode_kecamatan . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'scope' => 'kecamatan',
+                        'kpusk' => '',
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count'),
+                        'period_type' => 'custom_date',
+                        'year' => null,
+                        'month' => null
+                    ];
+                })
+                ->values();
+            $rawData = $rawData->concat($mergedKec);
         }
 
         if (in_array('puskesmas', $exportScopes, true)) {
-            $rawData = $rawData->concat(
-                (clone $baseQuery)
-                    ->whereRaw("TRIM(COALESCE(h.kpusk, '')) <> ''")
+            $rawPusk = collect();
+            if (!empty($rawRanges)) {
+                $rawQuery = DB::table('history as h')
+                    ->leftJoin('ref_puskesmas as rp', 'h.kpusk', '=', 'rp.kode_puskesmas')
+                    ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
+                    ->whereNotNull('h.kpusk')
+                    ->where('h.kpusk', '<>', '')
+                    ->whereNotNull('h.kode_penyakit')
+                    ->where('h.kode_penyakit', '<>', '')
+                    ->where(function ($q) use ($rawRanges) {
+                        foreach ($rawRanges as $range) {
+                            $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
+                        }
+                    });
+                $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $rawPusk = $rawQuery
                     ->selectRaw("
                         'puskesmas' as scope,
-                        TRIM(COALESCE(h.kpusk, '')) as kpusk,
-                        TRIM(COALESCE(rp.kode_kecamatan, '')) as kode_kecamatan,
-                        TRIM(h.kode_penyakit) as kode_penyakit,
-                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit)) as nama_penyakit,
-                        COUNT(*) as count,
-                        ? as period_type,
-                        NULL as year,
-                        NULL as month
-                    ", ['custom_date'])
-                    ->groupByRaw("
-                        TRIM(COALESCE(h.kpusk, '')),
-                        TRIM(COALESCE(rp.kode_kecamatan, '')),
-                        TRIM(h.kode_penyakit),
-                        COALESCE(NULLIF(icd.nmDiag, ''), TRIM(h.kode_penyakit))
+                        h.kpusk,
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
                     ")
-                    ->get()
-            );
+                    ->groupBy('h.kpusk', 'rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            }
+
+            $aggPusk = collect();
+            if (!empty($aggregateMonths)) {
+                $aggQuery = DB::table('rekap_penyakit_top')
+                    ->where('scope', 'puskesmas')
+                    ->where('period_type', 'month')
+                    ->where(function ($q) use ($aggregateMonths) {
+                        foreach ($aggregateMonths as $monthData) {
+                            $q->orWhere(function ($sub) use ($monthData) {
+                                $sub->where('year', $monthData['year'])
+                                    ->where('month', $monthData['month']);
+                            });
+                        }
+                    });
+                $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+                $aggPusk = $aggQuery
+                    ->selectRaw("
+                        'puskesmas' as scope,
+                        kpusk,
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            }
+
+            $mergedPusk = $rawPusk->concat($aggPusk)
+                ->groupBy(function ($item) {
+                    return $item->kpusk . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'scope' => 'puskesmas',
+                        'kpusk' => $first->kpusk,
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count'),
+                        'period_type' => 'custom_date',
+                        'year' => null,
+                        'month' => null
+                    ];
+                })
+                ->values();
+            $rawData = $rawData->concat($mergedPusk);
         }
 
         return $rawData->values();
+    }
+
+    private function parseCustomDateRanges(string $startDate, string $endDate): array
+    {
+        $start = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        $rawRanges = [];
+        $aggregateMonths = [];
+
+        if ($start->format('Y-m') === $end->format('Y-m')) {
+            if ($start->day == 1 && $start->copy()->endOfMonth()->day == $end->day) {
+                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
+            } else {
+                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $end->toDateString()];
+            }
+        } else {
+            if ($start->day == 1) {
+                $aggregateMonths[] = ['year' => $start->year, 'month' => $start->month];
+            } else {
+                $rawRanges[] = ['start' => $start->toDateString(), 'end' => $start->copy()->endOfMonth()->toDateString()];
+            }
+
+            $middleStart = $start->copy()->addMonth()->startOfMonth();
+            $middleEnd = $end->copy()->subMonth()->endOfMonth();
+
+            if ($middleStart->lte($middleEnd)) {
+                $temp = clone $middleStart;
+                while ($temp->lte($middleEnd)) {
+                    $aggregateMonths[] = ['year' => $temp->year, 'month' => $temp->month];
+                    $temp->addMonth();
+                }
+            }
+
+            if ($end->day == $end->copy()->endOfMonth()->day) {
+                $aggregateMonths[] = ['year' => $end->year, 'month' => $end->month];
+            } else {
+                $rawRanges[] = ['start' => $end->copy()->startOfMonth()->toDateString(), 'end' => $end->toDateString()];
+            }
+        }
+
+        return [$rawRanges, $aggregateMonths];
     }
 
     private function applyKodePenyakitFilters(
@@ -1037,10 +1355,14 @@ class PenyakitRecapController extends Controller
         array $includePrefixes,
         array $excludePrefixes,
         array $includeCodes,
-        array $excludeCodes
+        array $excludeCodes,
+        array $excludeExceptions = []
     ): void
     {
-        $normalizedColumn = 'UPPER(TRIM(' . $column . '))';
+        $normalizedColumn = $column;
+
+        // Gabungkan semua inklusi dan pengecualian khusus sebagai calon bypass filter exclude
+        $allExceptions = array_values(array_unique(array_merge($includePrefixes, $includeCodes, $excludeExceptions)));
 
         if (!empty($includePrefixes) || !empty($includeCodes)) {
             $query->where(function ($q) use ($includePrefixes, $includeCodes, $normalizedColumn) {
@@ -1063,7 +1385,24 @@ class PenyakitRecapController extends Controller
         }
 
         foreach ($excludePrefixes as $prefix) {
-            $query->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+            // Cari apakah ada exception yang lebih spesifik atau sama dengan prefix pengecualian saat ini
+            $prefixExceptions = [];
+            foreach ($allExceptions as $exc) {
+                if (strpos(strtoupper($exc), strtoupper($prefix)) === 0) {
+                    $prefixExceptions[] = $exc;
+                }
+            }
+
+            if (!empty($prefixExceptions)) {
+                $query->where(function ($q) use ($normalizedColumn, $prefix, $prefixExceptions) {
+                    $q->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+                    foreach ($prefixExceptions as $exc) {
+                        $q->orWhereRaw($normalizedColumn . ' LIKE ?', [$exc . '%']);
+                    }
+                });
+            } else {
+                $query->whereRaw($normalizedColumn . ' NOT LIKE ?', [$prefix . '%']);
+            }
         }
     }
 
@@ -1137,7 +1476,7 @@ class PenyakitRecapController extends Controller
         $sort = $request->input('sort', 'cases_desc');
 
         $query = RekapPenyakitTop::query()
-            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
             ->where('scope', 'puskesmas')
             ->where('kpusk', $puskesmas)
             ->where('period_type', $periodType);
@@ -1169,7 +1508,17 @@ class PenyakitRecapController extends Controller
 
         $penyakits = $query->paginate(10)->withQueryString();
 
-        return view('recap.puskesmas.full_list', compact('puskesmas', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
+        $icdNames = $penyakits->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
+        $missingCodes = $penyakits->pluck('kode_penyakit')
+            ->unique()
+            ->diff(array_keys($icdNames))
+            ->values()
+            ->toArray();
+        if (!empty($missingCodes)) {
+            $icdNames = array_replace($icdNames, \App\Services\RecapLogicService::getIcdNames($missingCodes));
+        }
+
+        return view('recap.puskesmas.full_list', compact('puskesmas', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
     }
 
     // ==========================================
@@ -1197,7 +1546,7 @@ class PenyakitRecapController extends Controller
         }
 
         $query = RekapPenyakitTop::query()
-            ->select('kode_penyakit', DB::raw('jumlah_kasus as count'))
+            ->select('kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'))
             ->where('scope', 'kecamatan')
             ->where('kode_kecamatan', $kodeKecamatan)
             ->where('period_type', $periodType);
@@ -1229,7 +1578,196 @@ class PenyakitRecapController extends Controller
 
         $penyakits = $query->paginate(10)->withQueryString();
 
-        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort'));
+        $icdNames = $penyakits->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
+        $missingCodes = $penyakits->pluck('kode_penyakit')
+            ->unique()
+            ->diff(array_keys($icdNames))
+            ->values()
+            ->toArray();
+        if (!empty($missingCodes)) {
+            $icdNames = array_replace($icdNames, \App\Services\RecapLogicService::getIcdNames($missingCodes));
+        }
+
+        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
+    }
+
+    private function getRawHistoryBreakdownData(
+        string $scope,
+        array $topDiseaseCodes,
+        array $rawRanges,
+        array $aggregateMonths,
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes,
+        array $excludeExceptions = []
+    ) {
+        $raw = collect();
+        if (!empty($rawRanges)) {
+            $rawQuery = DB::table('history as h')
+                ->leftJoin('ref_puskesmas as rp', 'h.kpusk', '=', 'rp.kode_puskesmas')
+                ->leftJoin('bpjs_ref_icd as icd', 'h.kode_penyakit', '=', 'icd.kdDiag')
+                ->whereIn('h.kode_penyakit', $topDiseaseCodes);
+
+            if ($scope === 'kecamatan') {
+                $rawQuery->whereNotNull('rp.kode_kecamatan')
+                    ->where('rp.kode_kecamatan', '<>', '');
+            } else {
+                $rawQuery->whereNotNull('h.kpusk')
+                    ->where('h.kpusk', '<>', '');
+            }
+
+            $rawQuery->where(function ($q) use ($rawRanges) {
+                foreach ($rawRanges as $range) {
+                    $q->orWhereBetween('h.tanggal', [$range['start'], $range['end']]);
+                }
+            });
+
+            $this->applyKodePenyakitFilters($rawQuery, 'h.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+
+            if ($scope === 'kecamatan') {
+                $raw = $rawQuery
+                    ->selectRaw("
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
+                    ")
+                    ->groupBy('rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            } else {
+                $raw = $rawQuery
+                    ->selectRaw("
+                        h.kpusk,
+                        rp.kode_kecamatan,
+                        h.kode_penyakit,
+                        COALESCE(NULLIF(icd.nmDiag, ''), h.kode_penyakit) as nama_penyakit,
+                        COUNT(*) as count
+                    ")
+                    ->groupBy('h.kpusk', 'rp.kode_kecamatan', 'h.kode_penyakit', 'icd.nmDiag')
+                    ->get();
+            }
+        }
+
+        $agg = collect();
+        if (!empty($aggregateMonths)) {
+            $aggQuery = DB::table('rekap_penyakit_top')
+                ->where('scope', $scope)
+                ->where('period_type', 'month')
+                ->whereIn('kode_penyakit', $topDiseaseCodes)
+                ->where(function ($q) use ($aggregateMonths) {
+                    foreach ($aggregateMonths as $monthData) {
+                        $q->orWhere(function ($sub) use ($monthData) {
+                            $sub->where('year', $monthData['year'])
+                                ->where('month', $monthData['month']);
+                        });
+                    }
+                });
+
+            $this->applyKodePenyakitFilters($aggQuery, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+
+            if ($scope === 'kecamatan') {
+                $agg = $aggQuery
+                    ->selectRaw("
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            } else {
+                $agg = $aggQuery
+                    ->selectRaw("
+                        kpusk,
+                        kode_kecamatan,
+                        kode_penyakit,
+                        nama_penyakit,
+                        SUM(jumlah_kasus) as count
+                    ")
+                    ->groupBy('kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit')
+                    ->get();
+            }
+        }
+
+        if ($scope === 'kecamatan') {
+            return $raw->concat($agg)
+                ->groupBy(function ($item) {
+                    return $item->kode_kecamatan . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count')
+                    ];
+                })
+                ->values();
+        } else {
+            return $raw->concat($agg)
+                ->groupBy(function ($item) {
+                    return $item->kpusk . '|' . $item->kode_penyakit;
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'kpusk' => $first->kpusk,
+                        'kode_kecamatan' => $first->kode_kecamatan,
+                        'kode_penyakit' => $first->kode_penyakit,
+                        'nama_penyakit' => $first->nama_penyakit,
+                        'count' => $group->sum('count')
+                    ];
+                })
+                ->values();
+        }
+    }
+
+    private function getAggregateBreakdownData(
+        string $scope,
+        array $topDiseaseCodes,
+        string $periodType,
+        $year,
+        $month,
+        $semester,
+        $quarter,
+        array $includePrefixes,
+        array $excludePrefixes,
+        array $includeCodes,
+        array $excludeCodes,
+        array $excludeExceptions = []
+    ) {
+        $query = RekapPenyakitTop::query();
+        if ($scope === 'kecamatan') {
+            $query->select('kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'));
+        } else {
+            $query->select('kpusk', 'kode_kecamatan', 'kode_penyakit', 'nama_penyakit', DB::raw('jumlah_kasus as count'));
+        }
+
+        $query->where('scope', $scope)
+            ->whereIn('kode_penyakit', $topDiseaseCodes);
+
+        if ($periodType === 'month') {
+            $query->where('period_type', 'month')
+                ->where('year', $year)
+                ->where('month', $month);
+        } elseif ($periodType === 'semester') {
+            $query->where('period_type', 'semester')
+                ->where('year', $year)
+                ->where('semester', $semester);
+        } elseif ($periodType === 'quarter') {
+            $query->where('period_type', 'quarter')
+                ->where('year', $year)
+                ->where('quarter', $quarter);
+        } else {
+            $query->where('period_type', 'year')
+                ->where('year', $year);
+        }
+
+        $this->applyKodePenyakitFilters($query, 'kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
+
+        return $query->get();
     }
 
 }
