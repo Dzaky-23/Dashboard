@@ -11,6 +11,7 @@
                     exportExcludePrefixes: [],
                     exportIncludeCodes: [],
                     exportExcludeCodes: [],
+                    exportExcludeExceptions: '',
                     exportIncludeCodeSearch: '',
                     exportExcludeCodeSearch: '',
                     includeCodeOptions: [],
@@ -758,6 +759,18 @@
                                                                     </span>
                                                                 </template>
                                                             </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pengecualian dari Exclude (Tetap Dimasukkan)</label>
+                                                            <input
+                                                                type="text"
+                                                                name="exclude_exceptions"
+                                                                x-model="exportExcludeExceptions"
+                                                                placeholder="Contoh: Z01, Z02 (pisahkan dengan koma)"
+                                                                class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 bg-white"
+                                                            >
+                                                            <p class="text-[10px] text-slate-400 mt-1">Kode atau awalan di sini akan diabaikan dari filter exclude (tetap dicatat/direkap).</p>
                                                         </div>
                                                     </div>
                                                 </div>
