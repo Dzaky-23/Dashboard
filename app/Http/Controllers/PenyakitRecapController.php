@@ -1360,6 +1360,8 @@ class PenyakitRecapController extends Controller
     ): void
     {
         $normalizedColumn = $column;
+        // dd($includeCodes, $excludePrefixes, $normalizedColumn, $excludeCodes); 
+
 
         // Gabungkan semua inklusi dan pengecualian khusus sebagai calon bypass filter exclude
         $allExceptions = array_values(array_unique(array_merge($includePrefixes, $includeCodes, $excludeExceptions)));
@@ -1386,7 +1388,8 @@ class PenyakitRecapController extends Controller
 
         foreach ($excludePrefixes as $prefix) {
             // Cari apakah ada exception yang lebih spesifik atau sama dengan prefix pengecualian saat ini
-            $prefixExceptions = [];
+            // $prefixExceptions = [];
+            $prefixExceptions = $excludePrefixes;
             foreach ($allExceptions as $exc) {
                 if (strpos(strtoupper($exc), strtoupper($prefix)) === 0) {
                     $prefixExceptions[] = $exc;
