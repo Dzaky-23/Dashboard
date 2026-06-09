@@ -798,7 +798,7 @@ class PenyakitRecapController extends Controller
                 
                 $chart->setTopLeftPosition('F' . ($startRow - 1));
                 // Give a little extra width for value labels and enough height for longer rankings.
-                $chart->setBottomRightPosition('Q' . max($endRow, $startRow + 14));
+                $chart->setBottomRightPosition('Q' . max($endRow, $startRow + 12));
                 $charts[] = $chart;
             };
 
