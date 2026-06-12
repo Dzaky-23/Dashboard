@@ -34,12 +34,14 @@ class RecapLogicService
     public static function getMappingKodeToKecamatan(): array
     {
         return \Illuminate\Support\Facades\Cache::remember('mapping_kode_kecamatan', 600, function() {
-            $refData = \App\Models\RefPuskesmas::all();
+            $data = \Illuminate\Support\Facades\DB::table('puskesmas as p')
+                ->leftJoin('kecamatan as k', 'p.kode_kc', '=', 'k.kode_kc')
+                ->select('p.kode_p', 'k.kecamatan')
+                ->get();
+            
             $mapping = [];
-            foreach($refData as $ref) {
-                $kodeKecamatan = strtoupper(trim($ref->kode_kecamatan));
-                $namaKecamatan = self::MAPPING_NAMA_KECAMATAN[$kodeKecamatan] ?? $kodeKecamatan;
-                $mapping[$ref->kode_puskesmas] = $namaKecamatan;
+            foreach ($data as $row) {
+                $mapping[$row->kode_p] = strtoupper(trim($row->kecamatan ?? $row->kode_p));
             }
             return $mapping;
         });
@@ -48,7 +50,9 @@ class RecapLogicService
     public static function getPuskesmasNames(): array
     {
         return \Illuminate\Support\Facades\Cache::remember('mapping_kode_nama_pusk', 600, function() {
-            return \App\Models\RefPuskesmas::pluck('puskesmas', 'kode_puskesmas')->toArray();
+            return \Illuminate\Support\Facades\DB::table('puskesmas')
+                ->pluck('nama', 'kode_p')
+                ->toArray();
         });
     }
 

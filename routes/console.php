@@ -9,15 +9,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('recap-top:build {--reset}', function (RekapPenyakitTopBuilder $builder) {
-    if ($this->option('reset')) {
-        $this->info('Mengosongkan tabel rekapitulasi...');
-        Illuminate\Support\Facades\DB::table('rekap_penyakit_top')->truncate();
-        Illuminate\Support\Facades\DB::table('rekap_logs')->where('job_name', 'recap-top-build')->delete();
-        $this->info('Tabel rekapitulasi berhasil dikosongkan.');
-    }
-    $builder->build();
-    $this->info('Rekap penyakit top-N berhasil dibuat ulang.');
-})->purpose('Membangun ulang tabel rekap penyakit top-N.');
+Artisan::command('recap-top:build {--reset}', function () {
+    $this->info('Command lama tidak digunakan. Gunakan rekap:aggregate.');
+})->purpose('Membangun ulang tabel rekap (deprecated).');
 
-Schedule::command('recap-top:build')->dailyAt('14:20')->withoutOverlapping();
+Schedule::command('rekap:aggregate')
+    // ->cron('0 2 6 * *')
+    ->dailyAt('10:00')
+    ->onFailure(function () {
+        Illuminate\Support\Facades\Log::error('Fallback cron rekap:aggregate failed.');
+    });

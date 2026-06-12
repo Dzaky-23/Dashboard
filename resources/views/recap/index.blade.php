@@ -7,6 +7,9 @@
                     search: '',
                     openExportModal: false,
                     exportFormat: 'pdf',
+                    exportTopNUmum: 10,
+                    exportTopNKecamatan: 10,
+                    exportTopNPuskesmas: 10,
                     exportIncludePrefixes: [],
                     exportExcludePrefixes: [],
                     exportIncludeCodes: [],
@@ -43,6 +46,22 @@
                     perPageSemua: 5,
                     currentPagePuskesmas: 1,
                     perPagePuskesmas: 9,
+                    
+                    // New Async Aggregation and Export Properties
+                    openAggregateModal: false,
+                    aggregateMonth: '{{ date('Y-m') }}',
+                    aggregateJobId: null,
+                    aggregateJobStatus: null,
+                    aggregateJobInterval: null,
+                    showAggregateProgress: false,
+                    aggregateErrorMsg: '',
+                    
+                    exportJobId: null,
+                    exportJobStatus: null,
+                    exportJobInterval: null,
+                    showExportProgress: false,
+                    exportErrorMsg: '',
+                    
                     init() {
                         this.$watch('search', value => {
                             this.currentPageSemua = 1;
@@ -119,7 +138,7 @@
                             const matchKecamatan = this.puskesmasKecamatanCodes.length === 0
                                 || this.puskesmasKecamatanCodes.includes(option.kecamatan_code);
                             if (!matchKecamatan) {
-                                return false;
+                                  return false;
                             }
                             if (q === '') {
                                 return true;
@@ -238,6 +257,187 @@
                         this[codesKey] = [...this[codesKey], option];
                         this[searchKey] = '';
                         this[resultsKey] = [];
+                    },
+
+                    async submitAggregation() {
+                        this.aggregateErrorMsg = '';
+                        this.showAggregateProgress = true;
+                        this.aggregateJobStatus = 'pending';
+                        
+                        try {
+                            const response = await fetch('/rekap/aggregate', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').getAttribute('content'),
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    bulan: this.aggregateMonth
+                                })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Gagal mengirimkan request agregasi.');
+                            }
+                            
+                            const data = await response.json();
+                            this.aggregateJobId = data.job_id;
+                            
+                            this.aggregateJobInterval = setInterval(() => {
+                                this.checkAggregateStatus();
+                            }, 1500);
+                        } catch (err) {
+                            this.aggregateErrorMsg = err.message;
+                            this.aggregateJobStatus = 'failed';
+                            this.showAggregateProgress = false;
+                        }
+                    },
+
+                    async checkAggregateStatus() {
+                        try {
+                            const response = await fetch(`/rekap/aggregate/status/${this.aggregateJobId}`);
+                            const data = await response.json();
+                            this.aggregateJobStatus = data.status;
+                            
+                            if (data.status === 'done') {
+                                clearInterval(this.aggregateJobInterval);
+                                this.showAggregateProgress = false;
+                                this.openAggregateModal = false;
+                                alert('Agregasi selesai! Halaman akan memuat ulang.');
+                                window.location.reload();
+                            } else if (data.status === 'failed') {
+                                clearInterval(this.aggregateJobInterval);
+                                this.aggregateErrorMsg = 'Agregasi gagal di server.';
+                                this.showAggregateProgress = false;
+                            }
+                        } catch (err) {
+                            clearInterval(this.aggregateJobInterval);
+                            this.aggregateErrorMsg = 'Koneksi error.';
+                            this.showAggregateProgress = false;
+                            this.aggregateJobStatus = 'failed';
+                        }
+                    },
+
+                    async submitExport() {
+                        this.exportErrorMsg = '';
+                        this.showExportProgress = true;
+                        this.exportJobStatus = 'pending';
+                        
+                        const scopes = [];
+                        if (this.exportScope.umum) scopes.push('umum');
+                        if (this.exportScope.kecamatan) scopes.push('kecamatan');
+                        if (this.exportScope.puskesmas) scopes.push('puskesmas');
+
+                        if (scopes.length === 0) {
+                            alert('Pilih minimal satu cakupan laporan untuk diekspor.');
+                            return;
+                        }
+
+                        const topNUmum = this.exportTopNUmum || 10;
+                        const topNKecamatan = this.exportTopNKecamatan || 10;
+                        const topNPuskesmas = this.exportTopNPuskesmas || 10;
+                        
+                        let from = '';
+                        let to = '';
+                        const periodType = this.exportPeriodType;
+                        const year = this.exportYear;
+                        
+                        if (periodType === 'year') {
+                            from = `${year}-01-01`;
+                            to = `${year}-12-31`;
+                        } else if (periodType === 'semester') {
+                            const sem = this.exportSemester;
+                            from = sem === '1' ? `${year}-01-01` : `${year}-07-01`;
+                            to = sem === '1' ? `${year}-06-30` : `${year}-12-31`;
+                        } else if (periodType === 'quarter') {
+                            const q = this.exportQuarter;
+                            if (q === '1') { from = `${year}-01-01`; to = `${year}-03-31`; }
+                            else if (q === '2') { from = `${year}-04-01`; to = `${year}-06-30`; }
+                            else if (q === '3') { from = `${year}-07-01`; to = `${year}-09-30`; }
+                            else if (q === '4') { from = `${year}-10-01`; to = `${year}-12-31`; }
+                        } else if (periodType === 'month') {
+                            const m = String(this.exportMonth).padStart(2, '0');
+                            const lastDay = new Date(year, this.exportMonth, 0).getDate();
+                            from = `${year}-${m}-01`;
+                            to = `${year}-${m}-${lastDay}`;
+                        } else if (periodType === 'custom_date') {
+                            from = this.exportStartDate;
+                            to = this.exportEndDate;
+                        }
+                        
+                        const payload = {
+                            from: from,
+                            to: to,
+                            scopes: scopes,
+                            top_n_umum: topNUmum,
+                            top_n_kecamatan: topNKecamatan,
+                            top_n_puskesmas: topNPuskesmas,
+                            kecamatan_filter_mode: this.kecamatanFilterMode,
+                            selected_kecamatan: this.selectedKecamatan,
+                            puskesmas_filter_mode: this.puskesmasFilterMode,
+                            selected_puskesmas: this.selectedPuskesmas,
+                            format: this.exportFormat,
+                            filters: {
+                                include_prefixes: this.exportIncludePrefixes,
+                                exclude_prefixes: this.exportExcludePrefixes,
+                                include_codes: this.exportIncludeCodes.map(i => i.code),
+                                exclude_codes: this.exportExcludeCodes.map(i => i.code),
+                                exclude_exceptions: this.exportExcludeExceptions
+                            }
+                        };
+                        
+                        try {
+                            const response = await fetch('/rekap/export/dispatch', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').getAttribute('content'),
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Gagal memproses request export.');
+                            }
+                            
+                            const data = await response.json();
+                            this.exportJobId = data.job_id;
+                            
+                            this.exportJobInterval = setInterval(() => {
+                                this.checkExportStatus();
+                            }, 1500);
+                            
+                        } catch (err) {
+                            this.exportErrorMsg = err.message;
+                            this.exportJobStatus = 'failed';
+                            this.showExportProgress = false;
+                        }
+                    },
+
+                    async checkExportStatus() {
+                        try {
+                            const response = await fetch(`/rekap/export/status/${this.exportJobId}`);
+                            const data = await response.json();
+                            this.exportJobStatus = data.status;
+                            
+                            if (data.status === 'done') {
+                                clearInterval(this.exportJobInterval);
+                                this.showExportProgress = false;
+                                this.openExportModal = false;
+                                window.location.href = `/rekap/export/download/${this.exportJobId}`;
+                            } else if (data.status === 'failed') {
+                                clearInterval(this.exportJobInterval);
+                                this.exportErrorMsg = 'Proses ekspor gagal di server.';
+                                this.showExportProgress = false;
+                            }
+                        } catch (err) {
+                            clearInterval(this.exportJobInterval);
+                            this.exportErrorMsg = 'Koneksi error saat memeriksa status.';
+                            this.showExportProgress = false;
+                            this.exportJobStatus = 'failed';
+                        }
                     }
                 }">
                     @if($groupedByPusk->isEmpty())
@@ -369,33 +569,21 @@
                                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
                                     class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl">
                                     
-                                    <form action="{{ route('recap.export') }}" method="GET">
-                                        <template x-for="prefix in exportIncludePrefixes" :key="'include-prefix-' + prefix">
-                                            <input type="hidden" name="include_prefixes[]" :value="prefix">
-                                        </template>
-                                        <template x-for="prefix in exportExcludePrefixes" :key="'exclude-prefix-' + prefix">
-                                            <input type="hidden" name="exclude_prefixes[]" :value="prefix">
-                                        </template>
-                                        <template x-for="item in exportIncludeCodes" :key="'include-code-' + item.code">
-                                            <input type="hidden" name="include_codes[]" :value="item.code">
-                                        </template>
-                                        <template x-for="item in exportExcludeCodes" :key="'exclude-code-' + item.code">
-                                            <input type="hidden" name="exclude_codes[]" :value="item.code">
-                                        </template>
-                                        <input type="hidden" name="kecamatan_filter_mode" :value="kecamatanFilterMode">
-                                        <template x-for="code in selectedKecamatan" :key="'selected-kecamatan-' + code">
-                                            <input type="hidden" name="selected_kecamatan[]" :value="code">
-                                        </template>
-                                        <input type="hidden" name="puskesmas_filter_mode" :value="puskesmasFilterMode">
-                                        <template x-for="code in selectedPuskesmas" :key="'selected-puskesmas-' + code">
-                                            <input type="hidden" name="selected_puskesmas[]" :value="code">
-                                        </template>
+                                    <form @submit.prevent="submitExport()">
+                                        <div x-show="showExportProgress" class="p-12 text-center flex flex-col items-center justify-center bg-white rounded-2xl shadow-xl">
+                                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-red-600 mb-4"></div>
+                                            <h4 class="text-base font-bold text-slate-800">Menyiapkan Dokumen Laporan</h4>
+                                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Ekspor sedang diproses secara asinkron di server. File akan terunduh otomatis saat selesai.</p>
+                                            <div class="mt-4 px-3 py-1.5 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600 uppercase tracking-widest" x-text="'Status: ' + exportJobStatus"></div>
+                                        </div>
 
-                                        <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
-                                            <div>
-                                                <h3 class="text-lg font-bold text-slate-800" id="modal-title">Cetak Laporan Penyakit</h3>
-                                                <p class="text-xs text-slate-500 mt-0.5">Sesuaikan parameter rekapitulasi data yang ingin di-export.</p>
-                                            </div>
+                                        <div x-show="!showExportProgress">
+                                            <div x-show="exportErrorMsg" class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" x-text="exportErrorMsg"></div>
+                                            <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
+                                                <div>
+                                                    <h3 class="text-lg font-bold text-slate-800" id="modal-title">Cetak Laporan Penyakit</h3>
+                                                    <p class="text-xs text-slate-500 mt-0.5">Sesuaikan parameter rekapitulasi data yang ingin di-export.</p>
+                                                </div>
                                             {{-- <button type="button" @click="openExportModal = false" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full p-2 transition-colors">
                                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button> --}}
@@ -437,7 +625,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="umum" x-model="exportScope.umum" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.umum ? 'text-slate-800' : 'text-slate-500'">Top N Umum</span>
                                                         </label>
-                                                        <input type="number" name="top_n_umum" value="10" min="1" max="20" :disabled="!exportScope.umum" :class="exportScope.umum ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_umum" x-model.number="exportTopNUmum" min="1" max="20" :disabled="!exportScope.umum" :class="exportScope.umum ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Secara keseluruhan wilayah</p>
                                                     </div>
                                                     <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.kecamatan ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
@@ -445,7 +633,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="kecamatan" x-model="exportScope.kecamatan" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.kecamatan ? 'text-slate-800' : 'text-slate-500'">Top N Per Kecamatan</span>
                                                         </label>
-                                                        <input type="number" name="top_n_kecamatan" value="10" min="1" max="20" :disabled="!exportScope.kecamatan" :class="exportScope.kecamatan ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_kecamatan" x-model.number="exportTopNKecamatan" min="1" max="20" :disabled="!exportScope.kecamatan" :class="exportScope.kecamatan ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap kecamatan</p>
                                                     </div>
                                                     <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.puskesmas ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
@@ -453,7 +641,7 @@
                                                             <input type="checkbox" name="export_scope[]" value="puskesmas" x-model="exportScope.puskesmas" class="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-500 cursor-pointer">
                                                             <span class="ml-2 block text-xs font-bold" :class="exportScope.puskesmas ? 'text-slate-800' : 'text-slate-500'">Top N Per Puskesmas</span>
                                                         </label>
-                                                        <input type="number" name="top_n_puskesmas" value="10" min="1" max="20" :disabled="!exportScope.puskesmas" :class="exportScope.puskesmas ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
+                                                        <input type="number" name="top_n_puskesmas" x-model.number="exportTopNPuskesmas" min="1" max="20" :disabled="!exportScope.puskesmas" :class="exportScope.puskesmas ? 'bg-white text-slate-900 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'" class="w-full rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 transition-colors">
                                                         <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Ranking di tiap faskes</p>
                                                     </div>
                                                 </div>
@@ -786,7 +974,59 @@
                                                 Download Laporan
                                             </button>
                                         </div>
+                                        </div>
                                     </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Manual Aggregation Modal -->
+                        <div x-show="openAggregateModal" style="display: none;" class="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                            <div x-show="openAggregateModal" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="openAggregateModal = false"></div>
+
+                            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                                <div x-show="openAggregateModal" 
+                                    x-transition:enter="ease-out duration-300" 
+                                    x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                                    x-transition:leave="ease-in duration-200" 
+                                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                                    x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                                    class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-md">
+                                    
+                                    <div x-show="showAggregateProgress" class="p-12 text-center flex flex-col items-center justify-center bg-white rounded-2xl shadow-xl">
+                                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-red-600 mb-4"></div>
+                                        <h4 class="text-base font-bold text-slate-800">Memproses Agregasi Data</h4>
+                                        <p class="text-xs text-slate-500 mt-1 leading-relaxed">Sistem sedang menyusun rekap harian untuk bulan terpilih secara asinkron di server.</p>
+                                        <div class="mt-4 px-3 py-1.5 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600 uppercase tracking-widest" x-text="'Status: ' + aggregateJobStatus"></div>
+                                    </div>
+
+                                    <div x-show="!showAggregateProgress">
+                                        <div x-show="aggregateErrorMsg" class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" x-text="aggregateErrorMsg"></div>
+                                        
+                                        <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
+                                            <div>
+                                                <h3 class="text-lg font-bold text-slate-800">Agregasi Manual Harian</h3>
+                                                <p class="text-xs text-slate-500 mt-0.5">Membangun ulang data agregat harian dari log mentah.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="px-6 py-5 bg-slate-50/50">
+                                            <div class="mb-4">
+                                                <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Bulan Agregasi</label>
+                                                <input type="month" x-model="aggregateMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 bg-white">
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 rounded-b-2xl border-t border-slate-100">
+                                            <button type="button" @click="openAggregateModal = false" class="inline-flex justify-center items-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+                                                Batal
+                                            </button>
+                                            <button type="button" @click="submitAggregation()" class="inline-flex justify-center items-center rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-750 focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors">
+                                                Mulai Proses
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
