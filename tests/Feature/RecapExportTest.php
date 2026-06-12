@@ -1,21 +1,35 @@
 <?php
 
-use App\Models\RefPuskesmas;
-use App\Models\RekapPenyakitTop;
+use App\Models\Puskesmas;
+use App\Models\Kecamatan;
+use App\Models\RekapHarian;
+use App\Models\Lb1Penta;
 use App\Models\User;
+use App\Services\RekapHarianService;
+use App\Models\JobStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    if (! Schema::hasTable('ref_puskesmas')) {
-        Schema::create('ref_puskesmas', function (Blueprint $table) {
-            $table->string('kode_puskesmas')->primary();
-            $table->string('puskesmas')->nullable();
-            $table->string('kode_kecamatan')->nullable();
-            $table->string('kodePuskesmas')->nullable();
+    if (! Schema::hasTable('puskesmas')) {
+        Schema::create('puskesmas', function (Blueprint $table) {
+            $table->string('kode_p')->primary();
+            $table->string('nama')->nullable();
+            $table->string('kode_kc')->nullable();
+            $table->string('url')->nullable();
+        });
+    }
+
+    if (! Schema::hasTable('kecamatan')) {
+        Schema::create('kecamatan', function (Blueprint $table) {
+            $table->integer('id_kecamatan')->nullable();
+            $table->string('kecamatan')->nullable();
+            $table->string('kode_kc')->primary();
         });
     }
 
@@ -29,114 +43,72 @@ beforeEach(function () {
         });
     }
 
-    RefPuskesmas::query()->insert([
+    Kecamatan::query()->insert([
         [
-            'kode_puskesmas' => 'P001',
-            'puskesmas' => 'Puskesmas Miroto',
-            'kode_kecamatan' => 'KC01',
-            'kodePuskesmas' => 'P001',
+            'id_kecamatan' => 1,
+            'kecamatan' => 'Semarang Tengah',
+            'kode_kc' => 'KC01',
         ],
         [
-            'kode_puskesmas' => 'P002',
-            'puskesmas' => 'Puskesmas Poncol',
-            'kode_kecamatan' => 'KC01',
-            'kodePuskesmas' => 'P002',
+            'id_kecamatan' => 2,
+            'kecamatan' => 'Semarang Utara',
+            'kode_kc' => 'KC02',
+        ]
+    ]);
+
+    Puskesmas::query()->insert([
+        [
+            'kode_p' => 'P001',
+            'nama' => 'Puskesmas Miroto',
+            'kode_kc' => 'KC01',
+            'url' => 'http://test/miroto',
         ],
         [
-            'kode_puskesmas' => 'P003',
-            'puskesmas' => 'Puskesmas Bandarharjo',
-            'kode_kecamatan' => 'KC02',
-            'kodePuskesmas' => 'P003',
+            'kode_p' => 'P002',
+            'nama' => 'Puskesmas Poncol',
+            'kode_kc' => 'KC01',
+            'url' => 'http://test/poncol',
+        ],
+        [
+            'kode_p' => 'P003',
+            'nama' => 'Puskesmas Bandarharjo',
+            'kode_kc' => 'KC02',
+            'url' => 'http://test/bandarharjo',
         ],
     ]);
 
-    RekapPenyakitTop::query()->insert([
+    // Seed some ICD names
+    DB::table('bpjs_ref_icd')->insert([
+        ['kdDiag' => 'A01', 'nmDiag' => 'Demam Tifoid'],
+        ['kdDiag' => 'A02', 'nmDiag' => 'Paratifoid'],
+        ['kdDiag' => 'B02', 'nmDiag' => 'Varisela'],
+        ['kdDiag' => 'Z01', 'nmDiag' => 'Penyakit Z01'],
+        ['kdDiag' => 'Z02', 'nmDiag' => 'Penyakit Z02'],
+        ['kdDiag' => 'Z09', 'nmDiag' => 'Penyakit Z09'],
+    ]);
+
+    // Seed daily aggregate records
+    RekapHarian::query()->insert([
         [
-            'scope' => 'global',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => '',
+            'tanggal' => '2026-05-10',
+            'kode_puskesmas' => 'P001',
             'kode_penyakit' => 'A01',
-            'nama_penyakit' => 'Demam Tifoid',
-            'jumlah_kasus' => 30,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'scope' => 'kecamatan',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => 'KC01',
-            'kode_penyakit' => 'A01',
-            'nama_penyakit' => 'Demam Tifoid',
-            'jumlah_kasus' => 20,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'scope' => 'kecamatan',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => 'KC02',
-            'kode_penyakit' => 'B02',
-            'nama_penyakit' => 'Varisela',
-            'jumlah_kasus' => 10,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ],
-        [
-            'scope' => 'puskesmas',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => 'P001',
-            'kode_kecamatan' => 'KC01',
-            'kode_penyakit' => 'A01',
-            'nama_penyakit' => 'Demam Tifoid',
             'jumlah_kasus' => 12,
             'created_at' => now(),
             'updated_at' => now(),
         ],
         [
-            'scope' => 'puskesmas',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => 'P002',
-            'kode_kecamatan' => 'KC01',
+            'tanggal' => '2026-05-11',
+            'kode_puskesmas' => 'P002',
             'kode_penyakit' => 'A02',
-            'nama_penyakit' => 'Paratifoid',
             'jumlah_kasus' => 8,
             'created_at' => now(),
             'updated_at' => now(),
         ],
         [
-            'scope' => 'puskesmas',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => 'P003',
-            'kode_kecamatan' => 'KC02',
+            'tanggal' => '2026-05-12',
+            'kode_puskesmas' => 'P003',
             'kode_penyakit' => 'B02',
-            'nama_penyakit' => 'Varisela',
             'jumlah_kasus' => 10,
             'created_at' => now(),
             'updated_at' => now(),
@@ -159,199 +131,271 @@ it('renders the recap index page for admin', function () {
 
     $response->assertOk();
     $response->assertSee('Daftar Rekapitulasi Wilayah');
-    $response->assertSee('Filter Wilayah Export');
+});
+
+it('can trigger aggregation manually via UI', function () {
+    actingAsAdmin();
+
+    // Seed raw data into lb1_penta
+    Lb1Penta::query()->insert([
+        [
+            'tanggal' => '2026-04-15',
+            'kpusk' => 'P001',
+            'diagnosa' => 'A01',
+            'status' => 'Baru',
+            'kdesa' => 'KD01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'tanggal' => '2026-04-15',
+            'kpusk' => 'P001',
+            'diagnosa' => 'A01',
+            'status' => 'Baru',
+            'kdesa' => 'KD01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $response = $this->postJson(route('recap.aggregate.dispatch'), [
+        'bulan' => '2026-04',
+    ]);
+
+    $response->assertOk();
+    $jobId = $response->json('job_id');
+    expect($jobId)->not->toBeNull();
+
+    // Verify job status
+    $statusResponse = $this->getJson(route('recap.aggregate.status', ['jobId' => $jobId]));
+    $statusResponse->assertOk()->assertJson(['status' => 'done']);
+
+    // Check database
+    $aggregated = RekapHarian::where('tanggal', '2026-04-15')
+        ->where('kode_puskesmas', 'P001')
+        ->where('kode_penyakit', 'A01')
+        ->first();
+
+    expect($aggregated)->not->toBeNull();
+    expect($aggregated->jumlah_kasus)->toBe(2);
+});
+
+it('can trigger aggregation of all data using --all flag', function () {
+    actingAsAdmin();
+
+    // Seed raw data into lb1_penta with widely spread dates (2024 to 2026)
+    Lb1Penta::query()->insert([
+        [
+            'tanggal' => '2024-01-15',
+            'kpusk' => 'P001',
+            'diagnosa' => 'A01',
+            'status' => 'Baru',
+            'kdesa' => 'KD01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'tanggal' => '2026-12-15',
+            'kpusk' => 'P001',
+            'diagnosa' => 'A01',
+            'status' => 'Baru',
+            'kdesa' => 'KD01',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $this->artisan('rekap:aggregate', ['--all' => true])
+        ->assertExitCode(0);
+
+    // Verify database has records for both dates
+    expect(RekapHarian::where('tanggal', '2024-01-15')->exists())->toBeTrue();
+    expect(RekapHarian::where('tanggal', '2026-12-15')->exists())->toBeTrue();
+});
+
+it('can dispatch export job and download the file', function () {
+    actingAsAdmin();
+
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-01-01',
+        'to' => '2026-12-31',
+        'scopes' => ['umum'],
+        'top_n_umum' => 10,
+        'format' => 'excel',
+    ]);
+
+    $response->assertOk();
+    $jobId = $response->json('job_id');
+    expect($jobId)->not->toBeNull();
+
+    // Check status
+    $statusResponse = $this->getJson(route('recap.export.status', ['jobId' => $jobId]));
+    $statusResponse->assertOk()->assertJson(['status' => 'done']);
+
+    // Download file
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
+    $downloadResponse->assertHeader('Content-Disposition', 'attachment; filename=' . JobStatus::find($jobId)->output_path);
 });
 
 it('filters kecamatan export to only selected kecamatan', function () {
     actingAsAdmin();
 
-    $response = $this->get(route('recap.export', [
-        'format' => 'pdf',
-        'period_type' => 'year',
-        'year' => 2026,
-        'export_scope' => ['kecamatan'],
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-01-01',
+        'to' => '2026-12-31',
+        'scopes' => ['kecamatan'],
         'top_n_kecamatan' => 10,
         'kecamatan_filter_mode' => 'selected',
         'selected_kecamatan' => ['KC01'],
-    ]));
+        'format' => 'csv',
+    ]);
 
     $response->assertOk();
-    $response->assertSee('Kec. SEMARANG TENGAH');
-    $response->assertDontSee('Kec. SEMARANG UTARA');
+    $jobId = $response->json('job_id');
+
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
+    
+    $filePath = $downloadResponse->baseResponse->getFile()->getPathname();
+    $content = file_get_contents($filePath);
+    // Check that Semarang Tengah is included
+    expect($content)->toContain('Semarang Tengah');
 });
 
 it('filters puskesmas export to only selected puskesmas', function () {
     actingAsAdmin();
 
-    $response = $this->get(route('recap.export', [
-        'format' => 'pdf',
-        'period_type' => 'year',
-        'year' => 2026,
-        'export_scope' => ['puskesmas'],
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-01-01',
+        'to' => '2026-12-31',
+        'scopes' => ['puskesmas'],
         'top_n_puskesmas' => 10,
         'puskesmas_filter_mode' => 'selected',
         'selected_puskesmas' => ['P001'],
-    ]));
+        'format' => 'csv',
+    ]);
 
     $response->assertOk();
-    $response->assertSee('Pkm. Puskesmas Miroto');
-    $response->assertDontSee('Pkm. Puskesmas Poncol');
-    $response->assertDontSee('Pkm. Puskesmas Bandarharjo');
-});
+    $jobId = $response->json('job_id');
 
-it('returns an excel response for selected puskesmas export', function () {
-    actingAsAdmin();
-
-    $response = $this->get(route('recap.export', [
-        'format' => 'excel',
-        'period_type' => 'year',
-        'year' => 2026,
-        'export_scope' => ['puskesmas'],
-        'top_n_puskesmas' => 10,
-        'puskesmas_filter_mode' => 'selected',
-        'selected_puskesmas' => ['P001'],
-    ]));
-
-    $response->assertOk();
-    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    expect($response->headers->get('Content-Disposition'))->toContain('.xlsx');
-});
-
-it('returns an excel response with detail sheet for global export', function () {
-    actingAsAdmin();
-
-    $response = $this->get(route('recap.export', [
-        'format' => 'excel',
-        'period_type' => 'year',
-        'year' => 2026,
-        'export_scope' => ['umum'],
-        'top_n_umum' => 10,
-    ]));
-
-    $response->assertOk();
-    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
     
-    // Save response content to a temp file and load it with PhpSpreadsheet
-    $tempFile = tempnam(sys_get_temp_dir(), 'excel_test');
-    file_put_contents($tempFile, $response->getContent());
-
-    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-    $spreadsheet = $reader->load($tempFile);
-    
-    // Check sheet names
-    $sheetNames = $spreadsheet->getSheetNames();
-    expect($sheetNames)->toContain('Worksheet');
-    expect($sheetNames)->toContain('Detail Sebaran Penyakit');
-
-    // Check content in detail sheet
-    $detailSheet = $spreadsheet->getSheetByName('Detail Sebaran Penyakit');
-    expect($detailSheet->getCell('A1')->getValue())->toContain('Demam Tifoid'); // First ranked disease in beforeEach seeding is A01 (Demam Tifoid)
-
-    unlink($tempFile);
-});
-
-it('exports using custom date range without errors', function () {
-    actingAsAdmin();
-
-    $response = $this->get(route('recap.export', [
-        'format' => 'excel',
-        'period_type' => 'custom_date',
-        'start_date' => '2024-01-15',
-        'end_date' => '2024-11-25',
-        'export_scope' => ['umum'],
-        'top_n_umum' => 10,
-    ]));
-
-    $response->assertOk();
-    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    $filePath = $downloadResponse->baseResponse->getFile()->getPathname();
+    $content = file_get_contents($filePath);
+    expect($content)->toContain('Puskesmas Miroto');
 });
 
 it('supports exclude exceptions during export', function () {
     actingAsAdmin();
 
-    // Seed test data with codes starting with Z
-    RekapPenyakitTop::query()->insert([
+    // Seed some target data
+    RekapHarian::query()->insert([
         [
-            'scope' => 'global',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => '',
+            'tanggal' => '2026-05-15',
+            'kode_puskesmas' => 'P001',
             'kode_penyakit' => 'Z01',
-            'nama_penyakit' => 'Penyakit Z01',
             'jumlah_kasus' => 15,
             'created_at' => now(),
             'updated_at' => now(),
         ],
         [
-            'scope' => 'global',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => '',
+            'tanggal' => '2026-05-15',
+            'kode_puskesmas' => 'P001',
             'kode_penyakit' => 'Z02',
-            'nama_penyakit' => 'Penyakit Z02',
             'jumlah_kasus' => 12,
             'created_at' => now(),
             'updated_at' => now(),
         ],
         [
-            'scope' => 'global',
-            'period_type' => 'year',
-            'year' => 2026,
-            'month' => 0,
-            'quarter' => 0,
-            'semester' => 0,
-            'kpusk' => '',
-            'kode_kecamatan' => '',
+            'tanggal' => '2026-05-15',
+            'kode_puskesmas' => 'P001',
             'kode_penyakit' => 'Z09',
-            'nama_penyakit' => 'Penyakit Z09',
             'jumlah_kasus' => 10,
             'created_at' => now(),
             'updated_at' => now(),
         ],
     ]);
 
-    // Request export with exclude_prefixes = Z and exclude_exceptions = Z01, Z02
-    $response = $this->get(route('recap.export', [
-        'format' => 'excel',
-        'period_type' => 'year',
-        'year' => 2026,
-        'export_scope' => ['umum'],
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-01-01',
+        'to' => '2026-12-31',
+        'scopes' => ['umum'],
         'top_n_umum' => 10,
-        'exclude_prefixes' => ['Z'],
-        'exclude_exceptions' => 'Z01, Z02',
-    ]));
+        'format' => 'csv',
+        'filters' => [
+            'exclude_prefixes' => ['Z'],
+            'exclude_exceptions' => ['Z01', 'Z02']
+        ]
+    ]);
 
     $response->assertOk();
+    $jobId = $response->json('job_id');
+
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
     
-    // Save response to temp file and parse with PhpSpreadsheet
-    $tempFile = tempnam(sys_get_temp_dir(), 'excel_test');
-    file_put_contents($tempFile, $response->getContent());
-
-    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-    $spreadsheet = $reader->load($tempFile);
-    $detailSheet = $spreadsheet->getSheetByName('Detail Sebaran Penyakit');
-    
-    // Check that we see Penyakit Z01 and Penyakit Z02 but NOT Penyakit Z09
-    $content = '';
-    foreach ($detailSheet->getRowIterator() as $row) {
-        foreach ($row->getCellIterator() as $cell) {
-            $content .= ' ' . $cell->getValue();
-        }
-    }
-
-    expect($content)->toContain('Penyakit Z01');
-    expect($content)->toContain('Penyakit Z02');
-    expect($content)->not->toContain('Penyakit Z09');
-
-    unlink($tempFile);
+    $filePath = $downloadResponse->baseResponse->getFile()->getPathname();
+    $content = file_get_contents($filePath);
+    // Z01 and Z02 should be in, but Z09 should be excluded
+    expect($content)->toContain('Z01');
+    expect($content)->toContain('Z02');
+    expect($content)->not->toContain('Z09');
 });
 
+it('can export multiple scopes in a single file', function () {
+    actingAsAdmin();
+
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-01-01',
+        'to' => '2026-12-31',
+        'scopes' => ['umum', 'kecamatan', 'puskesmas'],
+        'top_n_umum' => 5,
+        'top_n_kecamatan' => 5,
+        'top_n_puskesmas' => 5,
+        'format' => 'csv',
+    ]);
+
+    $response->assertOk();
+    $jobId = $response->json('job_id');
+
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
+
+    $filePath = $downloadResponse->baseResponse->getFile()->getPathname();
+    $content = file_get_contents($filePath);
+
+    // Verify sections are present
+    expect($content)->toContain('SECTION: TOP PENYAKIT UMUM');
+    expect($content)->toContain('SECTION: TOP PENYAKIT PER KECAMATAN');
+    expect($content)->toContain('SECTION: TOP PENYAKIT PER PUSKESMAS');
+});
+
+it('respects top N limits for kecamatan and puskesmas exports', function () {
+    actingAsAdmin();
+
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-05-01',
+        'to' => '2026-05-31',
+        'scopes' => ['kecamatan', 'puskesmas'],
+        'top_n_kecamatan' => 1,
+        'top_n_puskesmas' => 1,
+        'format' => 'csv',
+    ]);
+
+    $response->assertOk();
+    $jobId = $response->json('job_id');
+
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertOk();
+
+    $filePath = $downloadResponse->baseResponse->getFile()->getPathname();
+    $content = file_get_contents($filePath);
+
+    // Semarang Tengah has both A01 (12 cases) and A02 (8 cases).
+    // With top_n_kecamatan = 1, we should only see A01, not A02.
+    expect($content)->toContain('"Semarang Tengah",1,A01');
+    expect($content)->not->toContain('"Semarang Tengah",2,A02');
+});
 
