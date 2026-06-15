@@ -387,7 +387,7 @@ class PenyakitRecapController extends Controller
 
         $icdNames = $rekapData->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
 
-        return view('recap.kecamatan.show_kecamatan', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter', 'icdNames'));
+        return view('recap.kecamatan.show', compact('kecamatan', 'rekapData', 'totalKasus', 'totalPuskesmas', 'limit', 'rekapChartData', 'maxChartWidth', 'totalDiagnosaUnik', 'warningLimit', 'puskesmasStats', 'isNotFinished', 'periodType', 'year', 'month', 'semester', 'quarter', 'icdNames'));
     }
 
     public function fullList(Request $request, $puskesmas)
@@ -516,7 +516,7 @@ class PenyakitRecapController extends Controller
         $penyakits = $query->paginate(10)->withQueryString();
         $icdNames = $penyakits->pluck('nama_penyakit', 'kode_penyakit')->filter()->toArray();
 
-        return view('recap.kecamatan.full_list_kecamatan', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
+        return view('recap.kecamatan.full_list', compact('kecamatan', 'year', 'periodType', 'periodValue', 'penyakits', 'search', 'sort', 'icdNames'));
     }
 
     public function export()
