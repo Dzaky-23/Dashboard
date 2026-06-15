@@ -399,3 +399,83 @@ it('respects top N limits for kecamatan and puskesmas exports', function () {
     expect($content)->not->toContain('"Semarang Tengah",2,A02');
 });
 
+it('prevents user from checking status or downloading another users job', function () {
+    $user1 = User::factory()->admin()->create();
+    $user2 = User::factory()->admin()->create();
+
+    // User 1 dispatches a job
+    $this->actingAs($user1);
+    $response = $this->postJson(route('recap.export.dispatch'), [
+        'from' => '2026-05-01',
+        'to' => '2026-05-31',
+        'scopes' => ['umum'],
+        'top_n_umum' => 5,
+        'format' => 'csv',
+    ]);
+    $response->assertOk();
+    $jobId = $response->json('job_id');
+
+    // Switch to User 2
+    $this->actingAs($user2);
+
+    // User 2 tries to check status of User 1's job -> should get 404
+    $statusResponse = $this->getJson(route('recap.export.status', ['jobId' => $jobId]));
+    $statusResponse->assertStatus(404);
+
+    // User 2 tries to download User 1's job -> should get 404
+    $downloadResponse = $this->get(route('recap.export.download', ['jobId' => $jobId]));
+    $downloadResponse->assertStatus(404);
+});
+
+it('cleans up export files older than 24 hours', function () {
+    $directory = storage_path('app/exports');
+    if (!file_exists($directory)) {
+        mkdir($directory, 0775, true);
+    }
+    
+    $oldFile = $directory . '/dummy_old_export.xlsx';
+    file_put_contents($oldFile, 'old content');
+    touch($oldFile, time() - 90000);
+
+    $newFile = $directory . '/dummy_new_export.xlsx';
+    file_put_contents($newFile, 'new content');
+
+    $jobOld = JobStatus::create([
+        'type' => 'export',
+        'status' => 'done',
+        'output_path' => 'dummy_old_export.xlsx',
+    ]);
+    
+    $jobNew = JobStatus::create([
+        'type' => 'export',
+        'status' => 'done',
+        'output_path' => 'dummy_new_export.xlsx',
+    ]);
+
+    $cleanup = function () {
+        $directory = storage_path('app/exports');
+        if (file_exists($directory)) {
+            $files = Illuminate\Support\Facades\File::files($directory);
+            $now = time();
+            foreach ($files as $file) {
+                if ($now - $file->getMTime() > 86400) {
+                    $filename = $file->getFilename();
+                    Illuminate\Support\Facades\File::delete($file->getPathname());
+                    App\Models\JobStatus::where('output_path', $filename)
+                        ->update(['status' => 'expired']);
+                }
+            }
+        }
+    };
+    $cleanup();
+
+    expect(file_exists($oldFile))->toBeFalse();
+    expect(JobStatus::find($jobOld->id)->status)->toBe('expired');
+
+    expect(file_exists($newFile))->toBeTrue();
+    expect(JobStatus::find($jobNew->id)->status)->toBe('done');
+
+    @unlink($newFile);
+});
+
+

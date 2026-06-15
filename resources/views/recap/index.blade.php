@@ -61,6 +61,7 @@
                     exportJobInterval: null,
                     showExportProgress: false,
                     exportErrorMsg: '',
+                    exportPollCount: 0,
                     
                     init() {
                         this.$watch('search', value => {
@@ -323,6 +324,7 @@
                         this.exportErrorMsg = '';
                         this.showExportProgress = true;
                         this.exportJobStatus = 'pending';
+                        this.exportPollCount = 0;
                         
                         const scopes = [];
                         if (this.exportScope.umum) scopes.push('umum');
@@ -417,8 +419,20 @@
                     },
 
                     async checkExportStatus() {
+                        this.exportPollCount++;
+                        if (this.exportPollCount > 120) {
+                            clearInterval(this.exportJobInterval);
+                            this.exportErrorMsg = 'Proses ekspor melebihi batas waktu (timeout 3 menit).';
+                            this.showExportProgress = false;
+                            this.exportJobStatus = 'failed';
+                            return;
+                        }
+
                         try {
                             const response = await fetch(`/rekap/export/status/${this.exportJobId}`);
+                            if (!response.ok) {
+                                throw new Error('Koneksi error saat memeriksa status.');
+                            }
                             const data = await response.json();
                             this.exportJobStatus = data.status;
                             
@@ -434,7 +448,7 @@
                             }
                         } catch (err) {
                             clearInterval(this.exportJobInterval);
-                            this.exportErrorMsg = 'Koneksi error saat memeriksa status.';
+                            this.exportErrorMsg = err.message || 'Koneksi error saat memeriksa status.';
                             this.showExportProgress = false;
                             this.exportJobStatus = 'failed';
                         }
@@ -592,7 +606,7 @@
                                         <div class="px-6 py-5 bg-slate-50/50">
                                             <div class="mb-6">
                                                 <h4 class="text-sm font-semibold text-slate-800 mb-3">1. Format Dokumen</h4>
-                                                <div class="grid grid-cols-2 gap-4">
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     <label class="relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200"
                                                         :class="exportFormat === 'pdf' ? 'border-red-500 bg-white shadow-sm' : 'border-slate-200 bg-white hover:bg-slate-50'">
                                                         <input type="radio" name="format" value="pdf" x-model="exportFormat" class="sr-only">
@@ -613,6 +627,17 @@
                                                             <span class="block text-xs text-slate-500">Analisis lanjutan (.xlsx)</span>
                                                         </div>
                                                         <div x-show="exportFormat === 'excel'" class="absolute right-4 text-green-600"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                                                    </label>
+
+                                                    <label class="relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200"
+                                                        :class="exportFormat === 'csv' ? 'border-blue-500 bg-white shadow-sm' : 'border-slate-200 bg-white hover:bg-slate-50'">
+                                                        <input type="radio" name="format" value="csv" x-model="exportFormat" class="sr-only">
+                                                        <svg class="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                        <div>
+                                                            <span class="block text-sm font-bold text-slate-800">CSV Delimited</span>
+                                                            <span class="block text-xs text-slate-500">Export data ringan (.csv)</span>
+                                                        </div>
+                                                        <div x-show="exportFormat === 'csv'" class="absolute right-4 text-blue-500"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
                                                     </label>
                                                 </div>
                                             </div>

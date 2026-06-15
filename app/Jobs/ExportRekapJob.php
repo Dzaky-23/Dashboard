@@ -18,6 +18,10 @@ class ExportRekapJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $timeout = 300;
+    public int $tries = 3;
+    public int $backoff = 60;
+
     protected string $jobId;
     protected string $from;
     protected string $to;
@@ -99,8 +103,8 @@ class ExportRekapJob implements ShouldQueue
                 $dataPusk = $service->queryTopPerPuskesmas($fromCarbon, $toCarbon, $this->topNPuskesmas, $this->selectedPuskesmas, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
             }
 
-            if (!file_exists(storage_path('exports'))) {
-                mkdir(storage_path('exports'), 0775, true);
+            if (!file_exists(storage_path('app/exports'))) {
+                mkdir(storage_path('app/exports'), 0775, true);
             }
 
             $scopesStr = implode('_', $this->scopes);
@@ -109,15 +113,15 @@ class ExportRekapJob implements ShouldQueue
 
             if ($this->format === 'excel') {
                 $fileName .= '.xlsx';
-                $filePath = storage_path('exports/' . $fileName);
+                $filePath = storage_path('app/exports/' . $fileName);
                 $this->generateExcel($dataUmum, $dataKec, $dataPusk, $filePath);
             } elseif ($this->format === 'csv') {
                 $fileName .= '.csv';
-                $filePath = storage_path('exports/' . $fileName);
+                $filePath = storage_path('app/exports/' . $fileName);
                 $this->generateCsv($dataUmum, $dataKec, $dataPusk, $filePath);
             } elseif ($this->format === 'pdf') {
                 $fileName .= '.pdf';
-                $filePath = storage_path('exports/' . $fileName);
+                $filePath = storage_path('app/exports/' . $fileName);
                 $this->generatePdf($dataUmum, $dataKec, $dataPusk, $filePath, $fromCarbon, $toCarbon);
             } else {
                 throw new \Exception("Format export tidak valid: " . $this->format);
@@ -482,5 +486,16 @@ class ExportRekapJob implements ShouldQueue
         $dompdf->render();
 
         file_put_contents($filePath, $dompdf->output());
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $jobStatus = JobStatus::find($this->jobId);
+        if ($jobStatus) {
+            $jobStatus->update([
+                'status' => 'failed',
+                'error' => $exception->getMessage() . "\n" . $exception->getTraceAsString(),
+            ]);
+        }
     }
 }
