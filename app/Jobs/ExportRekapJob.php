@@ -88,6 +88,9 @@ class ExportRekapJob implements ShouldQueue
             if (is_string($excludeExceptions)) {
                 $excludeExceptions = array_filter(array_map('trim', explode(',', $excludeExceptions)));
             }
+            $exceptionPrefixes = $this->filters['exception_prefixes'] ?? [];
+            $exceptionCodes = $this->filters['exception_codes'] ?? [];
+            $excludeExceptions = array_values(array_unique(array_merge($excludeExceptions, $exceptionPrefixes, $exceptionCodes)));
 
             $dataUmum = collect();
             $dataKec = collect();
@@ -469,7 +472,7 @@ class ExportRekapJob implements ShouldQueue
         $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
 
-        $html = view('recap.pdf_export', [
+        $html = view('recap.exports.pdf', [
             'scopes' => $this->scopes,
             'dataUmum' => $dataUmum,
             'dataKec' => $dataKec,

@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>@yield('title', config('app.name', 'RekamPasien'))</title>
+        <title>@yield('title', config('app.name', 'Dashboard Rekapitulasi'))</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,12 +40,7 @@
                             
                             <!-- Main Menu Desktop -->
                             <div class="hidden space-x-6 sm:-my-px sm:ml-10 sm:flex">
-                                {{-- <a href="{{ route('home') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('home') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
-                                    Dashboard
-                                </a>
-                                <a href="{{ route('pasiens.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('pasiens.*') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
-                                    Daftar Pasien
-                                </a> --}}
+
                                 <a href="{{ route('recap.index') }}" class="inline-flex items-center px-2 pt-1 border-b-2 {{ request()->routeIs('recap.*') ? 'border-red-600 text-red-600 font-semibold' : 'border-transparent text-slate-600 hover:text-red-600 hover:border-slate-300' }} text-sm transition-all duration-200">
                                     Daftar Rekapitulasi
                                 </a>
@@ -123,7 +118,7 @@
         <footer class="bg-white border-t border-slate-200 mt-auto">
             <div class="max-w-[96%] mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <p class="text-center text-sm text-slate-500">
-                    &copy; {{ date('Y') }} Aplikasi Rekam Medis. All rights reserved.
+                    &copy; {{ date('Y') }} Dashboard Rekapitulasi Penyakit. All rights reserved.
                 </p>
             </div>
         </footer>

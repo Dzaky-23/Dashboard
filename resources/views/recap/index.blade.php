@@ -10,17 +10,8 @@
                     exportTopNUmum: 10,
                     exportTopNKecamatan: 10,
                     exportTopNPuskesmas: 10,
-                    exportIncludePrefixes: [],
-                    exportExcludePrefixes: [],
-                    exportIncludeCodes: [],
-                    exportExcludeCodes: [],
-                    exportExcludeExceptions: '',
-                    exportIncludeCodeSearch: '',
-                    exportExcludeCodeSearch: '',
-                    includeCodeOptions: [],
-                    excludeCodeOptions: [],
-                    includeCodeLoading: false,
-                    excludeCodeLoading: false,
+                    exportFilters: [],
+                    showFilterTypeMenu: false,
                     exportScope: { umum: true, kecamatan: true, puskesmas: true },
                     kecamatanFilterMode: 'all',
                     selectedKecamatan: [],
@@ -38,8 +29,7 @@
                     exportQuarter: '1',
                     exportStartDate: '{{ date('Y-m-01') }}',
                     exportEndDate: '{{ date('Y-m-d') }}',
-                    isIncludeOpen: false,
-                    isExcludeOpen: false,
+
                     icdSearchUrl: '{{ route('recap.icd.search') }}',
                     letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
                     currentPageSemua: 1,
@@ -263,28 +253,43 @@
                         );
                         this.selectedPuskesmas = this.selectedPuskesmas.filter(codeItem => allowed.has(codeItem));
                     },
-                    togglePrefix(type, prefix) {
-                        const key = type === 'include' ? 'exportIncludePrefixes' : 'exportExcludePrefixes';
-                        this[key] = this[key].includes(prefix)
-                            ? this[key].filter(item => item !== prefix)
-                            : [...this[key], prefix];
+                    addFilter(type) {
+                        this.exportFilters.push({
+                            type: type,
+                            selectedPrefixes: [],
+                            selectedCodes: [],
+                            codeSearch: '',
+                            codeOptions: [],
+                            codeLoading: false,
+                            isPrefixOpen: false
+                        });
+                        this.showFilterTypeMenu = false;
                     },
-                    removeCode(type, code) {
-                        const key = type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes';
-                        this[key] = this[key].filter(item => item.code !== code);
+                    removeFilter(index) {
+                        this.exportFilters.splice(index, 1);
                     },
-                    async searchIcd(type) {
-                        const searchKey = type === 'include' ? 'exportIncludeCodeSearch' : 'exportExcludeCodeSearch';
-                        const resultsKey = type === 'include' ? 'includeCodeOptions' : 'excludeCodeOptions';
-                        const loadingKey = type === 'include' ? 'includeCodeLoading' : 'excludeCodeLoading';
-                        const query = this[searchKey].trim();
+                    toggleFilterPrefix(filterIndex, prefix) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedPrefixes.includes(prefix)) {
+                            filter.selectedPrefixes = filter.selectedPrefixes.filter(item => item !== prefix);
+                        } else {
+                            filter.selectedPrefixes = [...filter.selectedPrefixes, prefix];
+                        }
+                    },
+                    removeFilterCode(filterIndex, code) {
+                        const filter = this.exportFilters[filterIndex];
+                        filter.selectedCodes = filter.selectedCodes.filter(item => item.code !== code);
+                    },
+                    async searchFilterIcd(filterIndex) {
+                        const filter = this.exportFilters[filterIndex];
+                        const query = filter.codeSearch.trim();
 
                         if (query.length < 2) {
-                            this[resultsKey] = [];
+                            filter.codeOptions = [];
                             return;
                         }
 
-                        this[loadingKey] = true;
+                        filter.codeLoading = true;
 
                         try {
                             const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
@@ -294,26 +299,36 @@
                                 }
                             });
                             const payload = await response.json();
-                            const selected = new Set(this[type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes'].map(item => item.code));
-                            this[resultsKey] = (payload.data || []).filter(item => !selected.has(item.code));
+                            const selected = new Set(filter.selectedCodes.map(item => item.code));
+                            filter.codeOptions = (payload.data || []).filter(item => !selected.has(item.code));
                         } catch (error) {
-                            this[resultsKey] = [];
+                            filter.codeOptions = [];
                         } finally {
-                            this[loadingKey] = false;
+                            filter.codeLoading = false;
                         }
                     },
-                    addCode(type, option) {
-                        const codesKey = type === 'include' ? 'exportIncludeCodes' : 'exportExcludeCodes';
-                        const searchKey = type === 'include' ? 'exportIncludeCodeSearch' : 'exportExcludeCodeSearch';
-                        const resultsKey = type === 'include' ? 'includeCodeOptions' : 'excludeCodeOptions';
-
-                        if (this[codesKey].some(item => item.code === option.code)) {
+                    addFilterCode(filterIndex, option) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedCodes.some(item => item.code === option.code)) {
                             return;
                         }
-
-                        this[codesKey] = [...this[codesKey], option];
-                        this[searchKey] = '';
-                        this[resultsKey] = [];
+                        filter.selectedCodes = [...filter.selectedCodes, option];
+                        filter.codeSearch = '';
+                        filter.codeOptions = [];
+                    },
+                    getFilterTypeLabel(type) {
+                        if (type === 'include') return 'Include';
+                        if (type === 'exclude') return 'Exclude';
+                        if (type === 'exception') return 'Tetap Sertakan';
+                        return type;
+                    },
+                    getFilterTypeColor(type) {
+                        if (type === 'include') return { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', activePrefixBg: 'bg-emerald-600', ring: 'ring-emerald-500', hoverBorder: 'hover:border-emerald-300 hover:bg-emerald-50' };
+                        if (type === 'exclude') return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', badge: 'bg-red-100 text-red-700 border-red-200', activePrefixBg: 'bg-red-600', ring: 'ring-red-500', hoverBorder: 'hover:border-red-300 hover:bg-red-50' };
+                        return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700 border-amber-200', activePrefixBg: 'bg-amber-600', ring: 'ring-amber-500', hoverBorder: 'hover:border-amber-300 hover:bg-amber-50' };
+                    },
+                    get hasExcludeFilter() {
+                        return this.exportFilters.some(f => f.type === 'exclude');
                     },
 
                     async submitAggregation() {
@@ -424,6 +439,27 @@
                             to = this.exportEndDate;
                         }
                         
+                        // Build filters from the unified exportFilters array
+                        const includePrefixes = [];
+                        const excludePrefixes = [];
+                        const includeCodes = [];
+                        const excludeCodes = [];
+                        const exceptionPrefixes = [];
+                        const exceptionCodes = [];
+
+                        this.exportFilters.forEach(f => {
+                            if (f.type === 'include') {
+                                includePrefixes.push(...f.selectedPrefixes);
+                                includeCodes.push(...f.selectedCodes.map(c => c.code));
+                            } else if (f.type === 'exclude') {
+                                excludePrefixes.push(...f.selectedPrefixes);
+                                excludeCodes.push(...f.selectedCodes.map(c => c.code));
+                            } else if (f.type === 'exception') {
+                                exceptionPrefixes.push(...f.selectedPrefixes);
+                                exceptionCodes.push(...f.selectedCodes.map(c => c.code));
+                            }
+                        });
+
                         const payload = {
                             from: from,
                             to: to,
@@ -437,11 +473,12 @@
                             selected_puskesmas: this.selectedPuskesmas,
                             format: this.exportFormat,
                             filters: {
-                                include_prefixes: this.exportRules.filter(r => r.type === 'include' && r.target === 'prefix' && r.value).map(r => r.value),
-                                exclude_prefixes: this.exportRules.filter(r => r.type === 'exclude' && r.target === 'prefix' && r.value).map(r => r.value),
-                                include_codes: this.exportRules.filter(r => r.type === 'include' && r.target === 'code' && r.value).map(r => r.value),
-                                exclude_codes: this.exportRules.filter(r => r.type === 'exclude' && r.target === 'code' && r.value).map(r => r.value),
-                                exclude_exceptions: this.exportRules.filter(r => r.type === 'keep' && r.value).map(r => r.value).join(', ')
+                                include_prefixes: includePrefixes,
+                                exclude_prefixes: excludePrefixes,
+                                include_codes: includeCodes,
+                                exclude_codes: excludeCodes,
+                                exception_prefixes: exceptionPrefixes,
+                                exception_codes: exceptionCodes
                             }
                         };
                         
@@ -515,7 +552,7 @@
                             Masih belum ada data penyebaran penyakit yang tercatat.
                         </div>
                     @else
-                        @include('recap.global_chart')
+                        @include('recap.partials.global_chart')
 
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
                             <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
@@ -546,9 +583,9 @@
                         </div>
 
                         <div x-show="hasResults" class="min-h-[300px]">
-                            @include('recap.tab_semua')
-                            @include('recap.tab_kecamatan')
-                            @include('recap.tab_puskesmas')
+                            @include('recap.partials.tab_semua')
+                            @include('recap.partials.tab_kecamatan')
+                            @include('recap.partials.tab_puskesmas')
                         </div>
 
                         <!-- Pagination Controls -->
@@ -854,18 +891,10 @@
                                             </div>
 
                                             <div>
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">4. Filter Spesifik</h4>
-                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-4 border border-slate-200 rounded-lg">
-                                                    <div class="col-span-1 md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                                                        <h5 class="text-xs font-bold uppercase tracking-wide text-blue-800">Panduan Filter</h5>
-                                                        <div class="mt-2 space-y-1 text-xs text-blue-900 leading-relaxed">
-                                                            <p><span class="font-semibold">Include Awalan Kode</span> untuk menampilkan kelompok kode berdasarkan huruf depan, misalnya <span class="font-mono">A</span>.</p>
-                                                            <p><span class="font-semibold">Include Kode Spesifik</span> untuk menampilkan kode tertentu saja, misalnya <span class="font-mono">A01</span>.</p>
-                                                            <p><span class="font-semibold">Exclude</span> untuk mengeluarkan data dari hasil export, baik per awalan maupun per kode spesifik.</p>
-                                                            <p><span class="font-semibold">Prioritas filter:</span> jika kode masuk include dan exclude sekaligus, maka <span class="font-semibold">exclude</span> yang akan dipakai.</p>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-span-1 md:col-span-2">
+                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">4. Periode & Filter Kode Penyakit</h4>
+                                                <div class="bg-white p-4 border border-slate-200 rounded-lg space-y-5">
+                                                    {{-- Periode Export --}}
+                                                    <div>
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Periode Export</label>
                                                         <select name="period_type" x-model="exportPeriodType" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer bg-slate-50">
                                                             <option value="year">Per Tahun</option>
@@ -875,7 +904,7 @@
                                                             <option value="custom_date">Rentang Tanggal</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4" x-show="exportPeriodType === 'custom_date'" x-cloak>
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" x-show="exportPeriodType === 'custom_date'" x-cloak>
                                                         <div>
                                                             <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal Mulai</label>
                                                             <input type="date" name="start_date" x-model="exportStartDate" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2">
@@ -885,34 +914,49 @@
                                                             <input type="date" name="end_date" x-model="exportEndDate" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2">
                                                         </div>
                                                     </div>
-                                                    <div x-show="exportPeriodType === 'semester'" x-cloak>
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Semester</label>
-                                                        <select name="semester" x-model="exportSemester" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
-                                                            <option value="1">Semester 1 (Jan - Jun)</option>
-                                                            <option value="2">Semester 2 (Jul - Des)</option>
-                                                        </select>
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" x-show="exportPeriodType !== 'custom_date' && exportPeriodType !== 'year'" x-cloak>
+                                                        <div x-show="exportPeriodType === 'semester'" x-cloak>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Semester</label>
+                                                            <select name="semester" x-model="exportSemester" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                                <option value="1">Semester 1 (Jan - Jun)</option>
+                                                                <option value="2">Semester 2 (Jul - Des)</option>
+                                                            </select>
+                                                        </div>
+                                                        <div x-show="exportPeriodType === 'quarter'" x-cloak>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Triwulan</label>
+                                                            <select name="quarter" x-model="exportQuarter" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                                <option value="1">Triwulan I (Q1)</option>
+                                                                <option value="2">Triwulan II (Q2)</option>
+                                                                <option value="3">Triwulan III (Q3)</option>
+                                                                <option value="4">Triwulan IV (Q4)</option>
+                                                            </select>
+                                                        </div>
+                                                        <div x-show="exportPeriodType === 'month'" x-cloak>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Bulan</label>
+                                                            <select name="month" x-model="exportMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                                @php
+                                                                    $bulanIndoStr = ['1'=>'Januari', '2'=>'Februari', '3'=>'Maret', '4'=>'April', '5'=>'Mei', '6'=>'Juni', '7'=>'Juli', '8'=>'Agustus', '9'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
+                                                                @endphp
+                                                                @foreach([1,2,3,4,5,6,7,8,9,10,11,12] as $m)
+                                                                    <option value="{{ $m }}">{{ $bulanIndoStr[$m] }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Tahun</label>
+                                                            <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
+                                                                @if(isset($availableYears) && $availableYears->isNotEmpty())
+                                                                    @foreach($availableYears as $y)
+                                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                                    @endforeach
+                                                                @else
+                                                                    <option value="{{ date('Y') }}">{{ date('Y') }}</option>
+                                                                    <option value="{{ date('Y') - 1 }}">{{ date('Y') - 1 }}</option>
+                                                                @endif
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                    <div x-show="exportPeriodType === 'quarter'" x-cloak>
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Triwulan</label>
-                                                        <select name="quarter" x-model="exportQuarter" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
-                                                            <option value="1">Triwulan I (Q1)</option>
-                                                            <option value="2">Triwulan II (Q2)</option>
-                                                            <option value="3">Triwulan III (Q3)</option>
-                                                            <option value="4">Triwulan IV (Q4)</option>
-                                                        </select>
-                                                    </div>
-                                                    <div x-show="exportPeriodType === 'month'" x-cloak>
-                                                        <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Bulan</label>
-                                                        <select name="month" x-model="exportMonth" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
-                                                            @php
-                                                                $bulanIndoStr = ['1'=>'Januari', '2'=>'Februari', '3'=>'Maret', '4'=>'April', '5'=>'Mei', '6'=>'Juni', '7'=>'Juli', '8'=>'Agustus', '9'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
-                                                            @endphp
-                                                            @foreach([1,2,3,4,5,6,7,8,9,10,11,12] as $m)
-                                                                <option value="{{ $m }}">{{ $bulanIndoStr[$m] }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </div>
-                                                    <div x-show="exportPeriodType !== 'custom_date'" :class="exportPeriodType === 'year' ? 'col-span-1 md:col-span-2' : ''">
+                                                    <div x-show="exportPeriodType === 'year'" x-cloak>
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Pilih Tahun</label>
                                                         <select name="year" x-model="exportYear" class="w-full border-slate-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 text-sm px-3 py-2 cursor-pointer">
                                                             @if(isset($availableYears) && $availableYears->isNotEmpty())
@@ -925,69 +969,145 @@
                                                             @endif
                                                         </select>
                                                     </div>
-                                                    <div class="col-span-1 md:col-span-2 border-t border-slate-100 pt-4 mt-2">
-                                                        <div class="flex justify-between items-center mb-3">
-                                                            <h5 class="text-xs font-bold uppercase tracking-wider text-slate-700">Filter Kode Penyakit (ICD-10)</h5>
-                                                            <button type="button" @click="addRule()" class="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 border border-red-200 hover:bg-red-100 transition-colors shadow-sm">
-                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                                                                Tambah Aturan
-                                                            </button>
+
+                                                    {{-- Divider --}}
+                                                    <div class="border-t border-slate-200 pt-4">
+                                                        <div class="flex items-center justify-between mb-3">
+                                                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Filter Kode Penyakit</label>
+                                                            <div class="relative" @click.outside="showFilterTypeMenu = false">
+                                                                <button type="button" @click="showFilterTypeMenu = !showFilterTypeMenu"
+                                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-700 transition-colors">
+                                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                                                    Tambah Filter
+                                                                </button>
+                                                                <div x-show="showFilterTypeMenu" x-transition
+                                                                    class="absolute right-0 z-50 mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-xl ring-1 ring-black/5 overflow-hidden"
+                                                                    style="display: none;">
+                                                                    <div class="py-1.5">
+                                                                        <button type="button" @click="addFilter('include')"
+                                                                            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-emerald-50 transition-colors group">
+                                                                            <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200"></span>
+                                                                            <div>
+                                                                                <div class="text-sm font-bold text-slate-800 group-hover:text-emerald-700">Include</div>
+                                                                                <div class="text-[10px] text-slate-400 leading-tight">Hanya tampilkan kode yang dipilih</div>
+                                                                            </div>
+                                                                        </button>
+                                                                        <button type="button" @click="addFilter('exclude')"
+                                                                            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors group">
+                                                                            <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-200"></span>
+                                                                            <div>
+                                                                                <div class="text-sm font-bold text-slate-800 group-hover:text-red-700">Exclude</div>
+                                                                                <div class="text-[10px] text-slate-400 leading-tight">Keluarkan kode dari hasil export</div>
+                                                                            </div>
+                                                                        </button>
+                                                                        <button type="button" @click="addFilter('exception')"
+                                                                            x-show="hasExcludeFilter"
+                                                                            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors group border-t border-slate-100">
+                                                                            <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200"></span>
+                                                                            <div>
+                                                                                <div class="text-sm font-bold text-slate-800 group-hover:text-amber-700">Tetap Sertakan</div>
+                                                                                <div class="text-[10px] text-slate-400 leading-tight">Kembalikan sub-kode yang ter-exclude</div>
+                                                                            </div>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
-                                                        <!-- List Aturan -->
-                                                        <div class="space-y-3 mb-4">
-                                                            <template x-for="(rule, index) in exportRules" :key="index">
-                                                                <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                                                                    <!-- Bullet dot -->
-                                                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                        {{-- Info box when no filters --}}
+                                                        <div x-show="exportFilters.length === 0" class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center">
+                                                            <svg class="mx-auto h-8 w-8 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                                                            <p class="text-xs text-slate-500 leading-relaxed">Belum ada filter kode penyakit.<br>Klik <span class="font-bold text-slate-700">"Tambah Filter"</span> untuk memfilter hasil export berdasarkan kode ICD.</p>
+                                                        </div>
 
-                                                                    <!-- Operator Type -->
-                                                                    <select x-model="rule.type" class="bg-white border-slate-300 rounded-md text-xs font-bold text-slate-700 shadow-sm focus:border-red-500 focus:ring-red-500 px-2.5 py-1.5 cursor-pointer">
-                                                                        <option value="include">HANYA SERTAKAN</option>
-                                                                        <option value="exclude">KECUALIKAN</option>
-                                                                        <option value="keep">TETAP SERTAKAN</option>
-                                                                    </select>
-
-                                                                    <!-- Target Type -->
-                                                                    <select :value="rule.target" @change="rule.target = $event.target.value; rule.value = (rule.target === 'prefix' ? 'A' : '')" class="bg-white border-slate-300 rounded-md text-xs font-bold text-slate-700 shadow-sm focus:border-red-500 focus:ring-red-500 px-2.5 py-1.5 cursor-pointer">
-                                                                        <option value="prefix">awalan</option>
-                                                                        <option value="code">kode</option>
-                                                                    </select>
-
-                                                                    <!-- Value Selector: Awalan -->
-                                                                    <div x-show="rule.target === 'prefix'" class="inline-block">
-                                                                        <select x-model="rule.value" class="bg-white border-slate-300 rounded-md text-xs font-bold text-slate-700 shadow-sm focus:border-red-500 focus:ring-red-500 px-2.5 py-1.5 cursor-pointer w-20">
-                                                                            <template x-for="letter in letters" :key="letter">
-                                                                                <option :value="letter" x-text="letter"></option>
-                                                                            </template>
-                                                                        </select>
+                                                        {{-- Dynamic filter cards --}}
+                                                        <div class="space-y-3">
+                                                            <template x-for="(filter, filterIdx) in exportFilters" :key="filterIdx">
+                                                                <div class="rounded-xl border-2 p-4 transition-all duration-200"
+                                                                    :class="getFilterTypeColor(filter.type).bg + ' ' + getFilterTypeColor(filter.type).border">
+                                                                    {{-- Filter card header --}}
+                                                                    <div class="flex items-center justify-between mb-3">
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold border"
+                                                                                :class="getFilterTypeColor(filter.type).badge">
+                                                                                <span class="w-1.5 h-1.5 rounded-full"
+                                                                                    :class="filter.type === 'include' ? 'bg-emerald-500' : (filter.type === 'exclude' ? 'bg-red-500' : 'bg-amber-500')"></span>
+                                                                                <span x-text="getFilterTypeLabel(filter.type)"></span>
+                                                                            </span>
+                                                                            <span class="text-[10px] text-slate-400 font-medium" x-text="'#' + (filterIdx + 1)"></span>
+                                                                        </div>
+                                                                        <button type="button" @click="removeFilter(filterIdx)"
+                                                                            class="text-slate-400 hover:text-red-500 p-1 rounded-lg hover:bg-white/80 transition-colors" title="Hapus filter ini">
+                                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                        </button>
                                                                     </div>
 
-                                                                    <!-- Value Input: Kode Spesifik / Exception -->
-                                                                    <div x-show="rule.target === 'code'" class="inline-block flex-1 min-w-[150px]">
-                                                                        <input type="text" x-model="rule.value" placeholder="Contoh: A01, Z02" class="bg-white border-slate-300 rounded-md text-xs shadow-sm focus:border-red-500 focus:ring-red-500 px-2.5 py-1.5 w-full uppercase">
-                                                                    </div>
+                                                                    {{-- Prefix selector --}}
+                                                                    <div class="space-y-3">
+                                                                        <div>
+                                                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
+                                                                            <div class="relative w-full" @click.outside="filter.isPrefixOpen = false">
+                                                                                <div @click="filter.isPrefixOpen = !filter.isPrefixOpen"
+                                                                                    class="w-full border rounded-lg px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-all hover:shadow-md"
+                                                                                    :class="filter.isPrefixOpen ? 'ring-2 border-transparent ' + getFilterTypeColor(filter.type).ring : 'border-slate-200'">
+                                                                                    <span x-show="filter.selectedPrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
+                                                                                    <div x-show="filter.selectedPrefixes.length > 0" class="flex flex-wrap gap-1">
+                                                                                        <template x-for="prefix in filter.selectedPrefixes" :key="'fp-'+filterIdx+'-'+prefix">
+                                                                                            <span class="font-bold px-1.5 py-0.5 rounded text-[10px]"
+                                                                                                :class="getFilterTypeColor(filter.type).badge" x-text="prefix"></span>
+                                                                                        </template>
+                                                                                    </div>
+                                                                                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                                                </div>
+                                                                                <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
+                                                                                    <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
+                                                                                        <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
+                                                                                            <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
+                                                                                                :class="filter.selectedPrefixes.includes(prefix) ? getFilterTypeColor(filter.type).activePrefixBg + ' text-white shadow-inner' : 'bg-white text-slate-600 border-slate-200 ' + getFilterTypeColor(filter.type).hoverBorder"
+                                                                                                class="rounded-lg border py-1.5 text-xs font-bold transition-all shadow-sm" x-text="prefix"></button>
+                                                                                        </template>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
 
-                                                                    <!-- Hapus Button -->
-                                                                    <button type="button" @click="removeRule(index)" class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Hapus aturan">
-                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                                                    </button>
+                                                                        {{-- ICD code search --}}
+                                                                        <div>
+                                                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Kode Spesifik</label>
+                                                                            <input
+                                                                                type="text"
+                                                                                x-model="filter.codeSearch"
+                                                                                @input.debounce.300ms="searchFilterIcd(filterIdx)"
+                                                                                placeholder="Cari kode atau nama penyakit, mis. A01"
+                                                                                class="w-full border-slate-200 rounded-lg shadow-sm focus:ring-2 text-sm px-3 py-2 bg-white"
+                                                                                :class="'focus:' + getFilterTypeColor(filter.type).ring"
+                                                                            >
+                                                                            <p class="text-[10px] text-slate-400 mt-1">Ketik minimal 2 karakter untuk mencari kode ICD.</p>
+                                                                            <div x-show="filter.codeLoading" class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+                                                                                <div class="w-3 h-3 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin"></div>
+                                                                                Mencari kode ICD...
+                                                                            </div>
+                                                                            <div x-show="filter.codeOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 shadow-sm">
+                                                                                <template x-for="option in filter.codeOptions" :key="'co-'+filterIdx+'-'+option.code">
+                                                                                    <button type="button" @click="addFilterCode(filterIdx, option)" class="w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors">
+                                                                                        <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
+                                                                                        <div class="text-xs text-slate-500" x-text="option.name"></div>
+                                                                                    </button>
+                                                                                </template>
+                                                                            </div>
+                                                                            <div x-show="filter.selectedCodes.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                                                                                <template x-for="item in filter.selectedCodes" :key="'sc-'+filterIdx+'-'+item.code">
+                                                                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border"
+                                                                                        :class="getFilterTypeColor(filter.type).badge">
+                                                                                        <span x-text="item.code"></span>
+                                                                                        <button type="button" @click="removeFilterCode(filterIdx, item.code)" class="opacity-60 hover:opacity-100 transition-opacity">&times;</button>
+                                                                                    </span>
+                                                                                </template>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </template>
-
-                                                            <!-- Empty State -->
-                                                            <div x-show="exportRules.length === 0" class="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-200 rounded-lg">
-                                                                Belum ada aturan filter yang ditambahkan. Semua penyakit akan diekspor.
-                                                            </div>
-                                                        </div>
-
-                                                        <!-- Preview Box -->
-                                                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 flex items-start gap-2">
-                                                            <svg class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                            <div>
-                                                                <span class="font-bold text-slate-700">Preview:</span>
-                                                                <span x-text="filterPreviewText"></span>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
