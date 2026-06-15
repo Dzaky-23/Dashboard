@@ -52,6 +52,62 @@
                     showExportProgress: false,
                     exportErrorMsg: '',
                     exportPollCount: 0,
+                    exportRules: [],
+                    addRule() {
+                        this.exportRules.push({ type: 'include', target: 'prefix', value: 'A' });
+                    },
+                    removeRule(index) {
+                        this.exportRules.splice(index, 1);
+                    },
+                    get filterPreviewText() {
+                        if (this.exportRules.length === 0) {
+                            return 'Akan export semua penyakit tanpa filter khusus.';
+                        }
+                        
+                        let text = 'Akan export';
+                        const includes = this.exportRules.filter(r => r.type === 'include' && r.value);
+                        const excludes = this.exportRules.filter(r => r.type === 'exclude' && r.value);
+                        const keeps = this.exportRules.filter(r => r.type === 'keep' && r.value);
+
+                        if (includes.length > 0) {
+                            const prefixes = includes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
+                            const codes = includes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
+                            
+                            let incText = '';
+                            if (prefixes.length > 0) {
+                                incText += ' penyakit berawalan ' + prefixes.join(', ');
+                            }
+                            if (codes.length > 0) {
+                                if (incText) incText += ' serta';
+                                incText += ' kode ' + codes.join(', ');
+                            }
+                            text += incText;
+                        } else {
+                            text += ' semua penyakit';
+                        }
+
+                        if (excludes.length > 0) {
+                            const prefixes = excludes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
+                            const codes = excludes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
+                            
+                            let excText = '';
+                            if (prefixes.length > 0) {
+                                excText += ' awalan ' + prefixes.join(', ');
+                            }
+                            if (codes.length > 0) {
+                                if (excText) excText += ' serta';
+                                excText += ' kode ' + codes.join(', ');
+                            }
+                            text += ', kecuali ' + excText;
+                        }
+
+                        if (keeps.length > 0) {
+                            const values = keeps.map(r => r.value.toUpperCase());
+                            text += ', tapi ' + values.join(', ') + ' selalu masuk';
+                        }
+
+                        return text + '.';
+                    },
                     
                     init() {
                         this.$watch('search', value => {
