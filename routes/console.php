@@ -14,7 +14,7 @@ Artisan::command('recap-top:build {--reset}', function () {
 })->purpose('Membangun ulang tabel rekap (deprecated).');
 Schedule::command('rekap:aggregate')
     // ->cron('0 2 6 * *')
-    ->dailyAt('10:00')
+    ->dailyAt('09:11')
     ->onFailure(function () {
         Illuminate\Support\Facades\Log::error('Fallback cron rekap:aggregate failed.');
     });
