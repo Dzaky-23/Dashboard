@@ -26,7 +26,6 @@ class ExportController extends Controller
             'selected_puskesmas' => ['nullable', 'array'],
             'selected_puskesmas.*' => ['string'],
             'format' => ['required', 'in:excel,pdf,csv'],
-            'userId' => ['nullable', 'integer'],
             'filters' => ['nullable', 'array'],
         ]);
 
@@ -34,6 +33,7 @@ class ExportController extends Controller
             'type' => 'export',
             'status' => 'pending',
             'payload' => $validated,
+            'user_id' => auth()->id(),
         ]);
 
         ExportRekapJob::dispatch(
@@ -47,7 +47,7 @@ class ExportController extends Controller
             (($validated['kecamatan_filter_mode'] ?? 'all') === 'selected') ? ($validated['selected_kecamatan'] ?? null) : null,
             (($validated['puskesmas_filter_mode'] ?? 'all') === 'selected') ? ($validated['selected_puskesmas'] ?? null) : null,
             $validated['format'],
-            $validated['userId'] ?? null,
+            auth()->id(),
             $validated['filters'] ?? []
         );
 
@@ -58,7 +58,10 @@ class ExportController extends Controller
 
     public function checkStatus(string $jobId): JsonResponse
     {
-        $jobStatus = JobStatus::find($jobId);
+        $jobStatus = JobStatus::where('id', $jobId)
+            ->where('user_id', auth()->id())
+            ->first();
+
         if (!$jobStatus) {
             return response()->json(['error' => 'Job tidak ditemukan'], 404);
         }
@@ -70,7 +73,10 @@ class ExportController extends Controller
 
     public function download(string $jobId)
     {
-        $jobStatus = JobStatus::find($jobId);
+        $jobStatus = JobStatus::where('id', $jobId)
+            ->where('user_id', auth()->id())
+            ->first();
+
         if (!$jobStatus) {
             abort(404, 'Job tidak ditemukan');
         }
@@ -79,11 +85,11 @@ class ExportController extends Controller
             abort(400, 'File belum siap untuk diunduh');
         }
 
-        $filePath = storage_path('exports/' . $jobStatus->output_path);
+        $filePath = storage_path('app/exports/' . $jobStatus->output_path);
         if (!file_exists($filePath)) {
             abort(404, 'File tidak ditemukan di server');
         }
 
-        return response()->download($filePath);
+        return response()->download($filePath)->deleteFileAfterSend(true);
     }
 }

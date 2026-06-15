@@ -18,6 +18,7 @@ class JobStatus extends Model
         'payload',
         'output_path',
         'error',
+        'user_id',
     ];
 
     protected $casts = [
