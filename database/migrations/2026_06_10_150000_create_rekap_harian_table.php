@@ -17,8 +17,8 @@ return new class extends Migration
         Schema::create('rekap_harian', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->date('tanggal');
-            $table->string('kode_puskesmas', 50);
-            $table->string('kode_penyakit', 50);
+            $table->string('kode_puskesmas', 255);
+            $table->string('kode_penyakit', 255);
             $table->integer('jumlah_kasus')->unsigned();
             $table->timestamps();
 
