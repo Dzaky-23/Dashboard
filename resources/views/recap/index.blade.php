@@ -1,11 +1,57 @@
 <x-app-layout>
-    <div class="py-8">
-        <div class="max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-slate-200">
-                <div class="p-6 text-slate-900" x-data="{ 
-                    activeFilter: 'semua', 
-                    search: '',
-                    openExportModal: false,
+    <div class="p-4 lg:p-6 space-y-6">
+        {{-- ==================== STATS CARDS ==================== --}}
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Kasus</p>
+                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKasus ?? 0) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" /></svg>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Puskesmas</p>
+                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalPuskesmas ?? 0) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Kecamatan</p>
+                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKecamatan ?? 0) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Periode</p>
+                        <p class="text-xl font-bold text-slate-800">{{ $yearInput ?? date('Y') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6" x-data="{ 
+            activeFilter: 'semua', 
+            search: '',
+            openExportModal: false,
                     exportFormat: 'pdf',
                     exportTopNUmum: 10,
                     exportTopNKecamatan: 10,
@@ -118,6 +164,9 @@
                             this.currentPageSemua = 1;
                             this.currentPagePuskesmas = 1;
                         });
+                        // Listen for sidebar button events
+                        window.addEventListener('open-aggregate-modal', () => { this.openAggregateModal = true; });
+                        window.addEventListener('open-export-modal', () => { this.openExportModal = true; });
                     },
                     get filteredKecamatans() {
                         const q = this.search.trim().toLowerCase();
@@ -555,20 +604,31 @@
                         @include('recap.partials.global_chart')
                         @include('recap.partials.analytics')
 
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
-                            <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
+                        {{-- ==================== DAFTAR WILAYAH ==================== --}}
+                        <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-visible">
+                        <div class="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Puskesmas dikelompokkan berdasarkan kecamatan</p>
+                                </div>
+                            </div>
                             
                             <div class="relative w-full md:w-72">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                 </div>
-                                <input x-model="search" type="text" placeholder="Cari wilayah/puskesmas..." class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm transition duration-150 ease-in-out shadow-sm">
+                                <input x-model="search" type="text" placeholder="Cari wilayah/puskesmas..." class="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm transition shadow-sm">
                                 <button x-show="search.length > 0" x-transition @click="search = ''" x-cloak class="absolute inset-y-0 right-0 pr-3 flex items-center">
                                     <svg class="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </div>
                         </div>
 
+                        <div class="p-6">
                         <div class="flex flex-wrap gap-2 mb-8 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 sm:inline-flex w-full sm:w-auto shadow-inner">
                             <button @click="activeFilter = 'semua'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'semua', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'semua'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out">
                                 Tampilkan Semua
@@ -1187,7 +1247,6 @@
                         </div>
                     @endif
                 </div>
-            </div>
         </div>
     </div>
 </x-app-layout>
