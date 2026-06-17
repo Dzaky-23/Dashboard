@@ -52,26 +52,22 @@
                     showExportProgress: false,
                     exportErrorMsg: '',
                     exportPollCount: 0,
-                    exportRules: [],
-                    addRule() {
-                        this.exportRules.push({ type: 'include', target: 'prefix', value: 'A' });
-                    },
-                    removeRule(index) {
-                        this.exportRules.splice(index, 1);
-                    },
                     get filterPreviewText() {
-                        if (this.exportRules.length === 0) {
+                        if (this.exportFilters.length === 0) {
                             return 'Akan export semua penyakit tanpa filter khusus.';
                         }
                         
                         let text = 'Akan export';
-                        const includes = this.exportRules.filter(r => r.type === 'include' && r.value);
-                        const excludes = this.exportRules.filter(r => r.type === 'exclude' && r.value);
-                        const keeps = this.exportRules.filter(r => r.type === 'keep' && r.value);
+                        const includes = this.exportFilters.filter(f => f.type === 'include');
+                        const excludes = this.exportFilters.filter(f => f.type === 'exclude');
 
                         if (includes.length > 0) {
-                            const prefixes = includes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
-                            const codes = includes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
+                            const prefixes = [];
+                            const codes = [];
+                            includes.forEach(f => {
+                                prefixes.push(...f.selectedPrefixes);
+                                codes.push(...f.selectedCodes.map(c => c.code));
+                            });
                             
                             let incText = '';
                             if (prefixes.length > 0) {
@@ -87,8 +83,16 @@
                         }
 
                         if (excludes.length > 0) {
-                            const prefixes = excludes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
-                            const codes = excludes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
+                            const prefixes = [];
+                            const codes = [];
+                            const exceptions = [];
+                            excludes.forEach(f => {
+                                prefixes.push(...f.selectedPrefixes);
+                                codes.push(...f.selectedCodes.map(c => c.code));
+                                if (f.selectedExceptions) {
+                                    exceptions.push(...f.selectedExceptions.map(e => e.code));
+                                }
+                            });
                             
                             let excText = '';
                             if (prefixes.length > 0) {
@@ -99,11 +103,10 @@
                                 excText += ' kode ' + codes.join(', ');
                             }
                             text += ', kecuali ' + excText;
-                        }
 
-                        if (keeps.length > 0) {
-                            const values = keeps.map(r => r.value.toUpperCase());
-                            text += ', tapi ' + values.join(', ') + ' selalu masuk';
+                            if (exceptions.length > 0) {
+                                text += ', tapi ' + exceptions.join(', ') + ' selalu masuk';
+                            }
                         }
 
                         return text + '.';
@@ -261,7 +264,11 @@
                             codeSearch: '',
                             codeOptions: [],
                             codeLoading: false,
-                            isPrefixOpen: false
+                            isPrefixOpen: false,
+                            selectedExceptions: [],
+                            exceptionSearch: '',
+                            exceptionOptions: [],
+                            exceptionLoading: false
                         });
                         this.showFilterTypeMenu = false;
                     },
@@ -315,6 +322,46 @@
                         filter.selectedCodes = [...filter.selectedCodes, option];
                         filter.codeSearch = '';
                         filter.codeOptions = [];
+                    },
+                    async searchFilterExceptionIcd(filterIndex) {
+                        const filter = this.exportFilters[filterIndex];
+                        const query = filter.exceptionSearch.trim();
+
+                        if (query.length < 2) {
+                            filter.exceptionOptions = [];
+                            return;
+                        }
+
+                        filter.exceptionLoading = true;
+
+                        try {
+                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const payload = await response.json();
+                            const selected = new Set(filter.selectedExceptions.map(item => item.code));
+                            filter.exceptionOptions = (payload.data || []).filter(item => !selected.has(item.code));
+                        } catch (error) {
+                            filter.exceptionOptions = [];
+                        } finally {
+                            filter.exceptionLoading = false;
+                        }
+                    },
+                    addFilterExceptionCode(filterIndex, option) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedExceptions.some(item => item.code === option.code)) {
+                            return;
+                        }
+                        filter.selectedExceptions = [...filter.selectedExceptions, option];
+                        filter.exceptionSearch = '';
+                        filter.exceptionOptions = [];
+                    },
+                    removeFilterExceptionCode(filterIndex, code) {
+                        const filter = this.exportFilters[filterIndex];
+                        filter.selectedExceptions = filter.selectedExceptions.filter(item => item.code !== code);
                     },
                     getFilterTypeLabel(type) {
                         if (type === 'include') return 'Include';
@@ -454,9 +501,9 @@
                             } else if (f.type === 'exclude') {
                                 excludePrefixes.push(...f.selectedPrefixes);
                                 excludeCodes.push(...f.selectedCodes.map(c => c.code));
-                            } else if (f.type === 'exception') {
-                                exceptionPrefixes.push(...f.selectedPrefixes);
-                                exceptionCodes.push(...f.selectedCodes.map(c => c.code));
+                                if (f.selectedExceptions) {
+                                    exceptionCodes.push(...f.selectedExceptions.map(c => c.code));
+                                }
                             }
                         });
 
@@ -1006,15 +1053,6 @@
                                                                                 <div class="text-[10px] text-slate-400 leading-tight">Keluarkan kode dari hasil export</div>
                                                                             </div>
                                                                         </button>
-                                                                        <button type="button" @click="addFilter('exception')"
-                                                                            x-show="hasExcludeFilter"
-                                                                            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors group border-t border-slate-100">
-                                                                            <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200"></span>
-                                                                            <div>
-                                                                                <div class="text-sm font-bold text-slate-800 group-hover:text-amber-700">Tetap Sertakan</div>
-                                                                                <div class="text-[10px] text-slate-400 leading-tight">Kembalikan sub-kode yang ter-exclude</div>
-                                                                            </div>
-                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1049,35 +1087,75 @@
                                                                     </div>
 
                                                                     {{-- Prefix selector --}}
-                                                                    <div class="space-y-3">
-                                                                        <div>
-                                                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
-                                                                            <div class="relative w-full" @click.outside="filter.isPrefixOpen = false">
-                                                                                <div @click="filter.isPrefixOpen = !filter.isPrefixOpen"
-                                                                                    class="w-full border rounded-lg px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-all hover:shadow-md"
-                                                                                    :class="filter.isPrefixOpen ? 'ring-2 border-transparent ' + getFilterTypeColor(filter.type).ring : 'border-slate-200'">
-                                                                                    <span x-show="filter.selectedPrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
-                                                                                    <div x-show="filter.selectedPrefixes.length > 0" class="flex flex-wrap gap-1">
-                                                                                        <template x-for="prefix in filter.selectedPrefixes" :key="'fp-'+filterIdx+'-'+prefix">
-                                                                                            <span class="font-bold px-1.5 py-0.5 rounded text-[10px]"
-                                                                                                :class="getFilterTypeColor(filter.type).badge" x-text="prefix"></span>
-                                                                                        </template>
+                                                                    <div class="space-y-4">
+                                                                        {{-- Baris untuk Awalan Kode dan Pengecualian bersebelahan pada desktop --}}
+                                                                        <div class="grid grid-cols-1 gap-4" :class="filter.type === 'exclude' ? 'md:grid-cols-2' : ''">
+                                                                            {{-- Awalan Kode --}}
+                                                                            <div>
+                                                                                <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
+                                                                                <div class="relative w-full" @click.outside="filter.isPrefixOpen = false">
+                                                                                    <div @click="filter.isPrefixOpen = !filter.isPrefixOpen"
+                                                                                        class="w-full border rounded-lg px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-all hover:shadow-md"
+                                                                                        :class="filter.isPrefixOpen ? 'ring-2 border-transparent ' + getFilterTypeColor(filter.type).ring : 'border-slate-200'">
+                                                                                        <span x-show="filter.selectedPrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
+                                                                                        <div x-show="filter.selectedPrefixes.length > 0" class="flex flex-wrap gap-1">
+                                                                                            <template x-for="prefix in filter.selectedPrefixes" :key="'fp-'+filterIdx+'-'+prefix">
+                                                                                                <span class="font-bold px-1.5 py-0.5 rounded text-[10px]"
+                                                                                                    :class="getFilterTypeColor(filter.type).badge" x-text="prefix"></span>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                        <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                                                     </div>
-                                                                                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                                                    <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
+                                                                                        <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
+                                                                                            <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
+                                                                                                <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
+                                                                                                    :class="filter.selectedPrefixes.includes(prefix) ? getFilterTypeColor(filter.type).activePrefixBg + ' text-white shadow-inner' : 'bg-white text-slate-600 border-slate-200 ' + getFilterTypeColor(filter.type).hoverBorder"
+                                                                                                    class="rounded-lg border py-1.5 text-xs font-bold transition-all shadow-sm" x-text="prefix"></button>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
-                                                                                    <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
-                                                                                        <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
-                                                                                            <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
-                                                                                                :class="filter.selectedPrefixes.includes(prefix) ? getFilterTypeColor(filter.type).activePrefixBg + ' text-white shadow-inner' : 'bg-white text-slate-600 border-slate-200 ' + getFilterTypeColor(filter.type).hoverBorder"
-                                                                                                class="rounded-lg border py-1.5 text-xs font-bold transition-all shadow-sm" x-text="prefix"></button>
-                                                                                        </template>
-                                                                                    </div>
+                                                                            </div>
+
+                                                                            {{-- Exceptions (Tetap Sertakan) untuk kartu Exclude --}}
+                                                                            <div x-show="filter.type === 'exclude'" class="border-t border-slate-200/60 pt-4 md:border-t-0 md:pt-0">
+                                                                                <label class="block text-xs font-bold text-amber-800 mb-1.5 flex items-center gap-1.5">
+                                                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                                                    Pengecualian (Tetap Sertakan)
+                                                                                </label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    x-model="filter.exceptionSearch"
+                                                                                    @input.debounce.300ms="searchFilterExceptionIcd(filterIdx)"
+                                                                                    placeholder="Cari kode atau nama penyakit yang tetap disertakan, mis. Z01"
+                                                                                    class="w-full border-amber-200 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 text-sm px-3 py-2 bg-white"
+                                                                                >
+                                                                                <p class="text-[10px] text-slate-400 mt-1">Ketik minimal 2 karakter untuk mencari kode ICD.</p>
+                                                                                <div x-show="filter.exceptionLoading" class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+                                                                                    <div class="w-3 h-3 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin"></div>
+                                                                                    Mencari kode ICD...
+                                                                                </div>
+                                                                                <div x-show="filter.exceptionOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 shadow-sm">
+                                                                                    <template x-for="option in filter.exceptionOptions" :key="'eo-'+filterIdx+'-'+option.code">
+                                                                                        <button type="button" @click="addFilterExceptionCode(filterIdx, option)" class="w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors">
+                                                                                            <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
+                                                                                            <div class="text-xs text-slate-500" x-text="option.name"></div>
+                                                                                        </button>
+                                                                                    </template>
+                                                                                </div>
+                                                                                <div x-show="filter.selectedExceptions && filter.selectedExceptions.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                                                                                    <template x-for="item in filter.selectedExceptions" :key="'se-'+filterIdx+'-'+item.code">
+                                                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border bg-amber-100 text-amber-700 border-amber-200">
+                                                                                            <span x-text="item.code"></span>
+                                                                                            <button type="button" @click="removeFilterExceptionCode(filterIdx, item.code)" class="opacity-60 hover:opacity-100 transition-opacity">&times;</button>
+                                                                                        </span>
+                                                                                    </template>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
 
-                                                                        {{-- ICD code search --}}
+                                                                        {{-- Kode Spesifik (Lebar Penuh) --}}
                                                                         <div>
                                                                             <label class="block text-xs font-bold text-slate-600 mb-1.5">Kode Spesifik</label>
                                                                             <input
