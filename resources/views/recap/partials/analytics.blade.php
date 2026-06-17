@@ -41,7 +41,7 @@
                     </div>
                     
                     <!-- Time Mode -->
-                    <select x-model="trendTimeMode" @change="fetchTrendData()" class="text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
+                    <select x-model="trendTimeMode" @change="onTrendTimeChange()" class="text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
                         <option value="year">Sepanjang Tahun</option>
                         <option value="last_n">N Bulan Terakhir</option>
                         <option value="last_n_years">N Tahun Terakhir</option>
@@ -50,12 +50,12 @@
 
                     <!-- Year Selection -->
                     <div x-show="trendTimeMode === 'year' || trendTimeMode === 'custom_months' || trendTimeMode === 'last_n_years'">
-                        <input type="number" x-model.lazy="trendYear" @change="fetchTrendData()" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :title="trendTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
+                        <input type="number" x-model.lazy="trendYear" @change="onTrendTimeChange()" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :title="trendTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
                     </div>
 
                     <!-- Time Input -->
                     <div x-show="trendTimeMode === 'last_n' || trendTimeMode === 'last_n_years'">
-                        <input type="number" x-model="trendLastN" @change="fetchTrendData()" min="1" max="60" class="w-16 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="trendTimeMode === 'last_n' ? 'Bulan' : 'Tahun'">
+                        <input type="number" x-model="trendLastN" @change="onTrendTimeChange()" min="1" max="60" class="w-16 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="trendTimeMode === 'last_n' ? 'Bulan' : 'Tahun'">
                     </div>
                     
                     <div x-show="trendTimeMode === 'custom_months'" class="relative">
@@ -66,7 +66,7 @@
                         <div x-show="showCustomMonths" class="absolute right-0 z-50 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-2 grid grid-cols-2 gap-2" x-transition>
                             <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
                                 <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                    <input type="checkbox" :value="idx + 1" x-model.number="trendCustomMonths" @change="fetchTrendData()" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                    <input type="checkbox" :value="idx + 1" x-model.number="trendCustomMonths" @change="onTrendTimeChange()" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
                                     <span x-text="monthName"></span>
                                 </label>
                             </template>
@@ -85,7 +85,7 @@
                             </button>
                         </div>
                     </template>
-                    <button x-show="trendDiseases.length > 0" @click="trendDiseases = []; fetchTrendData()" class="text-[10px] text-slate-500 hover:underline px-1">Clear</button>
+                    <button x-show="trendDiseases.length > 0" @click="trendDiseases = []; trendUserModified = true; fetchTrendData()" class="text-[10px] text-slate-500 hover:underline px-1">Clear</button>
                 </div>
             </div>
 
@@ -207,6 +207,7 @@ document.addEventListener('alpine:init', () => {
         // Trend State
         trendLoading: false,
         trendInitialLoad: true,
+        trendUserModified: false,
         trendYear: '{{ $yearInput ?? date('Y') }}',
         trendSearch: '',
         trendSearchLoading: false,
@@ -262,10 +263,19 @@ document.addEventListener('alpine:init', () => {
             this.trendDiseases.push(opt);
             this.trendSearch = '';
             this.trendOptions = [];
+            this.trendUserModified = true;
             this.fetchTrendData();
         },
         removeTrendDisease(code) {
             this.trendDiseases = this.trendDiseases.filter(d => d.code !== code);
+            this.trendUserModified = true;
+            this.fetchTrendData();
+        },
+        onTrendTimeChange() {
+            if (!this.trendUserModified) {
+                this.trendDiseases = [];
+                this.trendInitialLoad = true;
+            }
             this.fetchTrendData();
         },
 
