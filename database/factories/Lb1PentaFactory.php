@@ -47,7 +47,7 @@ class Lb1PentaFactory extends Factory
         $kdesa = !empty($kdesaCodes) ? $this->faker->randomElement($kdesaCodes) : 'KD01';
 
         return [
-            'tanggal' => $this->faker->dateTimeBetween('2026-01-01', '2026-05-31')->format('Y-m-d'),
+            'tanggal' => $this->faker->dateTimeBetween('2024-01-01', '2026-05-31')->format('Y-m-d'),
             'nik' => $this->faker->numerify('################'),
             'kpusk' => $kpusk,
             'no_reg' => date('Ymd') . $this->faker->unique()->numberBetween(10000, 99999),
