@@ -497,6 +497,7 @@
                         </div>
                     @else
                         @include('recap.partials.global_chart')
+                        @include('recap.partials.analytics')
 
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
                             <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
@@ -630,19 +631,24 @@
 
                                         <div x-show="!showExportProgress">
                                             <div x-show="exportErrorMsg" class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" x-text="exportErrorMsg"></div>
-                                            <div class="bg-white px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
-                                                <div>
-                                                    <h3 class="text-lg font-bold text-slate-800" id="modal-title">Cetak Laporan Penyakit</h3>
-                                                    <p class="text-xs text-slate-500 mt-0.5">Sesuaikan parameter rekapitulasi data yang ingin di-export.</p>
+                                            <div class="bg-gradient-to-r from-red-600 to-rose-500 px-6 py-5 flex justify-between items-center rounded-t-2xl shadow-sm">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="bg-white/20 p-2 rounded-xl text-white backdrop-blur-sm">
+                                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-extrabold text-white" id="modal-title">Cetak Laporan Penyakit</h3>
+                                                        <p class="text-xs text-red-50 mt-0.5 font-medium">Sesuaikan parameter rekapitulasi data yang ingin diunduh.</p>
+                                                    </div>
                                                 </div>
-                                            {{-- <button type="button" @click="openExportModal = false" class="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full p-2 transition-colors">
-                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button> --}}
-                                        </div>
+                                                <button type="button" @click="openExportModal = false" class="text-white hover:text-red-100 hover:bg-white/10 rounded-full p-2 transition-colors focus:outline-none">
+                                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
 
-                                        <div class="px-6 py-5 bg-slate-50/50">
+                                            <div class="px-6 py-6 bg-white space-y-8">
                                             <div class="mb-6">
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">1. Format Dokumen</h4>
+                                                <h4 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs">1</span> Format Dokumen</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     <label class="relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200"
                                                         :class="exportFormat === 'pdf' ? 'border-red-500 bg-white shadow-sm' : 'border-slate-200 bg-white hover:bg-slate-50'">
@@ -680,7 +686,7 @@
                                             </div>
 
                                             <div class="mb-6">
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">2. Pengaturan Ranking (Tampilkan Top N)</h4>
+                                                <h4 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs">2</span> Pengaturan Ranking (Top N)</h4>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     <div class="p-3 border rounded-lg transition-colors flex flex-col" :class="exportScope.umum ? 'bg-white border-red-200 ring-1 ring-red-500' : 'bg-slate-50 border-slate-200 opacity-75'">
                                                         <label class="flex items-center cursor-pointer mb-2 w-full">
@@ -710,7 +716,7 @@
                                             </div>
 
                                             <div class="mb-6">
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">3. Filter Wilayah Export</h4>
+                                                <h4 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs">3</span> Filter Wilayah</h4>
                                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                                     <div class="rounded-xl border border-slate-200 bg-white p-5 transition-opacity" :class="!exportScope.kecamatan ? 'opacity-50' : ''">
                                                         <h5 class="text-sm font-bold text-slate-800 mb-4">Top N Per Kecamatan</h5>
@@ -835,8 +841,8 @@
                                             </div>
 
                                             <div>
-                                                <h4 class="text-sm font-semibold text-slate-800 mb-3">4. Periode & Filter Kode Penyakit</h4>
-                                                <div class="bg-white p-4 border border-slate-200 rounded-lg space-y-5">
+                                                <h4 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-xs">4</span> Filter Periode & Kode Penyakit</h4>
+                                                <div class="bg-slate-50 p-5 border border-slate-100 rounded-2xl space-y-5">
                                                     {{-- Periode Export --}}
                                                     <div>
                                                         <label class="block text-xs font-bold text-slate-500 mb-1">Periode Export</label>

@@ -27,8 +27,8 @@
                     @php
                         $percentage = ($item->total / $maxChartWidth) * 100;
                         $widthPercentage = max($percentage, 8);
-                        $colors = ['from-pink-400 to-pink-500', 'from-amber-400 to-orange-500', 'from-emerald-400 to-teal-500', 'from-sky-400 to-blue-500', 'from-violet-400 to-indigo-500', 'from-rose-400 to-red-500'];
-                        $color = $colors[$index % count($colors)];
+                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-400', 'bg-red-400', 'bg-red-400', 'bg-red-400'];
+                        $color = $redShades[min($index, count($redShades) - 1)];
                     @endphp
                     <div class="flex flex-row items-center w-full group relative cursor-pointer">
                         <!-- Tooltip on hover -->
@@ -45,7 +45,7 @@
                         <!-- Bar Track -->
                         <div class="flex-grow h-6 md:h-8 bg-slate-100/50 rounded-full p-1 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.05),inset_-2px_-2px_6px_rgba(255,255,255,0.8)] border border-white flex flex-row justify-start">
                             <!-- Colored Filled Bar -->
-                            <div class="h-full bg-gradient-to-r {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
+                            <div class="h-full {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
                                 <!-- Text Inside Bar for Data (Optional, hiding it on very small screens or keeping it simple, let's keep it visible inside the bar right end!) -->
                                 <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate">{{ number_format($item->total) }}</span>
                                 
