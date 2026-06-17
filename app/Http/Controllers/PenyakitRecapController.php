@@ -523,4 +523,220 @@ class PenyakitRecapController extends Controller
     {
         abort(400, 'Export synchronous is disabled. Use asynchronous export.');
     }
+
+    public function trendChartData(Request $request): JsonResponse
+    {
+        $year = (int) $request->input('year', date('Y'));
+        $diseasesInput = $request->input('diseases', []);
+        if (is_string($diseasesInput)) {
+            $diseasesInput = json_decode($diseasesInput, true) ?: [];
+        }
+
+        $timeMode = $request->input('time_mode', 'year');
+        
+        $startDate = Carbon::create($year)->startOfYear();
+        $endDate = Carbon::create($year)->endOfYear();
+
+        $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        $selectedLabels = $labels;
+        $selectedMonths = range(1, 12);
+
+        if ($timeMode === 'custom_months') {
+            $customMonths = $request->input('custom_months', []);
+            if (is_string($customMonths)) {
+                $customMonths = json_decode($customMonths, true) ?: [];
+            }
+            $customMonths = array_map('intval', $customMonths);
+            $customMonths = array_filter($customMonths, fn($m) => $m >= 1 && $m <= 12);
+            if (!empty($customMonths)) {
+                sort($customMonths);
+                $selectedMonths = $customMonths;
+                $selectedLabels = array_map(fn($m) => $labels[$m - 1], $selectedMonths);
+            }
+        } elseif ($timeMode === 'last_n') {
+            $lastN = (int) $request->input('last_n', 6);
+            if ($lastN < 1) $lastN = 1;
+            
+            $baseDate = ($year == date('Y')) ? Carbon::now() : Carbon::create($year, 12, 31);
+            $startDate = $baseDate->copy()->subMonths($lastN - 1)->startOfMonth();
+            $endDate = $baseDate->copy()->endOfMonth();
+            
+            $selectedMonths = [];
+            $selectedLabels = [];
+            $current = $startDate->copy();
+            while ($current->lte($endDate)) {
+                $selectedMonths[] = $current->month;
+                $selectedLabels[] = $labels[$current->month - 1] . ($current->year != $year ? " '{$current->format('y')}" : '');
+                $current->addMonth();
+            }
+        } elseif ($timeMode === 'last_n_years') {
+            $lastN = (int) $request->input('last_n', 5);
+            if ($lastN < 1) $lastN = 1;
+            
+            $startDate = Carbon::create($year)->subYears($lastN - 1)->startOfYear();
+            $endDate = Carbon::create($year)->endOfYear();
+            
+            $selectedMonths = [];
+            $selectedLabels = [];
+            for ($i = 0; $i < $lastN; $i++) {
+                $y = $year - $lastN + 1 + $i;
+                $selectedLabels[] = (string) $y;
+            }
+        }
+
+        if (empty($diseasesInput)) {
+            $topRaw = $this->service->queryTopUmum($startDate, $endDate, 3);
+            $diseasesInput = $topRaw->pluck('kode_penyakit')->toArray();
+        }
+
+        if (empty($diseasesInput)) {
+            return response()->json(['trend' => [], 'labels' => []]);
+        }
+
+        $monthExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%m', tanggal) AS INTEGER)" : "MONTH(tanggal)";
+        $yearExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%Y', tanggal) AS INTEGER)" : "YEAR(tanggal)";
+        
+        $query = DB::table('rekap_harian')
+            ->selectRaw("kode_penyakit, {$monthExpression} as month, {$yearExpression} as yr, SUM(jumlah_kasus) as count")
+            ->whereIn('kode_penyakit', $diseasesInput)
+            ->whereBetween('tanggal', [$startDate->toDateString(), $endDate->toDateString()])
+            ->groupBy('kode_penyakit', DB::raw($yearExpression), DB::raw($monthExpression));
+
+        if ($timeMode === 'custom_months' && !empty($selectedMonths)) {
+            $query->whereIn(DB::raw($monthExpression), $selectedMonths);
+        }
+
+        $trendRaw = $query->get();
+
+        $diseaseNames = [];
+        foreach ($diseasesInput as $kode) {
+            $icd = BpjsRefIcd::where('kdDiag', $kode)->first();
+            $diseaseNames[$kode] = $icd && !empty($icd->nmDiag) ? $icd->nmDiag : $kode;
+        }
+
+        $trendData = [];
+        foreach ($diseasesInput as $kode) {
+            $monthlyData = [];
+            if ($timeMode === 'last_n_years') {
+                for ($i = 0; $i < $lastN; $i++) {
+                    $y = $year - $lastN + 1 + $i;
+                    $val = $trendRaw->where('kode_penyakit', $kode)->where('yr', $y)->sum('count');
+                    $monthlyData[] = (int) $val;
+                }
+            } elseif ($timeMode === 'last_n') {
+                $current = $startDate->copy();
+                while ($current->lte($endDate)) {
+                    $m = $current->month;
+                    $y = $current->year;
+                    $val = $trendRaw->where('kode_penyakit', $kode)->where('month', $m)->where('yr', $y)->sum('count');
+                    $monthlyData[] = (int) $val;
+                    $current->addMonth();
+                }
+            } else {
+                foreach ($selectedMonths as $m) {
+                    $val = $trendRaw->where('kode_penyakit', $kode)->where('month', $m)->sum('count');
+                    $monthlyData[] = (int) $val;
+                }
+            }
+
+            $trendData[] = [
+                'kode' => $kode,
+                'nama' => $diseaseNames[$kode],
+                'data' => $monthlyData
+            ];
+        }
+
+        return response()->json([
+            'trend' => $trendData,
+            'labels' => $selectedLabels
+        ]);
+    }
+
+    public function pieChartData(Request $request): JsonResponse
+    {
+        $year = (int) $request->input('year', date('Y'));
+        $limit = (int) $request->input('limit', 5);
+        if ($limit < 1) $limit = 5;
+        
+        $scope = $request->input('scope', 'global');
+        $scopeValue = $request->input('scope_value');
+
+        $timeMode = $request->input('time_mode', 'year');
+        $startDate = Carbon::create($year)->startOfYear();
+        $endDate = Carbon::create($year)->endOfYear();
+
+        $selectedMonths = [];
+        if ($timeMode === 'custom_months') {
+            $customMonths = $request->input('custom_months', []);
+            if (is_string($customMonths)) {
+                $customMonths = json_decode($customMonths, true) ?: [];
+            }
+            $customMonths = array_map('intval', $customMonths);
+            $selectedMonths = array_filter($customMonths, fn($m) => $m >= 1 && $m <= 12);
+        } elseif ($timeMode === 'last_n') {
+            $lastN = (int) $request->input('last_n', 6);
+            if ($lastN < 1) $lastN = 1;
+            
+            $baseDate = ($year == date('Y')) ? Carbon::now() : Carbon::create($year, 12, 31);
+            $startDate = $baseDate->copy()->subMonths($lastN - 1)->startOfMonth();
+            $endDate = $baseDate->copy()->endOfMonth();
+        } elseif ($timeMode === 'last_n_years') {
+            $lastN = (int) $request->input('last_n', 5);
+            if ($lastN < 1) $lastN = 1;
+            
+            $startDate = Carbon::create($year)->subYears($lastN - 1)->startOfYear();
+            $endDate = Carbon::create($year)->endOfYear();
+        }
+
+        $buildQuery = function() use ($startDate, $endDate, $timeMode, $selectedMonths, $scope, $scopeValue) {
+            $query = DB::table('rekap_harian as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+            
+            if ($timeMode === 'custom_months' && !empty($selectedMonths)) {
+                $monthExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%m', rh.tanggal) AS INTEGER)" : "MONTH(rh.tanggal)";
+                $query->whereIn(DB::raw($monthExpression), $selectedMonths);
+            }
+
+            if ($scope === 'puskesmas' && $scopeValue) {
+                $query->where('rh.kode_puskesmas', $scopeValue);
+            } elseif ($scope === 'kecamatan' && $scopeValue) {
+                $query->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                      ->where('p.kode_kc', $scopeValue);
+            }
+            return $query;
+        };
+
+        $topQuery = $buildQuery()
+            ->select('rh.kode_penyakit', DB::raw('SUM(rh.jumlah_kasus) as count'))
+            ->groupBy('rh.kode_penyakit')
+            ->orderByDesc('count')
+            ->limit($limit);
+            
+        $diseasesInput = $topQuery->pluck('kode_penyakit')->toArray();
+
+        if (empty($diseasesInput)) {
+            return response()->json(['pie' => []]);
+        }
+
+        $pieRaw = $buildQuery()
+            ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+            ->whereIn('rh.kode_penyakit', $diseasesInput)
+            ->groupBy('rh.kode_penyakit', 'icd.nmDiag')
+            ->orderBy('count', 'desc')
+            ->get();
+
+        $pieData = [];
+        foreach ($pieRaw as $row) {
+            $pieData[] = [
+                'kode' => $row->kode_penyakit,
+                'nama' => $row->nama_penyakit,
+                'count' => (int) $row->count
+            ];
+        }
+
+        return response()->json([
+            'pie' => $pieData
+        ]);
+    }
 }
