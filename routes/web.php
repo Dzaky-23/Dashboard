@@ -16,6 +16,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/recap-penyakit', [PenyakitRecapController::class, 'index'])->name('recap.index');
     Route::get('/recap-penyakit/export', [PenyakitRecapController::class, 'export'])->name('recap.export');
     Route::get('/recap-penyakit/icd/search', [PenyakitRecapController::class, 'searchIcd'])->name('recap.icd.search');
+    Route::get('/recap-penyakit/api/trend-data', [PenyakitRecapController::class, 'trendChartData'])->name('recap.api.trend_data');
+    Route::get('/recap-penyakit/api/pie-data', [PenyakitRecapController::class, 'pieChartData'])->name('recap.api.pie_data');
     Route::get('/recap-penyakit/kecamatan/{kecamatan}', [PenyakitRecapController::class, 'showKecamatan'])->name('recap.kecamatan.show');
     Route::get('/recap-penyakit/{puskesmas}', [PenyakitRecapController::class, 'show'])->name('recap.show');
     

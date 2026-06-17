@@ -27,8 +27,8 @@
                     @php
                         $percentage = ($item->total / $maxChartWidth) * 100;
                         $widthPercentage = max($percentage, 8);
-                        $colors = ['from-pink-400 to-pink-500', 'from-amber-400 to-orange-500', 'from-emerald-400 to-teal-500', 'from-sky-400 to-blue-500', 'from-violet-400 to-indigo-500', 'from-rose-400 to-red-500'];
-                        $color = $colors[$index % count($colors)];
+                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-400', 'bg-red-400', 'bg-red-400', 'bg-red-400'];
+                        $color = $redShades[min($index, count($redShades) - 1)];
                     @endphp
                     <div class="flex flex-row items-center w-full group relative cursor-pointer">
                         <!-- Tooltip on hover -->
@@ -45,7 +45,7 @@
                         <!-- Bar Track -->
                         <div class="flex-grow h-6 md:h-8 bg-slate-100/50 rounded-full p-1 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.05),inset_-2px_-2px_6px_rgba(255,255,255,0.8)] border border-white flex flex-row justify-start">
                             <!-- Colored Filled Bar -->
-                            <div class="h-full bg-gradient-to-r {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
+                            <div class="h-full {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
                                 <!-- Text Inside Bar for Data (Optional, hiding it on very small screens or keeping it simple, let's keep it visible inside the bar right end!) -->
                                 <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate">{{ number_format($item->total) }}</span>
                                 
@@ -86,7 +86,7 @@
         <div class="relative z-10 pt-5 mt-auto border-t border-slate-100 flex flex-col gap-3">
             <button @click="openAggregateModal = true" type="button" class="w-full inline-flex justify-center items-center px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 active:scale-95">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 6H16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
                 </svg>
                 Agregasi Manual Harian
             </button>

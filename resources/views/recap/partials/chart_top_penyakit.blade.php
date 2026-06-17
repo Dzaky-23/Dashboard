@@ -12,7 +12,10 @@
             <div class="space-y-4 w-full">
                 @foreach($rekapChartData as $index => $item)
                     @php
-                        $widthPercentage = ($maxChartWidth > 0 ? ($item->count / $maxChartWidth) * 100 : 0);
+                        $percentage = ($maxChartWidth > 0 ? ($item->count / $maxChartWidth) * 100 : 0);
+                        $widthPercentage = max($percentage, 8);
+                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-400', 'bg-red-400', 'bg-red-400', 'bg-red-400'];
+                        $color = $redShades[min($index, count($redShades) - 1)];
                     @endphp
                     <div class="flex items-center gap-4 group">
                         <div class="w-16 md:w-20 flex-shrink-0 text-right">
@@ -20,7 +23,7 @@
                         </div>
                         <div class="flex-grow flex items-center gap-3">
                             <div class="w-full bg-slate-100 rounded-md h-7 overflow-hidden flex items-center shadow-inner">
-                                <div class="bg-rose-600 hover:bg-rose-400 h-full rounded-md transition-all duration-1000 ease-out" style="width: {{ max($widthPercentage, 1) }}%"></div>
+                                <div class="{{ $color }} hover:opacity-80 h-full rounded-md transition-all duration-1000 ease-out" style="width: {{ max($widthPercentage, 1) }}%"></div>
                             </div>
                             <span class="text-xs md:text-sm font-semibold text-slate-600 w-12">{{ number_format($item->count) }}</span>
                         </div>
