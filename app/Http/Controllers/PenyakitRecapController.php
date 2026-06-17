@@ -584,13 +584,13 @@ class PenyakitRecapController extends Controller
             }
         }
 
-        if (empty($diseasesInput)) {
+        if (empty($diseasesInput) && $request->input('is_initial')) {
             $topRaw = $this->service->queryTopUmum($startDate, $endDate, 3);
             $diseasesInput = $topRaw->pluck('kode_penyakit')->toArray();
         }
 
         if (empty($diseasesInput)) {
-            return response()->json(['trend' => [], 'labels' => []]);
+            return response()->json(['trend' => [], 'labels' => $selectedLabels]);
         }
 
         $monthExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%m', tanggal) AS INTEGER)" : "MONTH(tanggal)";

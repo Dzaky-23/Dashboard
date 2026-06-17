@@ -94,6 +94,14 @@
                 <div x-show="trendLoading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
                     <div class="animate-spin h-6 w-6 border-2 border-red-500 border-t-transparent rounded-full"></div>
                 </div>
+                
+                <!-- Empty State Message -->
+                <div x-show="!trendLoading && trendDiseases.length === 0 && !trendInitialLoad" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/80 backdrop-blur-sm rounded-xl">
+                    <svg class="w-12 h-12 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <p class="text-sm font-semibold text-slate-500">Silakan input penyakit untuk melihat tren</p>
+                    <p class="text-xs text-slate-400">Gunakan kolom pencarian di atas untuk menambahkan penyakit.</p>
+                </div>
+
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
@@ -198,6 +206,7 @@ document.addEventListener('alpine:init', () => {
 
         // Trend State
         trendLoading: false,
+        trendInitialLoad: true,
         trendYear: '{{ $yearInput ?? date('Y') }}',
         trendSearch: '',
         trendSearchLoading: false,
@@ -265,6 +274,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const codes = this.trendDiseases.map(d => d.code);
                 let url = `{{ route('recap.api.trend_data') }}?year=${this.trendYear}&time_mode=${this.trendTimeMode}&diseases=${encodeURIComponent(JSON.stringify(codes))}`;
+                if (this.trendInitialLoad) url += `&is_initial=1`;
                 if (this.trendTimeMode === 'last_n' || this.trendTimeMode === 'last_n_years') url += `&last_n=${this.trendLastN}`;
                 if (this.trendTimeMode === 'custom_months') url += `&custom_months=${encodeURIComponent(JSON.stringify(this.trendCustomMonths))}`;
 
@@ -272,8 +282,11 @@ document.addEventListener('alpine:init', () => {
                 const data = await res.json();
                 
                 // Set default if empty initially
-                if (codes.length === 0 && data.trend && data.trend.length > 0) {
+                if (this.trendInitialLoad && data.trend && data.trend.length > 0) {
                     this.trendDiseases = data.trend.map(item => ({ code: item.kode, name: item.nama }));
+                    this.trendInitialLoad = false;
+                } else if (this.trendInitialLoad) {
+                    this.trendInitialLoad = false;
                 }
 
                 this.renderTrendChart(data.trend, data.labels);
