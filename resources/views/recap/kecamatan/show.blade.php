@@ -1,7 +1,6 @@
 <x-app-layout>
-    <div class="py-8">
-        <div class="max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Back Button -->
+    <div class="p-4 lg:p-6">
+        <!-- Back Button -->
             <div class="mb-6">
                 <a href="{{ route('recap.index', ['kecamatan' => $kecamatan]) }}" class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -243,6 +242,5 @@
                 <!-- End Blok Else NotFinished -->
                 @endif
             </div>
-        </div>
     </div>
 </x-app-layout>

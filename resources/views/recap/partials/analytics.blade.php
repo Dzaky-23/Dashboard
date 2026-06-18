@@ -1,6 +1,6 @@
-<div x-data="analyticsDashboard()" class="mb-8 bg-white border border-slate-200 rounded-3xl shadow-sm overflow-visible relative z-20">
+<div x-data="analyticsDashboard()" class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-visible relative z-20">
     <!-- Header -->
-    <div class="px-6 py-5 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-t-3xl">
+    <div class="px-6 py-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-t-2xl">
         <div>
             <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
@@ -11,10 +11,10 @@
     </div>
     
     <!-- Charts Container -->
-    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
+    <div class="p-6 grid grid-cols-1 gap-6 relative z-10">
         
         <!-- ==================== TREND CHART ==================== -->
-        <div class="lg:col-span-2 flex flex-col gap-4">
+        <div class="flex flex-col gap-4">
             <div class="flex justify-between items-center">
                 <h4 class="text-sm font-bold text-slate-700">Tren Kasus Penyakit</h4>
                 <button @click="downloadChart('trendChart', 'tren_penyakit.png')" class="text-xs flex items-center gap-1 font-semibold text-slate-500 hover:text-red-600 transition-colors">

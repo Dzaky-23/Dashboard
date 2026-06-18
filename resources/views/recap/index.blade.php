@@ -1,52 +1,5 @@
 <x-app-layout>
     <div class="p-4 lg:p-6 space-y-6">
-        {{-- ==================== STATS CARDS ==================== --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    </div>
-                    <div>
-                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Kasus</p>
-                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKasus ?? 0) }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" /></svg>
-                    </div>
-                    <div>
-                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Puskesmas</p>
-                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalPuskesmas ?? 0) }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
-                    </div>
-                    <div>
-                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Kecamatan</p>
-                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKecamatan ?? 0) }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-2xl p-4 lg:p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </div>
-                    <div>
-                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Periode</p>
-                        <p class="text-xl font-bold text-slate-800">{{ $yearInput ?? date('Y') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <div class="space-y-6" x-data="{ 
             activeFilter: 'semua', 
@@ -601,8 +554,59 @@
                             Masih belum ada data penyebaran penyakit yang tercatat.
                         </div>
                     @else
-                        @include('recap.partials.global_chart')
-                        @include('recap.partials.analytics')
+                        {{-- ==================== ROW 1: 2 Charts side by side ==================== --}}
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                            <div>@include('recap.partials.global_chart')</div>
+                            <div>@include('recap.partials.analytics')</div>
+                        </div>
+
+                        {{-- ==================== ROW 2: Stats Cards ==================== --}}
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Kasus</p>
+                                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKasus ?? 0) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Puskesmas</p>
+                                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalPuskesmas ?? 0) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Kecamatan</p>
+                                        <p class="text-xl font-bold text-slate-800">{{ number_format($totalKecamatan ?? 0) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Periode</p>
+                                        <p class="text-xl font-bold text-slate-800">{{ $yearInput ?? date('Y') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         {{-- ==================== DAFTAR WILAYAH ==================== --}}
                         <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-visible">
@@ -723,6 +727,8 @@
                             <p class="text-sm text-slate-500 mt-1">Sistem tidak menemukan fasilitas yang cocok dengan sebutan "<span class="font-semibold text-slate-700" x-text="search"></span>".</p>
                             <button @click="search = ''" class="mt-4 text-sm font-semibold text-red-600 hover:text-red-500 transition-colors">Lihat semua daftar</button>
                         </div>
+                        </div>{{-- close p-6 --}}
+                        </div>{{-- close wilayah card wrapper --}}
 
                         <div x-show="openExportModal" style="display: none;" class="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
                             <div x-show="openExportModal" x-transition.opacity class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="openExportModal = false"></div>

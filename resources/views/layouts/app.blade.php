@@ -59,12 +59,23 @@
             ]"
             class="fixed top-0 left-0 h-full z-50 bg-slate-900 text-white flex flex-col sidebar-transition transform overflow-hidden shadow-2xl">
             
-            {{-- Logo --}}
-            <div class="flex items-center gap-3 px-5 h-16 border-b border-slate-700/50 flex-shrink-0">
-                <img src="{{ asset('images/dkk_logo.png') }}" alt="Logo" class="h-9 w-9 object-contain flex-shrink-0 rounded-lg">
-                <div x-show="!sidebarCollapsed" x-transition.opacity.duration.200ms class="overflow-hidden">
-                    <h1 class="text-sm font-bold text-white leading-tight truncate">Dashboard</h1>
-                    <p class="text-[10px] text-slate-400 leading-tight truncate">Rekapitulasi Penyakit</p>
+            {{-- Logo Header --}}
+            <div class="flex-shrink-0 border-b border-slate-700/50">
+                {{-- Expanded: logo besar + teks --}}
+                <div x-show="!sidebarCollapsed" x-transition.opacity.duration.200ms class="flex flex-col items-center py-6 px-4 gap-3">
+                    <div class="w-20 h-20 rounded-2xl bg-white p-2 shadow-md">
+                        <img src="{{ asset('images/dkk_logo.png') }}" alt="Logo" class="h-full w-full object-contain">
+                    </div>
+                    <div class="text-center">
+                        <h1 class="text-sm font-bold text-white leading-snug">Dinas Kesehatan</h1>
+                        <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Rekapitulasi Penyakit</p>
+                    </div>
+                </div>
+                {{-- Collapsed: logo kecil centered --}}
+                <div x-show="sidebarCollapsed" class="flex items-center justify-center py-4">
+                    <div class="w-10 h-10 rounded-xl bg-white p-1.5 shadow-sm">
+                        <img src="{{ asset('images/dkk_logo.png') }}" alt="Logo" class="h-full w-full object-contain">
+                    </div>
                 </div>
             </div>
             
@@ -96,14 +107,14 @@
                         class="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-slate-700/80 hover:bg-slate-700 text-slate-200"
                         :class="sidebarCollapsed ? 'justify-center' : ''"
                         :title="sidebarCollapsed ? 'Agregasi Manual' : ''">
-                        <svg class="w-4.5 h-4.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path></svg>
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path></svg>
                         <span x-show="!sidebarCollapsed" x-transition.opacity.duration.200ms class="truncate">Agregasi Manual</span>
                     </button>
                     <button @click="$dispatch('open-export-modal'); mobileOpen = false" 
                         class="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/30"
                         :class="sidebarCollapsed ? 'justify-center' : ''"
                         :title="sidebarCollapsed ? 'Export Laporan' : ''">
-                        <svg class="w-4.5 h-4.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         <span x-show="!sidebarCollapsed" x-transition.opacity.duration.200ms class="truncate">Export Laporan</span>
                     </button>
                 @endif
