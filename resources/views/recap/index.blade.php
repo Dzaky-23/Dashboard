@@ -2,551 +2,7 @@
     <div class="py-8">
         <div class="max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-slate-200">
-                <div class="p-6 text-slate-900" x-data="{ 
-                    activeFilter: 'semua', 
-                    search: '',
-                    openExportModal: false,
-                    exportFormat: 'pdf',
-                    exportTopNUmum: 10,
-                    exportTopNKecamatan: 10,
-                    exportTopNPuskesmas: 10,
-                    exportFilters: [],
-                    showFilterTypeMenu: false,
-                    exportScope: { umum: true, kecamatan: true, puskesmas: true },
-                    kecamatanFilterMode: 'all',
-                    selectedKecamatan: [],
-                    kecamatanSearch: '',
-                    kecamatanOptions: @js($exportKecamatanOptions),
-                    puskesmasFilterMode: 'all',
-                    selectedPuskesmas: [],
-                    puskesmasSearch: '',
-                    puskesmasKecamatanCodes: [],
-                    puskesmasOptions: @js($exportPuskesmasOptions),
-                    exportPeriodType: 'year',
-                    exportYear: '{{ date('Y') }}',
-                    exportMonth: '{{ date('n') }}',
-                    exportSemester: '1',
-                    exportQuarter: '1',
-                    exportStartDate: '{{ date('Y-m-01') }}',
-                    exportEndDate: '{{ date('Y-m-d') }}',
-
-                    icdSearchUrl: '{{ route('recap.icd.search') }}',
-                    letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
-                    currentPageSemua: 1,
-                    perPageSemua: 5,
-                    currentPagePuskesmas: 1,
-                    perPagePuskesmas: 9,
-                    
-                    // New Async Aggregation and Export Properties
-                    openAggregateModal: false,
-                    aggregateMonth: '{{ date('Y-m') }}',
-                    aggregateJobId: null,
-                    aggregateJobStatus: null,
-                    aggregateJobInterval: null,
-                    showAggregateProgress: false,
-                    aggregateErrorMsg: '',
-                    
-                    exportJobId: null,
-                    exportJobStatus: null,
-                    exportJobInterval: null,
-                    showExportProgress: false,
-                    exportErrorMsg: '',
-                    exportPollCount: 0,
-                    exportRules: [],
-                    addRule() {
-                        this.exportRules.push({ type: 'include', target: 'prefix', value: 'A' });
-                    },
-                    removeRule(index) {
-                        this.exportRules.splice(index, 1);
-                    },
-                    get filterPreviewText() {
-                        if (this.exportRules.length === 0) {
-                            return 'Akan export semua penyakit tanpa filter khusus.';
-                        }
-                        
-                        let text = 'Akan export';
-                        const includes = this.exportRules.filter(r => r.type === 'include' && r.value);
-                        const excludes = this.exportRules.filter(r => r.type === 'exclude' && r.value);
-                        const keeps = this.exportRules.filter(r => r.type === 'keep' && r.value);
-
-                        if (includes.length > 0) {
-                            const prefixes = includes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
-                            const codes = includes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
-                            
-                            let incText = '';
-                            if (prefixes.length > 0) {
-                                incText += ' penyakit berawalan ' + prefixes.join(', ');
-                            }
-                            if (codes.length > 0) {
-                                if (incText) incText += ' serta';
-                                incText += ' kode ' + codes.join(', ');
-                            }
-                            text += incText;
-                        } else {
-                            text += ' semua penyakit';
-                        }
-
-                        if (excludes.length > 0) {
-                            const prefixes = excludes.filter(r => r.target === 'prefix').map(r => r.value.toUpperCase());
-                            const codes = excludes.filter(r => r.target === 'code').map(r => r.value.toUpperCase());
-                            
-                            let excText = '';
-                            if (prefixes.length > 0) {
-                                excText += ' awalan ' + prefixes.join(', ');
-                            }
-                            if (codes.length > 0) {
-                                if (excText) excText += ' serta';
-                                excText += ' kode ' + codes.join(', ');
-                            }
-                            text += ', kecuali ' + excText;
-                        }
-
-                        if (keeps.length > 0) {
-                            const values = keeps.map(r => r.value.toUpperCase());
-                            text += ', tapi ' + values.join(', ') + ' selalu masuk';
-                        }
-
-                        return text + '.';
-                    },
-                    
-                    init() {
-                        this.$watch('search', value => {
-                            this.currentPageSemua = 1;
-                            this.currentPagePuskesmas = 1;
-                        });
-                        this.$watch('activeFilter', value => {
-                            this.currentPageSemua = 1;
-                            this.currentPagePuskesmas = 1;
-                        });
-                    },
-                    get filteredKecamatans() {
-                        const q = this.search.trim().toLowerCase();
-                        const list = @js($kecamatanDataList);
-                        const keys = Object.keys(list);
-                        if (q === '') return keys;
-                        return keys.filter(kecName => {
-                            const kecData = list[kecName];
-                            const matchKec = kecName.toLowerCase().includes(q);
-                            const matchPusk = kecData.list_puskesmas.some(p => p.toLowerCase().includes(q));
-                            return matchKec || matchPusk;
-                        });
-                    },
-                    get filteredPuskesmas() {
-                        const q = this.search.trim().toLowerCase();
-                        const puskNames = @js($puskesmasNames);
-                        const mapping = @js($mapping);
-                        const keys = Object.keys(@js($groupedByPusk->toArray()));
-                        if (q === '') return keys;
-                        return keys.filter(puskCode => {
-                            const name = (puskNames[puskCode] || puskCode).toLowerCase();
-                            const kecName = (mapping[puskCode] || '').toLowerCase();
-                            const code = puskCode.toLowerCase();
-                            return name.includes(q) || kecName.includes(q) || code.includes(q);
-                        });
-                    },
-                    isKecamatanVisible(kecName) {
-                        const idx = this.filteredKecamatans.indexOf(kecName);
-                        if (idx === -1) return false;
-                        const start = (this.currentPageSemua - 1) * this.perPageSemua;
-                        const end = start + this.perPageSemua;
-                        return idx >= start && idx < end;
-                    },
-                    isPuskesmasVisible(puskCode) {
-                        const idx = this.filteredPuskesmas.indexOf(puskCode);
-                        if (idx === -1) return false;
-                        const start = (this.currentPagePuskesmas - 1) * this.perPagePuskesmas;
-                        const end = start + this.perPagePuskesmas;
-                        return idx >= start && idx < end;
-                    },
-                    getPages(totalPages, currentPage) {
-                        const range = [];
-                        const delta = 1;
-                        for (let i = 1; i <= totalPages; i++) {
-                            if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
-                                range.push(i);
-                            } else if (range[range.length - 1] !== '...') {
-                                range.push('...');
-                            }
-                        }
-                        return range;
-                    },
-                    get filteredKecamatanOptions() {
-                        const q = this.kecamatanSearch.trim().toLowerCase();
-                        if (q === '') {
-                            return this.kecamatanOptions;
-                        }
-                        return this.kecamatanOptions.filter(option =>
-                            option.name.toLowerCase().includes(q) || option.code.toLowerCase().includes(q)
-                        );
-                    },
-                    get filteredPuskesmasOptions() {
-                        const q = this.puskesmasSearch.trim().toLowerCase();
-                        return this.puskesmasOptions.filter(option => {
-                            const matchKecamatan = this.puskesmasKecamatanCodes.length === 0
-                                || this.puskesmasKecamatanCodes.includes(option.kecamatan_code);
-                            if (!matchKecamatan) {
-                                  return false;
-                            }
-                            if (q === '') {
-                                return true;
-                            }
-                            return option.name.toLowerCase().includes(q)
-                                || option.code.toLowerCase().includes(q)
-                                || option.kecamatan_name.toLowerCase().includes(q)
-                                || option.kecamatan_code.toLowerCase().includes(q);
-                        });
-                    },
-                    get hasResults() {
-                        if (this.activeFilter === 'semua') {
-                            return this.filteredKecamatans.length > 0;
-                        } else if (this.activeFilter === 'kecamatan') {
-                            return this.filteredKecamatans.length > 0;
-                        } else {
-                            return this.filteredPuskesmas.length > 0;
-                        }
-                    },
-                    getKecamatanName(code) {
-                        const option = this.kecamatanOptions.find(item => item.code === code);
-                        return option ? option.name : code;
-                    },
-                    getPuskesmasName(code) {
-                        const option = this.puskesmasOptions.find(item => item.code === code);
-                        return option ? option.name : code;
-                    },
-                    toggleSelection(type, code) {
-                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
-                        this[key] = this[key].includes(code)
-                            ? this[key].filter(item => item !== code)
-                            : [...this[key], code];
-                    },
-                    selectAllFiltered(type) {
-                        const source = type === 'kecamatan' ? this.filteredKecamatanOptions : this.filteredPuskesmasOptions;
-                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
-                        const next = new Set(this[key]);
-                        source.forEach(option => next.add(option.code));
-                        this[key] = Array.from(next);
-                    },
-                    clearSelections(type) {
-                        if (type === 'kecamatan') {
-                            this.selectedKecamatan = [];
-                            return;
-                        }
-                        if (type === 'puskesmas') {
-                            this.selectedPuskesmas = [];
-                            return;
-                        }
-                        this.puskesmasKecamatanCodes = [];
-                    },
-                    togglePuskesmasKecamatan(code) {
-                        this.puskesmasKecamatanCodes = this.puskesmasKecamatanCodes.includes(code)
-                            ? this.puskesmasKecamatanCodes.filter(item => item !== code)
-                            : [...this.puskesmasKecamatanCodes, code];
-
-                        if (this.puskesmasKecamatanCodes.length === 0) {
-                            return;
-                        }
-
-                        const allowed = new Set(
-                            this.puskesmasOptions
-                                .filter(option => this.puskesmasKecamatanCodes.includes(option.kecamatan_code))
-                                .map(option => option.code)
-                        );
-                        this.selectedPuskesmas = this.selectedPuskesmas.filter(codeItem => allowed.has(codeItem));
-                    },
-                    addFilter(type) {
-                        this.exportFilters.push({
-                            type: type,
-                            selectedPrefixes: [],
-                            selectedCodes: [],
-                            codeSearch: '',
-                            codeOptions: [],
-                            codeLoading: false,
-                            isPrefixOpen: false
-                        });
-                        this.showFilterTypeMenu = false;
-                    },
-                    removeFilter(index) {
-                        this.exportFilters.splice(index, 1);
-                    },
-                    toggleFilterPrefix(filterIndex, prefix) {
-                        const filter = this.exportFilters[filterIndex];
-                        if (filter.selectedPrefixes.includes(prefix)) {
-                            filter.selectedPrefixes = filter.selectedPrefixes.filter(item => item !== prefix);
-                        } else {
-                            filter.selectedPrefixes = [...filter.selectedPrefixes, prefix];
-                        }
-                    },
-                    removeFilterCode(filterIndex, code) {
-                        const filter = this.exportFilters[filterIndex];
-                        filter.selectedCodes = filter.selectedCodes.filter(item => item.code !== code);
-                    },
-                    async searchFilterIcd(filterIndex) {
-                        const filter = this.exportFilters[filterIndex];
-                        const query = filter.codeSearch.trim();
-
-                        if (query.length < 2) {
-                            filter.codeOptions = [];
-                            return;
-                        }
-
-                        filter.codeLoading = true;
-
-                        try {
-                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
-                            const payload = await response.json();
-                            const selected = new Set(filter.selectedCodes.map(item => item.code));
-                            filter.codeOptions = (payload.data || []).filter(item => !selected.has(item.code));
-                        } catch (error) {
-                            filter.codeOptions = [];
-                        } finally {
-                            filter.codeLoading = false;
-                        }
-                    },
-                    addFilterCode(filterIndex, option) {
-                        const filter = this.exportFilters[filterIndex];
-                        if (filter.selectedCodes.some(item => item.code === option.code)) {
-                            return;
-                        }
-                        filter.selectedCodes = [...filter.selectedCodes, option];
-                        filter.codeSearch = '';
-                        filter.codeOptions = [];
-                    },
-                    getFilterTypeLabel(type) {
-                        if (type === 'include') return 'Include';
-                        if (type === 'exclude') return 'Exclude';
-                        if (type === 'exception') return 'Tetap Sertakan';
-                        return type;
-                    },
-                    getFilterTypeColor(type) {
-                        if (type === 'include') return { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', activePrefixBg: 'bg-emerald-600', ring: 'ring-emerald-500', hoverBorder: 'hover:border-emerald-300 hover:bg-emerald-50' };
-                        if (type === 'exclude') return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', badge: 'bg-red-100 text-red-700 border-red-200', activePrefixBg: 'bg-red-600', ring: 'ring-red-500', hoverBorder: 'hover:border-red-300 hover:bg-red-50' };
-                        return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700 border-amber-200', activePrefixBg: 'bg-amber-600', ring: 'ring-amber-500', hoverBorder: 'hover:border-amber-300 hover:bg-amber-50' };
-                    },
-                    get hasExcludeFilter() {
-                        return this.exportFilters.some(f => f.type === 'exclude');
-                    },
-
-                    async submitAggregation() {
-                        this.aggregateErrorMsg = '';
-                        this.showAggregateProgress = true;
-                        this.aggregateJobStatus = 'pending';
-                        
-                        try {
-                            const response = await fetch('/rekap/aggregate', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').getAttribute('content'),
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    bulan: this.aggregateMonth
-                                })
-                            });
-                            
-                            if (!response.ok) {
-                                throw new Error('Gagal mengirimkan request agregasi.');
-                            }
-                            
-                            const data = await response.json();
-                            this.aggregateJobId = data.job_id;
-                            
-                            this.aggregateJobInterval = setInterval(() => {
-                                this.checkAggregateStatus();
-                            }, 1500);
-                        } catch (err) {
-                            this.aggregateErrorMsg = err.message;
-                            this.aggregateJobStatus = 'failed';
-                            this.showAggregateProgress = false;
-                        }
-                    },
-
-                    async checkAggregateStatus() {
-                        try {
-                            const response = await fetch(`/rekap/aggregate/status/${this.aggregateJobId}`);
-                            const data = await response.json();
-                            this.aggregateJobStatus = data.status;
-                            
-                            if (data.status === 'done') {
-                                clearInterval(this.aggregateJobInterval);
-                                this.showAggregateProgress = false;
-                                this.openAggregateModal = false;
-                                alert('Agregasi selesai! Halaman akan memuat ulang.');
-                                window.location.reload();
-                            } else if (data.status === 'failed') {
-                                clearInterval(this.aggregateJobInterval);
-                                this.aggregateErrorMsg = 'Agregasi gagal di server.';
-                                this.showAggregateProgress = false;
-                            }
-                        } catch (err) {
-                            clearInterval(this.aggregateJobInterval);
-                            this.aggregateErrorMsg = 'Koneksi error.';
-                            this.showAggregateProgress = false;
-                            this.aggregateJobStatus = 'failed';
-                        }
-                    },
-
-                    async submitExport() {
-                        this.exportErrorMsg = '';
-                        this.showExportProgress = true;
-                        this.exportJobStatus = 'pending';
-                        this.exportPollCount = 0;
-                        
-                        const scopes = [];
-                        if (this.exportScope.umum) scopes.push('umum');
-                        if (this.exportScope.kecamatan) scopes.push('kecamatan');
-                        if (this.exportScope.puskesmas) scopes.push('puskesmas');
-
-                        if (scopes.length === 0) {
-                            alert('Pilih minimal satu cakupan laporan untuk diekspor.');
-                            return;
-                        }
-
-                        const topNUmum = this.exportTopNUmum || 10;
-                        const topNKecamatan = this.exportTopNKecamatan || 10;
-                        const topNPuskesmas = this.exportTopNPuskesmas || 10;
-                        
-                        let from = '';
-                        let to = '';
-                        const periodType = this.exportPeriodType;
-                        const year = this.exportYear;
-                        
-                        if (periodType === 'year') {
-                            from = `${year}-01-01`;
-                            to = `${year}-12-31`;
-                        } else if (periodType === 'semester') {
-                            const sem = this.exportSemester;
-                            from = sem === '1' ? `${year}-01-01` : `${year}-07-01`;
-                            to = sem === '1' ? `${year}-06-30` : `${year}-12-31`;
-                        } else if (periodType === 'quarter') {
-                            const q = this.exportQuarter;
-                            if (q === '1') { from = `${year}-01-01`; to = `${year}-03-31`; }
-                            else if (q === '2') { from = `${year}-04-01`; to = `${year}-06-30`; }
-                            else if (q === '3') { from = `${year}-07-01`; to = `${year}-09-30`; }
-                            else if (q === '4') { from = `${year}-10-01`; to = `${year}-12-31`; }
-                        } else if (periodType === 'month') {
-                            const m = String(this.exportMonth).padStart(2, '0');
-                            const lastDay = new Date(year, this.exportMonth, 0).getDate();
-                            from = `${year}-${m}-01`;
-                            to = `${year}-${m}-${lastDay}`;
-                        } else if (periodType === 'custom_date') {
-                            from = this.exportStartDate;
-                            to = this.exportEndDate;
-                        }
-                        
-                        // Build filters from the unified exportFilters array
-                        const includePrefixes = [];
-                        const excludePrefixes = [];
-                        const includeCodes = [];
-                        const excludeCodes = [];
-                        const exceptionPrefixes = [];
-                        const exceptionCodes = [];
-
-                        this.exportFilters.forEach(f => {
-                            if (f.type === 'include') {
-                                includePrefixes.push(...f.selectedPrefixes);
-                                includeCodes.push(...f.selectedCodes.map(c => c.code));
-                            } else if (f.type === 'exclude') {
-                                excludePrefixes.push(...f.selectedPrefixes);
-                                excludeCodes.push(...f.selectedCodes.map(c => c.code));
-                            } else if (f.type === 'exception') {
-                                exceptionPrefixes.push(...f.selectedPrefixes);
-                                exceptionCodes.push(...f.selectedCodes.map(c => c.code));
-                            }
-                        });
-
-                        const payload = {
-                            from: from,
-                            to: to,
-                            scopes: scopes,
-                            top_n_umum: topNUmum,
-                            top_n_kecamatan: topNKecamatan,
-                            top_n_puskesmas: topNPuskesmas,
-                            kecamatan_filter_mode: this.kecamatanFilterMode,
-                            selected_kecamatan: this.selectedKecamatan,
-                            puskesmas_filter_mode: this.puskesmasFilterMode,
-                            selected_puskesmas: this.selectedPuskesmas,
-                            format: this.exportFormat,
-                            filters: {
-                                include_prefixes: includePrefixes,
-                                exclude_prefixes: excludePrefixes,
-                                include_codes: includeCodes,
-                                exclude_codes: excludeCodes,
-                                exception_prefixes: exceptionPrefixes,
-                                exception_codes: exceptionCodes
-                            }
-                        };
-                        
-                        try {
-                            const response = await fetch('/rekap/export/dispatch', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=&quot;csrf-token&quot;]').getAttribute('content'),
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify(payload)
-                            });
-                            
-                            if (!response.ok) {
-                                throw new Error('Gagal memproses request export.');
-                            }
-                            
-                            const data = await response.json();
-                            this.exportJobId = data.job_id;
-                            
-                            this.exportJobInterval = setInterval(() => {
-                                this.checkExportStatus();
-                            }, 1500);
-                            
-                        } catch (err) {
-                            this.exportErrorMsg = err.message;
-                            this.exportJobStatus = 'failed';
-                            this.showExportProgress = false;
-                        }
-                    },
-
-                    async checkExportStatus() {
-                        this.exportPollCount++;
-                        if (this.exportPollCount > 120) {
-                            clearInterval(this.exportJobInterval);
-                            this.exportErrorMsg = 'Proses ekspor melebihi batas waktu (timeout 3 menit).';
-                            this.showExportProgress = false;
-                            this.exportJobStatus = 'failed';
-                            return;
-                        }
-
-                        try {
-                            const response = await fetch(`/rekap/export/status/${this.exportJobId}`);
-                            if (!response.ok) {
-                                throw new Error('Koneksi error saat memeriksa status.');
-                            }
-                            const data = await response.json();
-                            this.exportJobStatus = data.status;
-                            
-                            if (data.status === 'done') {
-                                clearInterval(this.exportJobInterval);
-                                this.showExportProgress = false;
-                                this.openExportModal = false;
-                                window.location.href = `/rekap/export/download/${this.exportJobId}`;
-                            } else if (data.status === 'failed') {
-                                clearInterval(this.exportJobInterval);
-                                this.exportErrorMsg = 'Proses ekspor gagal di server.';
-                                this.showExportProgress = false;
-                            }
-                        } catch (err) {
-                            clearInterval(this.exportJobInterval);
-                            this.exportErrorMsg = err.message || 'Koneksi error saat memeriksa status.';
-                            this.showExportProgress = false;
-                            this.exportJobStatus = 'failed';
-                        }
-                    }
-                }">
+                <div class="p-6 text-slate-900" x-data="recapDashboard">
                     @if($groupedByPusk->isEmpty())
                         <div class="p-4 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-200">
                             Masih belum ada data penyebaran penyakit yang tercatat.
@@ -678,14 +134,7 @@
                                     class="relative transform rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-4xl">
                                     
                                     <form @submit.prevent="submitExport()">
-                                        <div x-show="showExportProgress" class="p-12 text-center flex flex-col items-center justify-center bg-white rounded-2xl shadow-xl">
-                                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-red-600 mb-4"></div>
-                                            <h4 class="text-base font-bold text-slate-800">Menyiapkan Dokumen Laporan</h4>
-                                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Ekspor sedang diproses secara asinkron di server. File akan terunduh otomatis saat selesai.</p>
-                                            <div class="mt-4 px-3 py-1.5 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600 uppercase tracking-widest" x-text="'Status: ' + exportJobStatus"></div>
-                                        </div>
-
-                                        <div x-show="!showExportProgress">
+                                        
                                             <div x-show="exportErrorMsg" class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" x-text="exportErrorMsg"></div>
                                             <div class="bg-gradient-to-r from-red-600 to-rose-500 px-6 py-5 flex justify-between items-center rounded-t-2xl shadow-sm">
                                                 <div class="flex items-center gap-3">
@@ -1006,15 +455,6 @@
                                                                                 <div class="text-[10px] text-slate-400 leading-tight">Keluarkan kode dari hasil export</div>
                                                                             </div>
                                                                         </button>
-                                                                        <button type="button" @click="addFilter('exception')"
-                                                                            x-show="hasExcludeFilter"
-                                                                            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors group border-t border-slate-100">
-                                                                            <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200"></span>
-                                                                            <div>
-                                                                                <div class="text-sm font-bold text-slate-800 group-hover:text-amber-700">Tetap Sertakan</div>
-                                                                                <div class="text-[10px] text-slate-400 leading-tight">Kembalikan sub-kode yang ter-exclude</div>
-                                                                            </div>
-                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1049,35 +489,75 @@
                                                                     </div>
 
                                                                     {{-- Prefix selector --}}
-                                                                    <div class="space-y-3">
-                                                                        <div>
-                                                                            <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
-                                                                            <div class="relative w-full" @click.outside="filter.isPrefixOpen = false">
-                                                                                <div @click="filter.isPrefixOpen = !filter.isPrefixOpen"
-                                                                                    class="w-full border rounded-lg px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-all hover:shadow-md"
-                                                                                    :class="filter.isPrefixOpen ? 'ring-2 border-transparent ' + getFilterTypeColor(filter.type).ring : 'border-slate-200'">
-                                                                                    <span x-show="filter.selectedPrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
-                                                                                    <div x-show="filter.selectedPrefixes.length > 0" class="flex flex-wrap gap-1">
-                                                                                        <template x-for="prefix in filter.selectedPrefixes" :key="'fp-'+filterIdx+'-'+prefix">
-                                                                                            <span class="font-bold px-1.5 py-0.5 rounded text-[10px]"
-                                                                                                :class="getFilterTypeColor(filter.type).badge" x-text="prefix"></span>
-                                                                                        </template>
+                                                                    <div class="space-y-4">
+                                                                        {{-- Baris untuk Awalan Kode dan Pengecualian bersebelahan pada desktop --}}
+                                                                        <div class="grid grid-cols-1 gap-4" :class="filter.type === 'exclude' ? 'md:grid-cols-2' : ''">
+                                                                            {{-- Awalan Kode --}}
+                                                                            <div>
+                                                                                <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
+                                                                                <div class="relative w-full" @click.outside="filter.isPrefixOpen = false">
+                                                                                    <div @click="filter.isPrefixOpen = !filter.isPrefixOpen"
+                                                                                        class="w-full border rounded-lg px-3 py-2 cursor-pointer bg-white min-h-[38px] flex items-center justify-between shadow-sm transition-all hover:shadow-md"
+                                                                                        :class="filter.isPrefixOpen ? 'ring-2 border-transparent ' + getFilterTypeColor(filter.type).ring : 'border-slate-200'">
+                                                                                        <span x-show="filter.selectedPrefixes.length === 0" class="text-slate-400 text-sm">Pilih awalan kode ICD...</span>
+                                                                                        <div x-show="filter.selectedPrefixes.length > 0" class="flex flex-wrap gap-1">
+                                                                                            <template x-for="prefix in filter.selectedPrefixes" :key="'fp-'+filterIdx+'-'+prefix">
+                                                                                                <span class="font-bold px-1.5 py-0.5 rounded text-[10px]"
+                                                                                                    :class="getFilterTypeColor(filter.type).badge" x-text="prefix"></span>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                        <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                                                     </div>
-                                                                                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                                                    <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
+                                                                                        <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
+                                                                                            <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
+                                                                                                <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
+                                                                                                    :class="filter.selectedPrefixes.includes(prefix) ? getFilterTypeColor(filter.type).activePrefixBg + ' text-white shadow-inner' : 'bg-white text-slate-600 border-slate-200 ' + getFilterTypeColor(filter.type).hoverBorder"
+                                                                                                    class="rounded-lg border py-1.5 text-xs font-bold transition-all shadow-sm" x-text="prefix"></button>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
-                                                                                    <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
-                                                                                        <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
-                                                                                            <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
-                                                                                                :class="filter.selectedPrefixes.includes(prefix) ? getFilterTypeColor(filter.type).activePrefixBg + ' text-white shadow-inner' : 'bg-white text-slate-600 border-slate-200 ' + getFilterTypeColor(filter.type).hoverBorder"
-                                                                                                class="rounded-lg border py-1.5 text-xs font-bold transition-all shadow-sm" x-text="prefix"></button>
-                                                                                        </template>
-                                                                                    </div>
+                                                                            </div>
+
+                                                                            {{-- Exceptions (Tetap Sertakan) untuk kartu Exclude --}}
+                                                                            <div x-show="filter.type === 'exclude'" class="border-t border-slate-200/60 pt-4 md:border-t-0 md:pt-0">
+                                                                                <label class="block text-xs font-bold text-amber-800 mb-1.5 flex items-center gap-1.5">
+                                                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                                                    Pengecualian (Tetap Sertakan)
+                                                                                </label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    x-model="filter.exceptionSearch"
+                                                                                    @input.debounce.300ms="searchFilterExceptionIcd(filterIdx)"
+                                                                                    placeholder="Cari kode atau nama penyakit yang tetap disertakan, mis. Z01"
+                                                                                    class="w-full border-amber-200 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 text-sm px-3 py-2 bg-white"
+                                                                                >
+                                                                                <p class="text-[10px] text-slate-400 mt-1">Ketik minimal 2 karakter untuk mencari kode ICD.</p>
+                                                                                <div x-show="filter.exceptionLoading" class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+                                                                                    <div class="w-3 h-3 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin"></div>
+                                                                                    Mencari kode ICD...
+                                                                                </div>
+                                                                                <div x-show="filter.exceptionOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 shadow-sm">
+                                                                                    <template x-for="option in filter.exceptionOptions" :key="'eo-'+filterIdx+'-'+option.code">
+                                                                                        <button type="button" @click="addFilterExceptionCode(filterIdx, option)" class="w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors">
+                                                                                            <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
+                                                                                            <div class="text-xs text-slate-500" x-text="option.name"></div>
+                                                                                        </button>
+                                                                                    </template>
+                                                                                </div>
+                                                                                <div x-show="filter.selectedExceptions && filter.selectedExceptions.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                                                                                    <template x-for="item in filter.selectedExceptions" :key="'se-'+filterIdx+'-'+item.code">
+                                                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border bg-amber-100 text-amber-700 border-amber-200">
+                                                                                            <span x-text="item.code"></span>
+                                                                                            <button type="button" @click="removeFilterExceptionCode(filterIdx, item.code)" class="opacity-60 hover:opacity-100 transition-opacity">&times;</button>
+                                                                                        </span>
+                                                                                    </template>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
 
-                                                                        {{-- ICD code search --}}
+                                                                        {{-- Kode Spesifik (Lebar Penuh) --}}
                                                                         <div>
                                                                             <label class="block text-xs font-bold text-slate-600 mb-1.5">Kode Spesifik</label>
                                                                             <input
@@ -1129,7 +609,7 @@
                                                 Download Laporan
                                             </button>
                                         </div>
-                                        </div>
+                                        
                                     </form>
                                 </div>
                             </div>
@@ -1186,8 +666,670 @@
                             </div>
                         </div>
                     @endif
+
+                    <!-- Floating Export Progress Widget (Pojok Kanan Atas) -->
+                    <div x-show="showExportProgress || exportJobStatus === 'failed'" 
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-2"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         class="fixed top-6 right-6 z-[9999] w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden" 
+                         style="display: none;"
+                         x-cloak>
+                         
+                        {{-- Proses (Pending/Processing) --}}
+                        <div x-show="exportJobStatus === 'pending' || exportJobStatus === 'processing'" class="p-4 flex items-center gap-4">
+                            <div class="flex-shrink-0 animate-spin rounded-full h-8 w-8 border-3 border-slate-100 border-t-red-600"></div>
+                            <div class="flex-grow">
+                                <h4 class="text-xs font-bold text-slate-800">Menyiapkan Laporan</h4>
+                                <p class="text-[10px] text-slate-500 leading-tight">Proses ekspor sedang berjalan...</p>
+                            </div>
+                            <div class="px-2 py-0.5 bg-slate-100 rounded-full text-[9px] font-bold text-slate-600 uppercase" x-text="exportJobStatus"></div>
+                        </div>
+
+                        {{-- Sukses (Done) --}}
+                        <div x-show="exportJobStatus === 'done'" class="p-4 flex items-center gap-4 bg-emerald-50/50">
+                            <div class="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-full bg-emerald-100 text-emerald-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <div class="flex-grow">
+                                <h4 class="text-xs font-bold text-emerald-900">Ekspor Selesai</h4>
+                                <p class="text-[10px] text-emerald-700 leading-tight">Mengunduh file laporan...</p>
+                            </div>
+                        </div>
+
+                        {{-- Gagal (Failed) --}}
+                        <div x-show="exportJobStatus === 'failed'" class="p-4 bg-red-50/50">
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-full bg-red-100 text-red-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                </div>
+                                <div class="flex-grow">
+                                    <h4 class="text-xs font-bold text-red-900">Ekspor Gagal</h4>
+                                    <p class="text-[10px] text-red-700 leading-tight mt-0.5" x-text="exportErrorMsg || 'Terjadi kesalahan sistem'"></p>
+                                </div>
+                                <button type="button" @click="showExportProgress = false; exportJobStatus = null" class="text-slate-400 hover:text-slate-600 focus:outline-none">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+
+@push('scripts')
+<script>
+    const registerRecapDashboard = () => {
+        if (window.Alpine && !window.recapDashboardRegistered) {
+            window.recapDashboardRegistered = true;
+            window.Alpine.data('recapDashboard', () => ({
+                activeFilter: 'semua', 
+                    search: '',
+                    openExportModal: false,
+                    exportFormat: 'pdf',
+                    exportTopNUmum: 10,
+                    exportTopNKecamatan: 10,
+                    exportTopNPuskesmas: 10,
+                    exportFilters: [],
+                    showFilterTypeMenu: false,
+                    exportScope: { umum: true, kecamatan: true, puskesmas: true },
+                    kecamatanFilterMode: 'all',
+                    selectedKecamatan: [],
+                    kecamatanSearch: '',
+                    kecamatanOptions: @js($exportKecamatanOptions),
+                    puskesmasFilterMode: 'all',
+                    selectedPuskesmas: [],
+                    puskesmasSearch: '',
+                    puskesmasKecamatanCodes: [],
+                    puskesmasOptions: @js($exportPuskesmasOptions),
+                    exportPeriodType: 'year',
+                    exportYear: '{{ date('Y') }}',
+                    exportMonth: '{{ date('n') }}',
+                    exportSemester: '1',
+                    exportQuarter: '1',
+                    exportStartDate: '{{ date('Y-m-01') }}',
+                    exportEndDate: '{{ date('Y-m-d') }}',
+
+                    icdSearchUrl: '{{ route('recap.icd.search') }}',
+                    letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+                    currentPageSemua: 1,
+                    perPageSemua: 5,
+                    currentPagePuskesmas: 1,
+                    perPagePuskesmas: 9,
+                    
+                    // New Async Aggregation and Export Properties
+                    openAggregateModal: false,
+                    aggregateMonth: '{{ date('Y-m') }}',
+                    aggregateJobId: null,
+                    aggregateJobStatus: null,
+                    aggregateJobInterval: null,
+                    showAggregateProgress: false,
+                    aggregateErrorMsg: '',
+                    
+                    exportJobId: null,
+                    exportJobStatus: null,
+                    exportJobInterval: null,
+                    showExportProgress: false,
+                    exportErrorMsg: '',
+                    exportPollCount: 0,
+                    get filterPreviewText() {
+                        if (this.exportFilters.length === 0) {
+                            return 'Akan export semua penyakit tanpa filter khusus.';
+                        }
+                        
+                        let text = 'Akan export';
+                        const includes = this.exportFilters.filter(f => f.type === 'include');
+                        const excludes = this.exportFilters.filter(f => f.type === 'exclude');
+
+                        if (includes.length > 0) {
+                            const prefixes = [];
+                            const codes = [];
+                            includes.forEach(f => {
+                                prefixes.push(...f.selectedPrefixes);
+                                codes.push(...f.selectedCodes.map(c => c.code));
+                            });
+                            
+                            let incText = '';
+                            if (prefixes.length > 0) {
+                                incText += ' penyakit berawalan ' + prefixes.join(', ');
+                            }
+                            if (codes.length > 0) {
+                                if (incText) incText += ' serta';
+                                incText += ' kode ' + codes.join(', ');
+                            }
+                            text += incText;
+                        } else {
+                            text += ' semua penyakit';
+                        }
+
+                        if (excludes.length > 0) {
+                            const prefixes = [];
+                            const codes = [];
+                            const exceptions = [];
+                            excludes.forEach(f => {
+                                prefixes.push(...f.selectedPrefixes);
+                                codes.push(...f.selectedCodes.map(c => c.code));
+                                if (f.selectedExceptions) {
+                                    exceptions.push(...f.selectedExceptions.map(e => e.code));
+                                }
+                            });
+                            
+                            let excText = '';
+                            if (prefixes.length > 0) {
+                                excText += ' awalan ' + prefixes.join(', ');
+                            }
+                            if (codes.length > 0) {
+                                if (excText) excText += ' serta';
+                                excText += ' kode ' + codes.join(', ');
+                            }
+                            text += ', kecuali ' + excText;
+
+                            if (exceptions.length > 0) {
+                                text += ', tapi ' + exceptions.join(', ') + ' selalu masuk';
+                            }
+                        }
+
+                        return text + '.';
+                    },
+                    
+                    init() {
+                        this.$watch('search', value => {
+                            this.currentPageSemua = 1;
+                            this.currentPagePuskesmas = 1;
+                        });
+                        this.$watch('activeFilter', value => {
+                            this.currentPageSemua = 1;
+                            this.currentPagePuskesmas = 1;
+                        });
+                    },
+                    get filteredKecamatans() {
+                        const q = this.search.trim().toLowerCase();
+                        const list = @js($kecamatanDataList);
+                        const keys = Object.keys(list);
+                        if (q === '') return keys;
+                        return keys.filter(kecName => {
+                            const kecData = list[kecName];
+                            const matchKec = kecName.toLowerCase().includes(q);
+                            const matchPusk = kecData.list_puskesmas.some(p => p.toLowerCase().includes(q));
+                            return matchKec || matchPusk;
+                        });
+                    },
+                    get filteredPuskesmas() {
+                        const q = this.search.trim().toLowerCase();
+                        const puskNames = @js($puskesmasNames);
+                        const mapping = @js($mapping);
+                        const keys = Object.keys(@js($groupedByPusk->toArray()));
+                        if (q === '') return keys;
+                        return keys.filter(puskCode => {
+                            const name = (puskNames[puskCode] || puskCode).toLowerCase();
+                            const kecName = (mapping[puskCode] || '').toLowerCase();
+                            const code = puskCode.toLowerCase();
+                            return name.includes(q) || kecName.includes(q) || code.includes(q);
+                        });
+                    },
+                    isKecamatanVisible(kecName) {
+                        const idx = this.filteredKecamatans.indexOf(kecName);
+                        if (idx === -1) return false;
+                        const start = (this.currentPageSemua - 1) * this.perPageSemua;
+                        const end = start + this.perPageSemua;
+                        return idx >= start && idx < end;
+                    },
+                    isPuskesmasVisible(puskCode) {
+                        const idx = this.filteredPuskesmas.indexOf(puskCode);
+                        if (idx === -1) return false;
+                        const start = (this.currentPagePuskesmas - 1) * this.perPagePuskesmas;
+                        const end = start + this.perPagePuskesmas;
+                        return idx >= start && idx < end;
+                    },
+                    getPages(totalPages, currentPage) {
+                        const range = [];
+                        const delta = 1;
+                        for (let i = 1; i <= totalPages; i++) {
+                            if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+                                range.push(i);
+                            } else if (range[range.length - 1] !== '...') {
+                                range.push('...');
+                            }
+                        }
+                        return range;
+                    },
+                    get filteredKecamatanOptions() {
+                        const q = this.kecamatanSearch.trim().toLowerCase();
+                        if (q === '') {
+                            return this.kecamatanOptions;
+                        }
+                        return this.kecamatanOptions.filter(option =>
+                            option.name.toLowerCase().includes(q) || option.code.toLowerCase().includes(q)
+                        );
+                    },
+                    get filteredPuskesmasOptions() {
+                        const q = this.puskesmasSearch.trim().toLowerCase();
+                        return this.puskesmasOptions.filter(option => {
+                            const matchKecamatan = this.puskesmasKecamatanCodes.length === 0
+                                || this.puskesmasKecamatanCodes.includes(option.kecamatan_code);
+                            if (!matchKecamatan) {
+                                  return false;
+                            }
+                            if (q === '') {
+                                return true;
+                            }
+                            return option.name.toLowerCase().includes(q)
+                                || option.code.toLowerCase().includes(q)
+                                || option.kecamatan_name.toLowerCase().includes(q)
+                                || option.kecamatan_code.toLowerCase().includes(q);
+                        });
+                    },
+                    get hasResults() {
+                        if (this.activeFilter === 'semua') {
+                            return this.filteredKecamatans.length > 0;
+                        } else if (this.activeFilter === 'kecamatan') {
+                            return this.filteredKecamatans.length > 0;
+                        } else {
+                            return this.filteredPuskesmas.length > 0;
+                        }
+                    },
+                    getKecamatanName(code) {
+                        const option = this.kecamatanOptions.find(item => item.code === code);
+                        return option ? option.name : code;
+                    },
+                    getPuskesmasName(code) {
+                        const option = this.puskesmasOptions.find(item => item.code === code);
+                        return option ? option.name : code;
+                    },
+                    toggleSelection(type, code) {
+                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
+                        this[key] = this[key].includes(code)
+                            ? this[key].filter(item => item !== code)
+                            : [...this[key], code];
+                    },
+                    selectAllFiltered(type) {
+                        const source = type === 'kecamatan' ? this.filteredKecamatanOptions : this.filteredPuskesmasOptions;
+                        const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';
+                        const next = new Set(this[key]);
+                        source.forEach(option => next.add(option.code));
+                        this[key] = Array.from(next);
+                    },
+                    clearSelections(type) {
+                        if (type === 'kecamatan') {
+                            this.selectedKecamatan = [];
+                            return;
+                        }
+                        if (type === 'puskesmas') {
+                            this.selectedPuskesmas = [];
+                            return;
+                        }
+                        this.puskesmasKecamatanCodes = [];
+                    },
+                    togglePuskesmasKecamatan(code) {
+                        this.puskesmasKecamatanCodes = this.puskesmasKecamatanCodes.includes(code)
+                            ? this.puskesmasKecamatanCodes.filter(item => item !== code)
+                            : [...this.puskesmasKecamatanCodes, code];
+
+                        if (this.puskesmasKecamatanCodes.length === 0) {
+                            return;
+                        }
+
+                        const allowed = new Set(
+                            this.puskesmasOptions
+                                .filter(option => this.puskesmasKecamatanCodes.includes(option.kecamatan_code))
+                                .map(option => option.code)
+                        );
+                        this.selectedPuskesmas = this.selectedPuskesmas.filter(codeItem => allowed.has(codeItem));
+                    },
+                    addFilter(type) {
+                        this.exportFilters.push({
+                            type: type,
+                            selectedPrefixes: [],
+                            selectedCodes: [],
+                            codeSearch: '',
+                            codeOptions: [],
+                            codeLoading: false,
+                            isPrefixOpen: false,
+                            selectedExceptions: [],
+                            exceptionSearch: '',
+                            exceptionOptions: [],
+                            exceptionLoading: false
+                        });
+                        this.showFilterTypeMenu = false;
+                    },
+                    removeFilter(index) {
+                        this.exportFilters.splice(index, 1);
+                    },
+                    toggleFilterPrefix(filterIndex, prefix) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedPrefixes.includes(prefix)) {
+                            filter.selectedPrefixes = filter.selectedPrefixes.filter(item => item !== prefix);
+                        } else {
+                            filter.selectedPrefixes = [...filter.selectedPrefixes, prefix];
+                        }
+                    },
+                    removeFilterCode(filterIndex, code) {
+                        const filter = this.exportFilters[filterIndex];
+                        filter.selectedCodes = filter.selectedCodes.filter(item => item.code !== code);
+                    },
+                    async searchFilterIcd(filterIndex) {
+                        const filter = this.exportFilters[filterIndex];
+                        const query = filter.codeSearch.trim();
+
+                        if (query.length < 2) {
+                            filter.codeOptions = [];
+                            return;
+                        }
+
+                        filter.codeLoading = true;
+
+                        try {
+                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const payload = await response.json();
+                            const selected = new Set(filter.selectedCodes.map(item => item.code));
+                            filter.codeOptions = (payload.data || []).filter(item => !selected.has(item.code));
+                        } catch (error) {
+                            filter.codeOptions = [];
+                        } finally {
+                            filter.codeLoading = false;
+                        }
+                    },
+                    addFilterCode(filterIndex, option) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedCodes.some(item => item.code === option.code)) {
+                            return;
+                        }
+                        filter.selectedCodes = [...filter.selectedCodes, option];
+                        filter.codeSearch = '';
+                        filter.codeOptions = [];
+                    },
+                    async searchFilterExceptionIcd(filterIndex) {
+                        const filter = this.exportFilters[filterIndex];
+                        const query = filter.exceptionSearch.trim();
+
+                        if (query.length < 2) {
+                            filter.exceptionOptions = [];
+                            return;
+                        }
+
+                        filter.exceptionLoading = true;
+
+                        try {
+                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const payload = await response.json();
+                            const selected = new Set(filter.selectedExceptions.map(item => item.code));
+                            filter.exceptionOptions = (payload.data || []).filter(item => !selected.has(item.code));
+                        } catch (error) {
+                            filter.exceptionOptions = [];
+                        } finally {
+                            filter.exceptionLoading = false;
+                        }
+                    },
+                    addFilterExceptionCode(filterIndex, option) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedExceptions.some(item => item.code === option.code)) {
+                            return;
+                        }
+                        filter.selectedExceptions = [...filter.selectedExceptions, option];
+                        filter.exceptionSearch = '';
+                        filter.exceptionOptions = [];
+                    },
+                    removeFilterExceptionCode(filterIndex, code) {
+                        const filter = this.exportFilters[filterIndex];
+                        filter.selectedExceptions = filter.selectedExceptions.filter(item => item.code !== code);
+                    },
+                    getFilterTypeLabel(type) {
+                        if (type === 'include') return 'Include';
+                        if (type === 'exclude') return 'Exclude';
+                        if (type === 'exception') return 'Tetap Sertakan';
+                        return type;
+                    },
+                    getFilterTypeColor(type) {
+                        if (type === 'include') return { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', activePrefixBg: 'bg-emerald-600', ring: 'ring-emerald-500', hoverBorder: 'hover:border-emerald-300 hover:bg-emerald-50' };
+                        if (type === 'exclude') return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', badge: 'bg-red-100 text-red-700 border-red-200', activePrefixBg: 'bg-red-600', ring: 'ring-red-500', hoverBorder: 'hover:border-red-300 hover:bg-red-50' };
+                        return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700 border-amber-200', activePrefixBg: 'bg-amber-600', ring: 'ring-amber-500', hoverBorder: 'hover:border-amber-300 hover:bg-amber-50' };
+                    },
+                    get hasExcludeFilter() {
+                        return this.exportFilters.some(f => f.type === 'exclude');
+                    },
+
+                    async submitAggregation() {
+                        this.aggregateErrorMsg = '';
+                        this.showAggregateProgress = true;
+                        this.aggregateJobStatus = 'pending';
+                        
+                        try {
+                            const response = await fetch('/rekap/aggregate', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    bulan: this.aggregateMonth
+                                })
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Gagal mengirimkan request agregasi.');
+                            }
+                            
+                            const data = await response.json();
+                            this.aggregateJobId = data.job_id;
+                            
+                            this.aggregateJobInterval = setInterval(() => {
+                                this.checkAggregateStatus();
+                            }, 1500);
+                        } catch (err) {
+                            this.aggregateErrorMsg = err.message;
+                            this.aggregateJobStatus = 'failed';
+                            this.showAggregateProgress = false;
+                        }
+                    },
+
+                    async checkAggregateStatus() {
+                        try {
+                            const response = await fetch(`/rekap/aggregate/status/${this.aggregateJobId}`);
+                            const data = await response.json();
+                            this.aggregateJobStatus = data.status;
+                            
+                            if (data.status === 'done') {
+                                clearInterval(this.aggregateJobInterval);
+                                this.showAggregateProgress = false;
+                                this.openAggregateModal = false;
+                                alert('Agregasi selesai! Halaman akan memuat ulang.');
+                                window.location.reload();
+                            } else if (data.status === 'failed') {
+                                clearInterval(this.aggregateJobInterval);
+                                this.aggregateErrorMsg = 'Agregasi gagal di server.';
+                                this.showAggregateProgress = false;
+                            }
+                        } catch (err) {
+                            clearInterval(this.aggregateJobInterval);
+                            this.aggregateErrorMsg = 'Koneksi error.';
+                            this.showAggregateProgress = false;
+                            this.aggregateJobStatus = 'failed';
+                        }
+                    },
+
+                    async submitExport() {
+                        this.openExportModal = false; // Tutup modal konfigurasi ekspor segera
+                        this.exportErrorMsg = '';
+                        this.showExportProgress = true;
+                        this.exportJobStatus = 'pending';
+                        this.exportPollCount = 0;
+                        
+                        const scopes = [];
+                        if (this.exportScope.umum) scopes.push('umum');
+                        if (this.exportScope.kecamatan) scopes.push('kecamatan');
+                        if (this.exportScope.puskesmas) scopes.push('puskesmas');
+
+                        if (scopes.length === 0) {
+                            alert('Pilih minimal satu cakupan laporan untuk diekspor.');
+                            this.showExportProgress = false;
+                            this.exportJobStatus = null;
+                            return;
+                        }
+
+                        const topNUmum = this.exportTopNUmum || 10;
+                        const topNKecamatan = this.exportTopNKecamatan || 10;
+                        const topNPuskesmas = this.exportTopNPuskesmas || 10;
+                        
+                        let from = '';
+                        let to = '';
+                        const periodType = this.exportPeriodType;
+                        const year = this.exportYear;
+                        
+                        if (periodType === 'year') {
+                            from = `${year}-01-01`;
+                            to = `${year}-12-31`;
+                        } else if (periodType === 'semester') {
+                            const sem = this.exportSemester;
+                            from = sem === '1' ? `${year}-01-01` : `${year}-07-01`;
+                            to = sem === '1' ? `${year}-06-30` : `${year}-12-31`;
+                        } else if (periodType === 'quarter') {
+                            const q = this.exportQuarter;
+                            if (q === '1') { from = `${year}-01-01`; to = `${year}-03-31`; }
+                            else if (q === '2') { from = `${year}-04-01`; to = `${year}-06-30`; }
+                            else if (q === '3') { from = `${year}-07-01`; to = `${year}-09-30`; }
+                            else if (q === '4') { from = `${year}-10-01`; to = `${year}-12-31`; }
+                        } else if (periodType === 'month') {
+                            const m = String(this.exportMonth).padStart(2, '0');
+                            const lastDay = new Date(year, this.exportMonth, 0).getDate();
+                            from = `${year}-${m}-01`;
+                            to = `${year}-${m}-${lastDay}`;
+                        } else if (periodType === 'custom_date') {
+                            from = this.exportStartDate;
+                            to = this.exportEndDate;
+                        }
+                        
+                        // Build filters from the unified exportFilters array
+                        const includePrefixes = [];
+                        const excludePrefixes = [];
+                        const includeCodes = [];
+                        const excludeCodes = [];
+                        const exceptionPrefixes = [];
+                        const exceptionCodes = [];
+
+                        this.exportFilters.forEach(f => {
+                            if (f.type === 'include') {
+                                includePrefixes.push(...f.selectedPrefixes);
+                                includeCodes.push(...f.selectedCodes.map(c => c.code));
+                            } else if (f.type === 'exclude') {
+                                excludePrefixes.push(...f.selectedPrefixes);
+                                excludeCodes.push(...f.selectedCodes.map(c => c.code));
+                                if (f.selectedExceptions) {
+                                    exceptionCodes.push(...f.selectedExceptions.map(c => c.code));
+                                }
+                            }
+                        });
+
+                        const payload = {
+                            from: from,
+                            to: to,
+                            scopes: scopes,
+                            top_n_umum: topNUmum,
+                            top_n_kecamatan: topNKecamatan,
+                            top_n_puskesmas: topNPuskesmas,
+                            kecamatan_filter_mode: this.kecamatanFilterMode,
+                            selected_kecamatan: this.selectedKecamatan,
+                            puskesmas_filter_mode: this.puskesmasFilterMode,
+                            selected_puskesmas: this.selectedPuskesmas,
+                            format: this.exportFormat,
+                            filters: {
+                                include_prefixes: includePrefixes,
+                                exclude_prefixes: excludePrefixes,
+                                include_codes: includeCodes,
+                                exclude_codes: excludeCodes,
+                                exception_prefixes: exceptionPrefixes,
+                                exception_codes: exceptionCodes
+                            }
+                        };
+                        
+                        try {
+                            const response = await fetch('/rekap/export/dispatch', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error('Gagal memproses request export.');
+                            }
+                            
+                            const data = await response.json();
+                            this.exportJobId = data.job_id;
+                            
+                            this.exportJobInterval = setInterval(() => {
+                                this.checkExportStatus();
+                            }, 1500);
+                            
+                        } catch (err) {
+                            this.exportErrorMsg = err.message;
+                            this.exportJobStatus = 'failed';
+                        }
+                    },
+
+                    async checkExportStatus() {
+                        this.exportPollCount++;
+                        if (this.exportPollCount > 120) {
+                            clearInterval(this.exportJobInterval);
+                            this.exportErrorMsg = 'Proses ekspor melebihi batas waktu (timeout 3 menit).';
+                            this.exportJobStatus = 'failed';
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`/rekap/export/status/${this.exportJobId}`);
+                            if (!response.ok) {
+                                throw new Error('Koneksi error saat memeriksa status.');
+                            }
+                            const data = await response.json();
+                            this.exportJobStatus = data.status;
+                            
+                            if (data.status === 'done') {
+                                clearInterval(this.exportJobInterval);
+                                this.exportJobStatus = 'done';
+                                window.location.href = `/rekap/export/download/${this.exportJobId}`;
+                                setTimeout(() => {
+                                    this.showExportProgress = false;
+                                    this.exportJobStatus = null;
+                                }, 3000);
+                            } else if (data.status === 'failed') {
+                                clearInterval(this.exportJobInterval);
+                                this.exportJobStatus = 'failed';
+                                this.exportErrorMsg = 'Proses ekspor gagal di server.';
+                            }
+                        } catch (err) {
+                            clearInterval(this.exportJobInterval);
+                            this.exportErrorMsg = err.message || 'Koneksi error saat memeriksa status.';
+                            this.exportJobStatus = 'failed';
+                        }
+                    }
+            }));
+        }
+    };
+
+    if (window.Alpine) {
+        registerRecapDashboard();
+    } else {
+        document.addEventListener('alpine:init', registerRecapDashboard);
+    }
+</script>
+@endpush
 </x-app-layout>
