@@ -27,7 +27,7 @@
                     @php
                         $percentage = ($item->total / $maxChartWidth) * 100;
                         $widthPercentage = max($percentage, 8);
-                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-400', 'bg-red-400', 'bg-red-400', 'bg-red-400'];
+                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500'];
                         $color = $redShades[min($index, count($redShades) - 1)];
                     @endphp
                     <div class="flex flex-row items-center w-full group relative cursor-pointer">

@@ -41,7 +41,7 @@
                     </div>
                     
                     <!-- Time Mode -->
-                    <select x-model="trendTimeMode" @change="onTrendTimeChange()" class="text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
+                    <select x-model="trendTimeMode" class="text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
                         <option value="year">Sepanjang Tahun</option>
                         <option value="last_n">N Bulan Terakhir</option>
                         <option value="last_n_years">N Tahun Terakhir</option>
@@ -50,12 +50,12 @@
 
                     <!-- Year Selection -->
                     <div x-show="trendTimeMode === 'year' || trendTimeMode === 'custom_months' || trendTimeMode === 'last_n_years'">
-                        <input type="number" x-model.lazy="trendYear" @change="onTrendTimeChange()" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :title="trendTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
+                        <input type="number" x-model.lazy="trendYear" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :title="trendTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
                     </div>
 
                     <!-- Time Input -->
                     <div x-show="trendTimeMode === 'last_n' || trendTimeMode === 'last_n_years'">
-                        <input type="number" x-model="trendLastN" @change="onTrendTimeChange()" min="1" max="60" class="w-16 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="trendTimeMode === 'last_n' ? 'Bulan' : 'Tahun'">
+                        <input type="number" x-model="trendLastN" min="1" max="60" class="w-16 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="trendTimeMode === 'last_n' ? 'Bulan' : 'Tahun'">
                     </div>
                     
                     <div x-show="trendTimeMode === 'custom_months'" class="relative">
@@ -63,15 +63,25 @@
                             <span>Bulan <span x-text="'('+trendCustomMonths.length+')'"></span></span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
-                        <div x-show="showCustomMonths" class="absolute right-0 z-50 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-2 grid grid-cols-2 gap-2" x-transition>
-                            <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
-                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                    <input type="checkbox" :value="idx + 1" x-model.number="trendCustomMonths" @change="onTrendTimeChange()" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
-                                    <span x-text="monthName"></span>
-                                </label>
-                            </template>
+                        <div x-show="showCustomMonths" class="absolute right-0 z-50 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex flex-col gap-2" x-transition>
+                            <div class="grid grid-cols-2 gap-2">
+                                <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
+                                    <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
+                                        <input type="checkbox" :value="idx + 1" x-model.number="trendCustomMonths" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                        <span x-text="monthName"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div class="border-t border-slate-100 pt-2 mt-1">
+                                <button type="button" @click="showCustomMonths = false" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold py-1.5 rounded transition-colors">Tutup</button>
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- Apply Button -->
+                    <button type="button" @click="onTrendTimeChange()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-md shadow-sm transition-colors">
+                        Terapkan
+                    </button>
                 </div>
 
                 <!-- Badges -->
@@ -90,7 +100,7 @@
             </div>
 
             <!-- Chart -->
-            <div class="relative flex-grow min-h-[300px]">
+            <div class="relative flex-grow min-h-[300px] w-full">
                 <div x-show="trendLoading" class="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
                     <div class="animate-spin h-6 w-6 border-2 border-red-500 border-t-transparent rounded-full"></div>
                 </div>
@@ -102,7 +112,9 @@
                     <p class="text-xs text-slate-400">Gunakan kolom pencarian di atas untuk menambahkan penyakit.</p>
                 </div>
 
-                <canvas id="trendChart"></canvas>
+                <div class="absolute inset-0">
+                    <canvas id="trendChart"></canvas>
+                </div>
             </div>
         </div>
 
@@ -119,14 +131,14 @@
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <label class="text-xs font-semibold text-slate-600 whitespace-nowrap">Tampilkan Top:</label>
-                    <input type="number" x-model="pieLimit" @change="fetchPieData()" min="1" max="20" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-1.5 shadow-sm text-center">
+                    <input type="number" x-model="pieLimit" @input="if(pieLimit > 5) pieLimit = 5" min="1" max="5" class="w-20 text-xs rounded-md border-slate-300 focus:ring-red-500 py-1.5 shadow-sm text-center">
                     <span class="text-xs text-slate-500">Penyakit</span>
                 </div>
 
                 <div class="flex flex-col gap-2 border-b border-slate-200 pb-3 mb-1">
                     <div class="flex gap-2">
                         <!-- Time Mode -->
-                        <select x-model="pieTimeMode" @change="fetchPieData()" class="w-1/2 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
+                        <select x-model="pieTimeMode" class="w-1/2 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
                             <option value="year">Sepanjang Tahun</option>
                             <option value="last_n">N Bulan Terakhir</option>
                             <option value="last_n_years">N Tahun Terakhir</option>
@@ -135,7 +147,7 @@
 
                         <!-- Year Selection -->
                         <div x-show="pieTimeMode === 'year' || pieTimeMode === 'custom_months' || pieTimeMode === 'last_n_years'" class="w-1/2">
-                            <input type="number" x-model.lazy="pieYear" @change="fetchPieData()" class="w-full text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="pieTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
+                            <input type="number" x-model.lazy="pieYear" class="w-full text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="pieTimeMode === 'last_n_years' ? 'Tahun Akhir' : 'Tahun'">
                         </div>
 
                         <!-- Time Input -->
@@ -149,26 +161,31 @@
                             <span>Pilih Bulan <span x-text="'('+pieCustomMonths.length+')'"></span></span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
-                        <div x-show="showPieCustomMonths" class="absolute left-0 z-50 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 grid grid-cols-3 gap-2" x-transition>
-                            <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
-                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
-                                    <input type="checkbox" :value="idx + 1" x-model.number="pieCustomMonths" @change="fetchPieData()" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
-                                    <span x-text="monthName"></span>
-                                </label>
-                            </template>
+                        <div x-show="showPieCustomMonths" class="absolute left-0 z-50 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex flex-col gap-2" x-transition>
+                            <div class="grid grid-cols-3 gap-2">
+                                <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
+                                    <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
+                                        <input type="checkbox" :value="idx + 1" x-model.number="pieCustomMonths" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                        <span x-text="monthName"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div class="border-t border-slate-100 pt-2 mt-1">
+                                <button type="button" @click="showPieCustomMonths = false" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold py-1.5 rounded transition-colors">Tutup</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="flex gap-2">
-                    <select x-model="pieScope" @change="pieScopeValue = ''; fetchPieData()" class="w-1/2 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
+                    <select x-model="pieScope" @change="pieScopeValue = ''" class="w-1/2 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
                         <option value="global">Global</option>
                         <option value="kecamatan">Kecamatan</option>
                         <option value="puskesmas">Puskesmas</option>
                     </select>
 
                     <div x-show="pieScope !== 'global'" class="w-1/2 relative">
-                        <select x-model="pieScopeValue" @change="fetchPieData()" class="w-full text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
+                        <select x-model="pieScopeValue" class="w-full text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
                             <option value="">-- Pilih --</option>
                             <template x-if="pieScope === 'kecamatan'">
                                 <template x-for="kec in kecamatanOptions" :key="kec.code">
@@ -183,6 +200,10 @@
                         </select>
                     </div>
                 </div>
+
+                <button type="button" @click="fetchPieData()" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 mt-1 rounded-md shadow-sm transition-colors">
+                    Terapkan
+                </button>
             </div>
 
             <!-- Chart -->
@@ -264,12 +285,10 @@ document.addEventListener('alpine:init', () => {
             this.trendSearch = '';
             this.trendOptions = [];
             this.trendUserModified = true;
-            this.fetchTrendData();
         },
         removeTrendDisease(code) {
             this.trendDiseases = this.trendDiseases.filter(d => d.code !== code);
             this.trendUserModified = true;
-            this.fetchTrendData();
         },
         onTrendTimeChange() {
             if (!this.trendUserModified) {
@@ -431,16 +450,7 @@ document.addEventListener('alpine:init', () => {
                     responsive: true, maintainAspectRatio: false, cutout: '60%',
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true, padding: 15 } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed !== null) label += new Intl.NumberFormat('id-ID').format(context.parsed) + ' Kasus';
-                                    return label;
-                                }
-                            }
-                        }
+                        tooltip: { enabled: false }
                     }
                 },
                 plugins: [customDataLabels]
