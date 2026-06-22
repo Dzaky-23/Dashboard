@@ -42,7 +42,7 @@
 
     <div class="flex items-center ml-2 pl-3 space-x-2 border-l border-slate-200">
         <label for="limit" class="text-xs font-semibold text-slate-500">N:</label>
-        <input type="number" name="limit" id="limit" value="{{ $limit }}" min="1" class="w-16 text-xs font-bold border-slate-300 rounded-md py-1.5 px-2 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm">
+        <input type="number" name="limit" id="limit" value="{{ $limit }}" min="1" max="10" x-on:input="if($el.value > 10) $el.value = 10" class="w-16 text-xs font-bold border-slate-300 rounded-md py-1.5 px-2 focus:ring-red-500 focus:border-red-500 bg-white shadow-sm">
         <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 px-4 rounded-md shadow-sm transition-colors ml-1">Terapkan</button>
     </div>
 </form>
