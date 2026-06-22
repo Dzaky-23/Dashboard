@@ -95,7 +95,7 @@
                             </button>
                         </div>
                     </template>
-                    <button x-show="trendDiseases.length > 0" @click="trendDiseases = []; trendUserModified = true; fetchTrendData()" class="text-[10px] text-slate-500 hover:underline px-1">Clear</button>
+                    <button x-show="trendDiseases.length > 0" @click="trendDiseases = []; trendUserModified = false; trendInitialLoad = true; fetchTrendData()" class="text-[10px] text-slate-500 hover:underline px-1">Clear</button>
                 </div>
             </div>
 
@@ -110,6 +110,16 @@
                     <svg class="w-12 h-12 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     <p class="text-sm font-semibold text-slate-500">Silakan input penyakit untuk melihat tren</p>
                     <p class="text-xs text-slate-400">Gunakan kolom pencarian di atas untuk menambahkan penyakit.</p>
+                </div>
+
+                <!-- Zero Data Message -->
+                <div x-show="!trendLoading && trendIsAllZero && trendDiseases.length > 0" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/70 backdrop-blur-[1px] rounded-xl" style="display: none;">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 text-center max-w-sm">
+                        <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                        <p class="text-sm font-bold text-slate-700 mb-1">Tidak Ada Kasus</p>
+                        <p class="text-xs text-slate-500 mb-4">Penyakit yang sedang ditampilkan memiliki 0 kasus pada periode ini.</p>
+                        <button @click="trendDiseases = []; trendUserModified = false; trendInitialLoad = true; fetchTrendData()" class="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors">Lihat Top Penyakit</button>
+                    </div>
                 </div>
 
                 <div class="absolute inset-0">
@@ -228,6 +238,7 @@ document.addEventListener('alpine:init', () => {
         // Trend State
         trendLoading: false,
         trendInitialLoad: true,
+        trendIsAllZero: false,
         trendUserModified: false,
         trendYear: '{{ $yearInput ?? date('Y') }}',
         trendSearch: '',
@@ -317,6 +328,14 @@ document.addEventListener('alpine:init', () => {
                 } else if (this.trendInitialLoad) {
                     this.trendInitialLoad = false;
                 }
+
+                let totalCases = 0;
+                if (data.trend) {
+                    data.trend.forEach(item => {
+                        totalCases += item.data.reduce((a,b) => a+b, 0);
+                    });
+                }
+                this.trendIsAllZero = (totalCases === 0);
 
                 this.renderTrendChart(data.trend, data.labels);
             } catch (err) {
@@ -408,7 +427,7 @@ document.addEventListener('alpine:init', () => {
                         const meta = chart.getDatasetMeta(i);
                         if (!meta.hidden) {
                             meta.data.forEach((element, index) => {
-                                if (dataset.data[index] > 0) {
+                                if (dataset.data[index] > 0 && chart.getDataVisibility(index)) {
                                     const label = chart.data.labels[index];
                                     const codeMatch = label.match(/^\[(.*?)\]/);
                                     const code = codeMatch ? codeMatch[1] : '';
