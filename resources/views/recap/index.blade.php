@@ -12,7 +12,7 @@
                         @include('recap.partials.analytics')
 
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
-                            <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Wilayah</h3>
+                            <h3 class="text-xl font-bold text-slate-800">Daftar Rekapitulasi Puskesmas</h3>
                             
                             <div class="relative w-full md:w-72">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -25,23 +25,7 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap gap-2 mb-8 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 sm:inline-flex w-full sm:w-auto shadow-inner">
-                            <button @click="activeFilter = 'semua'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'semua', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'semua'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out">
-                                Tampilkan Semua
-                            </button>
-                            <button style="display: none;" @click="activeFilter = 'kecamatan'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'kecamatan', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'kecamatan'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2">
-                                {{-- <span x-show="activeFilter === 'kecamatan'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span> --}}
-                                Hanya Kecamatan
-                            </button>
-                            <button @click="activeFilter = 'puskesmas'" :class="{'bg-white text-red-700 shadow-sm ring-1 ring-slate-200/60 font-bold': activeFilter === 'puskesmas', 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 font-medium': activeFilter !== 'puskesmas'}" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm transition-all duration-200 ease-in-out flex items-center justify-center gap-2">
-                                {{-- <span x-show="activeFilter === 'puskesmas'" class="w-1.5 h-1.5 rounded-full bg-red-600"></span> --}}
-                                Hanya Puskesmas
-                            </button>
-                        </div>
-
                         <div x-show="hasResults" class="min-h-[300px]">
-                            @include('recap.partials.tab_semua')
-                            @include('recap.partials.tab_kecamatan')
                             @include('recap.partials.tab_puskesmas')
                         </div>
 
@@ -49,14 +33,8 @@
                         <div x-show="hasResults" class="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <!-- Info Text -->
                             <div>
-                                <!-- Info for Tab Semua -->
-                                <span x-show="activeFilter === 'semua'" class="text-sm text-slate-500 font-medium">
-                                    Menampilkan <span class="font-bold text-slate-800" x-text="filteredKecamatans.length === 0 ? 0 : (currentPageSemua - 1) * perPageSemua + 1"></span>
-                                    sampai <span class="font-bold text-slate-800" x-text="Math.min(currentPageSemua * perPageSemua, filteredKecamatans.length)"></span>
-                                    dari <span class="font-bold text-slate-800" x-text="filteredKecamatans.length"></span> Kecamatan
-                                </span>
                                 <!-- Info for Tab Puskesmas -->
-                                <span x-show="activeFilter === 'puskesmas'" class="text-sm text-slate-500 font-medium">
+                                <span class="text-sm text-slate-500 font-medium">
                                     Menampilkan <span class="font-bold text-slate-800" x-text="filteredPuskesmas.length === 0 ? 0 : (currentPagePuskesmas - 1) * perPagePuskesmas + 1"></span>
                                     sampai <span class="font-bold text-slate-800" x-text="Math.min(currentPagePuskesmas * perPagePuskesmas, filteredPuskesmas.length)"></span>
                                     dari <span class="font-bold text-slate-800" x-text="filteredPuskesmas.length"></span> Puskesmas
@@ -429,7 +407,7 @@
                                                     <div class="border-t border-slate-200 pt-4">
                                                         <div class="flex items-center justify-between mb-3">
                                                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide">Filter Kode Penyakit</label>
-                                                            <div class="relative" @click.outside="showFilterTypeMenu = false">
+                                                            <div class="relative" @click.outside="showFilterTypeMenu = false" x-show="!hasIncludeFilter || !hasExcludeFilter">
                                                                 <button type="button" @click="showFilterTypeMenu = !showFilterTypeMenu"
                                                                     class="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-700 transition-colors">
                                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -439,7 +417,7 @@
                                                                     class="absolute right-0 z-50 mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-xl ring-1 ring-black/5 overflow-hidden"
                                                                     style="display: none;">
                                                                     <div class="py-1.5">
-                                                                        <button type="button" @click="addFilter('include')"
+                                                                        <button type="button" @click="addFilter('include')" x-show="!hasIncludeFilter"
                                                                             class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-emerald-50 transition-colors group">
                                                                             <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200"></span>
                                                                             <div>
@@ -447,7 +425,7 @@
                                                                                 <div class="text-[10px] text-slate-400 leading-tight">Hanya tampilkan kode yang dipilih</div>
                                                                             </div>
                                                                         </button>
-                                                                        <button type="button" @click="addFilter('exclude')"
+                                                                        <button type="button" @click="addFilter('exclude')" x-show="!hasExcludeFilter"
                                                                             class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors group">
                                                                             <span class="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-200"></span>
                                                                             <div>
@@ -509,6 +487,9 @@
                                                                                         <svg class="w-4 h-4 text-slate-400 flex-shrink-0 ml-1 transition-transform" :class="filter.isPrefixOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                                                     </div>
                                                                                     <div x-show="filter.isPrefixOpen" x-transition class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-3" style="display: none;">
+                                                                                        <div class="mb-2">
+                                                                                            <button type="button" @click.stop="toggleAllPrefixes(filterIdx)" class="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm" x-text="filter.selectedPrefixes.length === letters.length ? 'Hapus Semua' : 'Pilih Semua'"></button>
+                                                                                        </div>
                                                                                         <div class="grid grid-cols-7 sm:grid-cols-9 gap-1.5">
                                                                                             <template x-for="prefix in letters" :key="'pl-'+filterIdx+'-'+prefix">
                                                                                                 <button type="button" @click.stop="toggleFilterPrefix(filterIdx, prefix)"
@@ -728,7 +709,7 @@
         if (window.Alpine && !window.recapDashboardRegistered) {
             window.recapDashboardRegistered = true;
             window.Alpine.data('recapDashboard', () => ({
-                activeFilter: 'semua', 
+                activeFilter: 'puskesmas', 
                     search: '',
                     openExportModal: false,
                     exportFormat: 'pdf',
@@ -1008,6 +989,14 @@
                             filter.selectedPrefixes = [...filter.selectedPrefixes, prefix];
                         }
                     },
+                    toggleAllPrefixes(filterIndex) {
+                        const filter = this.exportFilters[filterIndex];
+                        if (filter.selectedPrefixes.length === this.letters.length) {
+                            filter.selectedPrefixes = [];
+                        } else {
+                            filter.selectedPrefixes = [...this.letters];
+                        }
+                    },
                     removeFilterCode(filterIndex, code) {
                         const filter = this.exportFilters[filterIndex];
                         filter.selectedCodes = filter.selectedCodes.filter(item => item.code !== code);
@@ -1098,6 +1087,9 @@
                         if (type === 'include') return { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', activePrefixBg: 'bg-emerald-600', ring: 'ring-emerald-500', hoverBorder: 'hover:border-emerald-300 hover:bg-emerald-50' };
                         if (type === 'exclude') return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', badge: 'bg-red-100 text-red-700 border-red-200', activePrefixBg: 'bg-red-600', ring: 'ring-red-500', hoverBorder: 'hover:border-red-300 hover:bg-red-50' };
                         return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700 border-amber-200', activePrefixBg: 'bg-amber-600', ring: 'ring-amber-500', hoverBorder: 'hover:border-amber-300 hover:bg-amber-50' };
+                    },
+                    get hasIncludeFilter() {
+                        return this.exportFilters.some(f => f.type === 'include');
                     },
                     get hasExcludeFilter() {
                         return this.exportFilters.some(f => f.type === 'exclude');

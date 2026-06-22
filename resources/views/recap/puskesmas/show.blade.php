@@ -23,7 +23,18 @@
                     </div>
                     <div class="text-right bg-black/10 px-4 py-2 rounded-xl backdrop-blur-sm">
                         <span class="block text-3xl font-bold text-white leading-none">{{ number_format($totalKasus) }}</span>
-                        <span class="block text-xs text-red-100 mt-1 uppercase tracking-wider font-semibold">Total Kasus</span>
+                        @php
+                            $periodText = "Tahun $year";
+                            if ($periodType === 'month') {
+                                $months = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
+                                $periodText = "Bulan " . ($months[$month] ?? '') . " $year";
+                            } elseif ($periodType === 'quarter') {
+                                $periodText = "Triwulan $quarter Tahun $year";
+                            } elseif ($periodType === 'semester') {
+                                $periodText = "Semester $semester Tahun $year";
+                            }
+                        @endphp
+                        <span class="block text-xs text-red-100 mt-1 uppercase tracking-wider font-semibold">Total Kasus {{ $periodText }}</span>
                     </div>
                 </div>
 
@@ -68,42 +79,10 @@
                 @else
                 <!-- Section Grafik & Analitik Ringkas -->
                 <div class="px-8 py-8 border-b border-slate-200 bg-slate-50/50">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="w-full">
                         
                         @include('recap.partials.chart_top_penyakit')
 
-                        <!-- Col 3: Snapshot Statistik Sederhana -->
-                        <div class="flex flex-col gap-4">
-                            <!-- Card Total Unik Diagnosa -->
-                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0 text-orange-600">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                                </div>
-                                <div>
-                                    <span class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Diagnosa Varian</span>
-                                    <h4 class="text-2xl font-black text-slate-800">{{ number_format($totalDiagnosaUnik) }}</h4>
-                                    <p class="text-xs text-slate-500 mt-1 font-medium">Jenis penyakit tercatat</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Distribusi Rata-Rata -->
-                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-grow flex flex-col justify-center relative overflow-hidden group">
-                                <span class="block text-xs font-bold text-red-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 relative z-10">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                                    Distribusi Rata-Rata
-                                </span>
-                                @php
-                                    $avgKasus = $totalDiagnosaUnik > 0 ? $totalKasus / $totalDiagnosaUnik : 0;
-                                @endphp
-                                <h4 class="text-4xl font-black text-slate-800 tracking-tight leading-none mb-2 relative z-10">{{ number_format($avgKasus, 1) }}</h4>
-                                <div class="flex items-end gap-2 relative z-10 mt-1">
-                                    <span class="text-xs font-semibold text-slate-500 mb-1">Kasus per jenis diagnosa</span>
-                                </div>
-                                <div class="mt-3 text-[10px] xl:text-xs text-slate-400 leading-relaxed relative z-10 border-t border-slate-100 pt-3">
-                                    Nilai ini mengukur rasio kepadatan penyebaran penyakit, dihitung dari total akumulasi <strong>{{ number_format($totalKasus) }} kasus</strong> dibagi rata kepada <strong>{{ number_format($totalDiagnosaUnik) }} varian</strong> diagnosa ICD-X yang tercatat.
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

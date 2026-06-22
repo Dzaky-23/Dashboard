@@ -215,6 +215,7 @@ class PenyakitRecapController extends Controller
     {
         $limitInput = $request->input('limit');
         $limit = $limitInput === null ? 10 : (int) $limitInput;
+        $limit = $limit > 10 ? 10 : $limit;
         $mapping = RecapLogicService::getMappingKodeToKecamatan();
         $kecamatan = $mapping[$puskesmas] ?? 'Tidak Diketahui';
 
