@@ -189,7 +189,7 @@
 
                 <div class="flex gap-2">
                     <select x-model="pieScope" @change="pieScopeValue = ''" class="w-1/2 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm">
-                        <option value="global">Global</option>
+                        <option value="global">Semua</option>
                         <option value="kecamatan">Kecamatan</option>
                         <option value="puskesmas">Puskesmas</option>
                     </select>

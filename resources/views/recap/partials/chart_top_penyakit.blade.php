@@ -1,5 +1,5 @@
 <!-- Col 1-2: Grafik Neumorphic -->
-<div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
     <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
         <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
@@ -14,8 +14,15 @@
                     @php
                         $percentage = ($maxChartWidth > 0 ? ($item->count / $maxChartWidth) * 100 : 0);
                         $widthPercentage = max($percentage, 8);
-                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-400', 'bg-red-400', 'bg-red-400', 'bg-red-400'];
-                        $color = $redShades[min($index, count($redShades) - 1)];
+                        $totalItems = count($rekapChartData);
+                        $third = max(1, ceil($totalItems / 3));
+                        if ($index < $third) {
+                            $color = 'bg-red-900';
+                        } elseif ($index < $third * 2) {
+                            $color = 'bg-red-700';
+                        } else {
+                            $color = 'bg-red-500';
+                        }
                     @endphp
                     <div class="flex items-center gap-4 group">
                         <div class="w-16 md:w-20 flex-shrink-0 text-right">
