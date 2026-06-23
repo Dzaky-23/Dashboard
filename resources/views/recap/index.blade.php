@@ -465,11 +465,10 @@
                                                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                                                         </button>
                                                                     </div>
-
                                                                     {{-- Prefix selector --}}
                                                                     <div class="space-y-4">
-                                                                        {{-- Baris untuk Awalan Kode dan Pengecualian bersebelahan pada desktop --}}
-                                                                        <div class="grid grid-cols-1 gap-4" :class="filter.type === 'exclude' ? 'md:grid-cols-2' : ''">
+                                                                        {{-- Baris untuk Awalan Kode --}}
+                                                                        <div class="grid grid-cols-1 gap-4">
                                                                             {{-- Awalan Kode --}}
                                                                             <div>
                                                                                 <label class="block text-xs font-bold text-slate-600 mb-1.5">Awalan Kode</label>
@@ -500,43 +499,7 @@
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
-
-                                                                            {{-- Exceptions (Tetap Sertakan) untuk kartu Exclude --}}
-                                                                            <div x-show="filter.type === 'exclude'" class="border-t border-slate-200/60 pt-4 md:border-t-0 md:pt-0">
-                                                                                <label class="block text-xs font-bold text-amber-800 mb-1.5 flex items-center gap-1.5">
-                                                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                                                                    Pengecualian (Tetap Sertakan)
-                                                                                </label>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    x-model="filter.exceptionSearch"
-                                                                                    @input.debounce.300ms="searchFilterExceptionIcd(filterIdx)"
-                                                                                    placeholder="Cari kode atau nama penyakit yang tetap disertakan, mis. Z01"
-                                                                                    class="w-full border-amber-200 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 text-sm px-3 py-2 bg-white"
-                                                                                >
-                                                                                <p class="text-[10px] text-slate-400 mt-1">Ketik minimal 2 karakter untuk mencari kode ICD.</p>
-                                                                                <div x-show="filter.exceptionLoading" class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
-                                                                                    <div class="w-3 h-3 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin"></div>
-                                                                                    Mencari kode ICD...
-                                                                                </div>
-                                                                                <div x-show="filter.exceptionOptions.length > 0" class="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 shadow-sm">
-                                                                                    <template x-for="option in filter.exceptionOptions" :key="'eo-'+filterIdx+'-'+option.code">
-                                                                                        <button type="button" @click="addFilterExceptionCode(filterIdx, option)" class="w-full px-3 py-2 text-left hover:bg-slate-50 transition-colors">
-                                                                                            <div class="text-sm font-semibold text-slate-800" x-text="option.code"></div>
-                                                                                            <div class="text-xs text-slate-500" x-text="option.name"></div>
-                                                                                        </button>
-                                                                                    </template>
-                                                                                </div>
-                                                                                <div x-show="filter.selectedExceptions && filter.selectedExceptions.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-                                                                                    <template x-for="item in filter.selectedExceptions" :key="'se-'+filterIdx+'-'+item.code">
-                                                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border bg-amber-100 text-amber-700 border-amber-200">
-                                                                                            <span x-text="item.code"></span>
-                                                                                            <button type="button" @click="removeFilterExceptionCode(filterIdx, item.code)" class="opacity-60 hover:opacity-100 transition-opacity">&times;</button>
-                                                                                        </span>
-                                                                                    </template>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
+                                                                        </div></div>
 
                                                                         {{-- Kode Spesifik (Lebar Penuh) --}}
                                                                         <div>
@@ -791,13 +754,9 @@
                         if (excludes.length > 0) {
                             const prefixes = [];
                             const codes = [];
-                            const exceptions = [];
                             excludes.forEach(f => {
                                 prefixes.push(...f.selectedPrefixes);
                                 codes.push(...f.selectedCodes.map(c => c.code));
-                                if (f.selectedExceptions) {
-                                    exceptions.push(...f.selectedExceptions.map(e => e.code));
-                                }
                             });
                             
                             let excText = '';
@@ -809,10 +768,6 @@
                                 excText += ' kode ' + codes.join(', ');
                             }
                             text += ', kecuali ' + excText;
-
-                            if (exceptions.length > 0) {
-                                text += ', tapi ' + exceptions.join(', ') + ' selalu masuk';
-                            }
                         }
 
                         return text + '.';
@@ -970,11 +925,7 @@
                             codeSearch: '',
                             codeOptions: [],
                             codeLoading: false,
-                            isPrefixOpen: false,
-                            selectedExceptions: [],
-                            exceptionSearch: '',
-                            exceptionOptions: [],
-                            exceptionLoading: false
+                            isPrefixOpen: false
                         });
                         this.showFilterTypeMenu = false;
                     },
@@ -1037,50 +988,9 @@
                         filter.codeSearch = '';
                         filter.codeOptions = [];
                     },
-                    async searchFilterExceptionIcd(filterIndex) {
-                        const filter = this.exportFilters[filterIndex];
-                        const query = filter.exceptionSearch.trim();
-
-                        if (query.length < 2) {
-                            filter.exceptionOptions = [];
-                            return;
-                        }
-
-                        filter.exceptionLoading = true;
-
-                        try {
-                            const response = await fetch(`${this.icdSearchUrl}?q=${encodeURIComponent(query)}`, {
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
-                            const payload = await response.json();
-                            const selected = new Set(filter.selectedExceptions.map(item => item.code));
-                            filter.exceptionOptions = (payload.data || []).filter(item => !selected.has(item.code));
-                        } catch (error) {
-                            filter.exceptionOptions = [];
-                        } finally {
-                            filter.exceptionLoading = false;
-                        }
-                    },
-                    addFilterExceptionCode(filterIndex, option) {
-                        const filter = this.exportFilters[filterIndex];
-                        if (filter.selectedExceptions.some(item => item.code === option.code)) {
-                            return;
-                        }
-                        filter.selectedExceptions = [...filter.selectedExceptions, option];
-                        filter.exceptionSearch = '';
-                        filter.exceptionOptions = [];
-                    },
-                    removeFilterExceptionCode(filterIndex, code) {
-                        const filter = this.exportFilters[filterIndex];
-                        filter.selectedExceptions = filter.selectedExceptions.filter(item => item.code !== code);
-                    },
                     getFilterTypeLabel(type) {
                         if (type === 'include') return 'Include';
                         if (type === 'exclude') return 'Exclude';
-                        if (type === 'exception') return 'Tetap Sertakan';
                         return type;
                     },
                     getFilterTypeColor(type) {
@@ -1211,9 +1121,6 @@
                         const excludePrefixes = [];
                         const includeCodes = [];
                         const excludeCodes = [];
-                        const exceptionPrefixes = [];
-                        const exceptionCodes = [];
-
                         this.exportFilters.forEach(f => {
                             if (f.type === 'include') {
                                 includePrefixes.push(...f.selectedPrefixes);
@@ -1221,9 +1128,6 @@
                             } else if (f.type === 'exclude') {
                                 excludePrefixes.push(...f.selectedPrefixes);
                                 excludeCodes.push(...f.selectedCodes.map(c => c.code));
-                                if (f.selectedExceptions) {
-                                    exceptionCodes.push(...f.selectedExceptions.map(c => c.code));
-                                }
                             }
                         });
 
@@ -1243,9 +1147,7 @@
                                 include_prefixes: includePrefixes,
                                 exclude_prefixes: excludePrefixes,
                                 include_codes: includeCodes,
-                                exclude_codes: excludeCodes,
-                                exception_prefixes: exceptionPrefixes,
-                                exception_codes: exceptionCodes
+                                exclude_codes: excludeCodes
                             }
                         };
                         
