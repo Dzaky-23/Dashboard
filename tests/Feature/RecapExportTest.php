@@ -128,9 +128,8 @@ it('renders the recap index page for admin', function () {
     actingAsAdmin();
 
     $response = $this->get(route('recap.index'));
-
     $response->assertOk();
-    $response->assertSee('Daftar Rekapitulasi Wilayah');
+    $response->assertSee('Daftar Rekapitulasi Puskesmas');
 });
 
 it('can trigger aggregation manually via UI', function () {
