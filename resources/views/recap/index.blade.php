@@ -721,6 +721,11 @@
                     showExportProgress: false,
                     exportErrorMsg: '',
                     exportPollCount: 0,
+                    globalChartData: @js($chartData->values()),
+                    globalChartMax: {{ (int) $maxChartWidth }},
+                    globalChartLoading: false,
+                    globalChartError: '',
+                    globalTopUrl: '{{ route('recap.api.global_top') }}',
                     get filterPreviewText() {
                         if (this.exportFilters.length === 0) {
                             return 'Akan export semua penyakit tanpa filter khusus.';
@@ -876,6 +881,44 @@
                     getPuskesmasName(code) {
                         const option = this.puskesmasOptions.find(item => item.code === code);
                         return option ? option.name : code;
+                    },
+                    globalChartColor(index) {
+                        const colors = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500'];
+                        return colors[Math.min(index, colors.length - 1)];
+                    },
+                    globalChartWidth(total) {
+                        const max = this.globalChartMax || 1;
+                        return `${Math.max((Number(total || 0) / max) * 100, 8)}%`;
+                    },
+                    formatNumber(value) {
+                        return new Intl.NumberFormat('id-ID').format(Number(value || 0));
+                    },
+                    async loadGlobalTopChart(year) {
+                        this.globalChartLoading = true;
+                        this.globalChartError = '';
+
+                        try {
+                            const response = await fetch(`${this.globalTopUrl}?year=${encodeURIComponent(year)}`, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                throw new Error('Gagal mengambil data chart.');
+                            }
+
+                            const payload = await response.json();
+                            this.globalChartData = payload.data || [];
+                            this.globalChartMax = payload.max || 1;
+                        } catch (error) {
+                            this.globalChartData = [];
+                            this.globalChartMax = 1;
+                            this.globalChartError = error.message || 'Gagal mengambil data chart.';
+                        } finally {
+                            this.globalChartLoading = false;
+                        }
                     },
                     toggleSelection(type, code) {
                         const key = type === 'kecamatan' ? 'selectedKecamatan' : 'selectedPuskesmas';

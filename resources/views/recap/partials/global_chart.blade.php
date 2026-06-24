@@ -6,10 +6,10 @@
                 Top 10 Penyakit Global
             </h4>
             
-            <form id="filterYearForm" action="{{ route('recap.index') }}" method="GET" class="flex items-center gap-2">
-                <label for="year" class="text-xs font-bold text-slate-500 hidden sm:block">Periode:</label>
+            <div class="flex items-center gap-2">
+                <label for="globalChartYear" class="text-xs font-bold text-slate-500 hidden sm:block">Periode:</label>
                 <div class="relative">
-                    <select name="year" id="year" onchange="document.getElementById('filterYearForm').submit()" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-3 pr-8 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
+                    <select name="year" id="globalChartYear" @change="loadGlobalTopChart($event.target.value)" class="appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-3 pr-8 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
                         @foreach($availableYears as $y)
                             <option value="{{ $y }}" {{ $yearInput == $y ? 'selected' : '' }}>Tahun {{ $y }}</option>
                         @endforeach
@@ -18,46 +18,52 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
 
-        <div class="px-6 py-6 md:px-8 md:py-8 overflow-y-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex flex-col items-stretch justify-center w-full gap-2 sm:gap-3 min-h-[250px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-            @if(isset($chartData) && $chartData->isNotEmpty())
-                @foreach($chartData as $index => $item)
-                    @php
-                        $percentage = ($item->total / $maxChartWidth) * 100;
-                        $widthPercentage = max($percentage, 8);
-                        $redShades = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500'];
-                        $color = $redShades[min($index, count($redShades) - 1)];
-                    @endphp
-                    <div class="flex flex-row items-center w-full group relative cursor-pointer">
+        <div class="relative px-6 py-6 md:px-8 md:py-8 overflow-y-auto bg-gradient-to-b from-slate-50 to-white flex-grow flex flex-col items-stretch justify-center w-full gap-2 sm:gap-3 min-h-[250px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            <div x-show="globalChartLoading" x-transition.opacity class="absolute right-6 top-5 z-20 rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm backdrop-blur">
+                Memuat data...
+            </div>
+
+            <template x-if="!globalChartLoading && globalChartError">
+                <p class="text-red-500 text-sm py-10 my-auto text-center w-full" x-text="globalChartError"></p>
+            </template>
+
+            <template x-if="!globalChartLoading && !globalChartError && globalChartData.length === 0">
+                <p class="text-slate-500 text-sm py-10 my-auto text-center w-full">Data penyakit kosong.</p>
+            </template>
+
+            <template x-if="!globalChartError && globalChartData.length > 0">
+                <div class="w-full flex flex-col gap-2 sm:gap-3 transition-opacity duration-200" :class="globalChartLoading ? 'opacity-70' : 'opacity-100'">
+                    <template x-for="(item, index) in globalChartData" :key="item.label">
+                        <div class="flex flex-row items-center w-full group relative cursor-pointer">
                         <!-- Tooltip on hover -->
                         <div class="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-slate-800 shadow-xl rounded-xl px-4 py-2 text-sm font-bold text-white whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100 z-50">
-                            {{ $item->status }} ({{ number_format($item->total) }} Kasus)
+                            <span x-text="`${item.status} (${formatNumber(item.total)} Kasus)`"></span>
                             <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 transform rotate-45"></div>
                         </div>
 
                         <!-- Label (ICD-X) -->
                         <div class="mr-3 md:mr-4 flex flex-shrink-0 items-center justify-end w-8 md:w-10">
-                            <span class="block text-[11px] md:text-xs font-bold text-slate-700 truncate" title="{{ $item->label }}">{{ $item->label }}</span>
+                            <span class="block text-[11px] md:text-xs font-bold text-slate-700 truncate" :title="item.label" x-text="item.label"></span>
                         </div>
 
                         <!-- Bar Track -->
                         <div class="flex-grow h-6 md:h-8 bg-slate-100/50 rounded-full p-1 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.05),inset_-2px_-2px_6px_rgba(255,255,255,0.8)] border border-white flex flex-row justify-start">
                             <!-- Colored Filled Bar -->
-                            <div class="h-full {{ $color }} rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" style="width: {{ $widthPercentage }}%">
+                            <div class="h-full rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" :class="globalChartColor(index)" :style="`width: ${globalChartWidth(item.total)}`">
                                 <!-- Text Inside Bar for Data (Optional, hiding it on very small screens or keeping it simple, let's keep it visible inside the bar right end!) -->
-                                <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate">{{ number_format($item->total) }}</span>
+                                <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate" x-text="formatNumber(item.total)"></span>
                                 
                                 <!-- Glass Effect Reflection on Right Edge -->
                                 <div class="absolute right-1 top-1 bottom-1 w-1/4 max-w-[12px] bg-white/40 rounded-full blur-[1px]"></div>
                             </div>
                         </div>
-                    </div>
-                @endforeach
-            @else
-                <p class="text-slate-500 text-sm py-10 my-auto text-center w-full">Data penyakit kosong.</p>
-            @endif
+                        </div>
+                    </template>
+                </div>
+            </template>
         </div>
     </div>
 

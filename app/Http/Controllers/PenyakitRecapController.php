@@ -173,7 +173,7 @@ class PenyakitRecapController extends Controller
                 'total' => (int) $item->total,
                 'status' => $item->nama_penyakit,
             ];
-        });
+        })->values();
 
         $maxChartWidth = $chartData->max('total') ?: 1;
 
@@ -184,6 +184,32 @@ class PenyakitRecapController extends Controller
             'availableYears', 'yearInput', 'puskesmasNames', 'icdNames',
             'exportKecamatanOptions', 'exportPuskesmasOptions'
         ));
+    }
+
+    public function globalTopChartData(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'min:1900', 'max:2100'],
+        ]);
+
+        $year = (int) $validated['year'];
+        $from = Carbon::create($year, 1, 1)->startOfYear();
+        $to = Carbon::create($year, 12, 31)->endOfYear();
+
+        $chartData = $this->service->queryTopUmum($from, $to, 10)
+            ->map(function ($item) {
+                return [
+                    'label' => $item->kode_penyakit,
+                    'total' => (int) $item->total,
+                    'status' => $item->nama_penyakit,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'data' => $chartData,
+            'max' => $chartData->max('total') ?: 1,
+        ]);
     }
 
     public function searchIcd(Request $request): JsonResponse
