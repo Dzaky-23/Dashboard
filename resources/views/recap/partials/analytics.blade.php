@@ -58,12 +58,16 @@
                         <input type="number" x-model="trendLastN" min="1" max="60" class="w-16 text-xs rounded-md border-slate-300 focus:ring-red-500 py-2 shadow-sm text-center" :placeholder="trendTimeMode === 'last_n' ? 'Bulan' : 'Tahun'">
                     </div>
                     
-                    <div x-show="trendTimeMode === 'custom_months'" class="relative">
-                        <button @click="showCustomMonths = !showCustomMonths" @click.away="showCustomMonths = false" class="text-xs bg-white border border-slate-300 rounded-md px-3 py-2 shadow-sm w-32 flex justify-between items-center">
+                    <div x-show="trendTimeMode === 'custom_months'" class="relative" @click.away="showCustomMonths = false">
+                        <button @click="showCustomMonths = !showCustomMonths" class="text-xs bg-white border border-slate-300 rounded-md px-3 py-2 shadow-sm w-32 flex justify-between items-center">
                             <span>Bulan <span x-text="'('+trendCustomMonths.length+')'"></span></span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
                         <div x-show="showCustomMonths" class="absolute right-0 z-50 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex flex-col gap-2" x-transition>
+                            <div class="flex justify-between items-center px-1">
+                                <span class="text-[10px] font-bold text-slate-500">Pilih Bulan</span>
+                                <button type="button" @click="trendCustomMonths.length === 12 ? trendCustomMonths = [] : trendCustomMonths = [1,2,3,4,5,6,7,8,9,10,11,12]" class="text-[10px] text-red-600 hover:text-red-700 font-bold" x-text="trendCustomMonths.length === 12 ? 'Hapus Semua' : 'Pilih Semua'"></button>
+                            </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
                                     <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
@@ -166,12 +170,16 @@
                         </div>
                     </div>
                     
-                    <div x-show="pieTimeMode === 'custom_months'" class="relative w-full">
-                        <button @click="showPieCustomMonths = !showPieCustomMonths" @click.away="showPieCustomMonths = false" class="text-xs bg-white border border-slate-300 rounded-md px-3 py-2 shadow-sm w-full flex justify-between items-center">
+                    <div x-show="pieTimeMode === 'custom_months'" class="relative w-full" @click.away="showPieCustomMonths = false">
+                        <button @click="showPieCustomMonths = !showPieCustomMonths" class="text-xs bg-white border border-slate-300 rounded-md px-3 py-2 shadow-sm w-full flex justify-between items-center">
                             <span>Pilih Bulan <span x-text="'('+pieCustomMonths.length+')'"></span></span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
                         <div x-show="showPieCustomMonths" class="absolute left-0 z-50 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 flex flex-col gap-2" x-transition>
+                            <div class="flex justify-between items-center px-1">
+                                <span class="text-[10px] font-bold text-slate-500">Pilih Bulan</span>
+                                <button type="button" @click="pieCustomMonths.length === 12 ? pieCustomMonths = [] : pieCustomMonths = [1,2,3,4,5,6,7,8,9,10,11,12]" class="text-[10px] text-red-600 hover:text-red-700 font-bold" x-text="pieCustomMonths.length === 12 ? 'Hapus Semua' : 'Pilih Semua'"></button>
+                            </div>
                             <div class="grid grid-cols-3 gap-2">
                                 <template x-for="(monthName, idx) in ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des']">
                                     <label class="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1 rounded">
