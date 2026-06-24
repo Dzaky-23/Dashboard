@@ -143,7 +143,6 @@ class ExportRekapJob implements ShouldQueue
             ]);
         }
     }
-
     private function generateExcel($dataUmum, $dataKec, $dataPusk, string $filePath): void
     {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -155,7 +154,12 @@ class ExportRekapJob implements ShouldQueue
         $sheet->getColumnDimension('C')->setWidth(50);
         $sheet->getColumnDimension('D')->setWidth(18);
 
-        $currentRow = 1;
+        $sheet->setCellValue("A1", 'LAPORAN REKAPITULASI SEBARAN PENYAKIT');
+        $sheet->getStyle("A1")->getFont()->setBold(true)->setSize(14);
+        $sheet->setCellValue("A2", 'Periode Laporan: ' . $this->from . ' s.d. ' . $this->to);
+        $sheet->getStyle("A2")->getFont()->setItalic(true);
+
+        $currentRow = 4;
         $charts = [];
 
         $addChart = function ($titleText, $startRow, $endRow, $currentRow) use (&$charts) {
@@ -342,7 +346,6 @@ class ExportRekapJob implements ShouldQueue
                 ->whereIn('rh.kode_penyakit', $topDiseaseCodes)
                 ->groupBy('p.kode_p', 'p.nama', 'rh.kode_penyakit')
                 ->get();
-
             $kecBreakdownGrouped = $kecBreakdown->groupBy('kode_penyakit');
             $puskBreakdownGrouped = $puskBreakdown->groupBy('kode_penyakit');
 
@@ -357,7 +360,12 @@ class ExportRekapJob implements ShouldQueue
             $detailSheet->getColumnDimension('F')->setWidth(25);
             $detailSheet->getColumnDimension('G')->setWidth(15);
 
-            $rowNum = 1;
+            $detailSheet->setCellValue("A1", 'DETAIL SEBARAN PENYAKIT');
+            $detailSheet->getStyle("A1")->getFont()->setBold(true)->setSize(14);
+            $detailSheet->setCellValue("A2", 'Periode Laporan: ' . $this->from . ' s.d. ' . $this->to);
+            $detailSheet->getStyle("A2")->getFont()->setItalic(true);
+
+            $rowNum = 4;
             $puskesmasNames = \App\Services\RecapLogicService::getPuskesmasNames();
 
             foreach ($dataUmum as $index => $disease) {
