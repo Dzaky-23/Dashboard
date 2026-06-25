@@ -1,6 +1,5 @@
 <?php
 
-use App\Services\RekapPenyakitTopBuilder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -10,13 +9,14 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('recap-top:build {--reset}', function () {
-    $this->info('Command lama tidak digunakan. Gunakan rekap:aggregate.');
+    $this->info('Command lama tidak digunakan. Gunakan rekap:refresh-periodic.');
 })->purpose('Membangun ulang tabel rekap (deprecated).');
-Schedule::command('rekap:aggregate')
-    // ->cron('0 2 6 * *')
-    ->dailyAt('09:51')
+
+Schedule::command('rekap:refresh-periodic')
+    ->monthlyOn(3, '02:00')
+    ->withoutOverlapping()
     ->onFailure(function () {
-        Illuminate\Support\Facades\Log::error('Fallback cron rekap:aggregate failed.');
+        Illuminate\Support\Facades\Log::error('Refresh periodik rekap gagal.');
     });
 
 Schedule::call(function () {
@@ -34,4 +34,3 @@ Schedule::call(function () {
         }
     }
 })->dailyAt('08:15');
-

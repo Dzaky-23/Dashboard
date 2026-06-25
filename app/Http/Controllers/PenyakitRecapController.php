@@ -30,15 +30,32 @@ class PenyakitRecapController extends Controller
         $puskesmasNames = RecapLogicService::getPuskesmasNames();
 
         // 1. Available Years
-        $yearExpression = DB::getDriverName() === 'sqlite' ? "strftime('%Y', tanggal)" : "YEAR(tanggal)";
-        $availableYears = DB::table('rekap_harian')
-            ->selectRaw("{$yearExpression} as year")
-            ->whereNotNull('tanggal')
+        $availableYears = DB::table('rekap_tahunan')
+            ->select('tahun as year')
             ->groupBy('year')
             ->orderByDesc('year')
             ->pluck('year');
 
         if ($availableYears->isEmpty()) {
+            $availableYears = DB::table('rekap_bulanan')
+                ->select('tahun as year')
+                ->groupBy('year')
+                ->orderByDesc('year')
+                ->pluck('year');
+        }
+
+        if ($availableYears->isEmpty()) {
+            $yearExpression = DB::getDriverName() === 'sqlite' ? "strftime('%Y', tanggal)" : "YEAR(tanggal)";
+            $availableYears = DB::table('rekap_harian')
+                ->selectRaw("{$yearExpression} as year")
+                ->whereNotNull('tanggal')
+                ->groupBy('year')
+                ->orderByDesc('year')
+                ->pluck('year');
+        }
+
+        if ($availableYears->isEmpty()) {
+            $yearExpression = DB::getDriverName() === 'sqlite' ? "strftime('%Y', tanggal)" : "YEAR(tanggal)";
             $availableYears = DB::table('lb1_penta')
                 ->selectRaw("{$yearExpression} as year")
                 ->whereNotNull('tanggal')
@@ -52,7 +69,7 @@ class PenyakitRecapController extends Controller
         }
 
         // 2. Fetch main daily aggregate records grouped by Puskesmas
-        $query = DB::table('rekap_harian as rh')
+        $query = DB::table('rekap_tahunan as rh')
             ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
             ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
             ->select([
@@ -63,7 +80,7 @@ class PenyakitRecapController extends Controller
             ]);
 
         if ($yearInput) {
-            $query->whereRaw("{$yearExpression} = ?", [$yearInput]);
+            $query->where('rh.tahun', $yearInput);
         }
 
         $rekapData = $query->groupBy('rh.kode_puskesmas', 'rh.kode_penyakit', 'icd.nmDiag')->get();
@@ -447,11 +464,36 @@ class PenyakitRecapController extends Controller
             $endDate = Carbon::create($year, 12, 31)->endOfYear();
         }
 
-        $query = DB::table('rekap_harian as rh')
-            ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-            ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
-            ->where('rh.kode_puskesmas', $puskesmas)
-            ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+        $source = $this->service->resolveRekapSource($startDate, $endDate);
+
+        if ($source === 'tahunan') {
+            $query = DB::table('rekap_tahunan as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('rh.kode_puskesmas', $puskesmas)
+                ->where('rh.tahun', $year);
+        } elseif ($source === 'bulanan') {
+            $query = DB::table('rekap_bulanan as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('rh.kode_puskesmas', $puskesmas);
+
+            if ($periodType === 'month') {
+                $query->where('rh.tahun', $year)->where('rh.bulan', $periodValue);
+            } elseif ($periodType === 'quarter') {
+                $startMonth = ($periodValue - 1) * 3 + 1;
+                $query->where('rh.tahun', $year)->whereBetween('rh.bulan', [$startMonth, $startMonth + 2]);
+            } elseif ($periodType === 'semester') {
+                $monthsRange = ($periodValue == 1) ? [1, 6] : [7, 12];
+                $query->where('rh.tahun', $year)->whereBetween('rh.bulan', $monthsRange);
+            }
+        } else {
+            $query = DB::table('rekap_harian as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('rh.kode_puskesmas', $puskesmas)
+                ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+        }
 
         if ($search) {
             $query->where('rh.kode_penyakit', 'LIKE', '%' . $search . '%');
@@ -517,12 +559,37 @@ class PenyakitRecapController extends Controller
             $endDate = Carbon::create($year, 12, 31)->endOfYear();
         }
 
-        $query = DB::table('rekap_harian as rh')
-            ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
-            ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-            ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
-            ->where('p.kode_kc', $kodeKecamatan)
-            ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+        $source = $this->service->resolveRekapSource($startDate, $endDate);
+
+        if ($source === 'tahunan') {
+            $query = DB::table('rekap_tahunan as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('rh.kode_kecamatan', $kodeKecamatan)
+                ->where('rh.tahun', $year);
+        } elseif ($source === 'bulanan') {
+            $query = DB::table('rekap_bulanan as rh')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('rh.kode_kecamatan', $kodeKecamatan);
+
+            if ($periodType === 'month') {
+                $query->where('rh.tahun', $year)->where('rh.bulan', $periodValue);
+            } elseif ($periodType === 'quarter') {
+                $startMonth = ($periodValue - 1) * 3 + 1;
+                $query->where('rh.tahun', $year)->whereBetween('rh.bulan', [$startMonth, $startMonth + 2]);
+            } elseif ($periodType === 'semester') {
+                $monthsRange = ($periodValue == 1) ? [1, 6] : [7, 12];
+                $query->where('rh.tahun', $year)->whereBetween('rh.bulan', $monthsRange);
+            }
+        } else {
+            $query = DB::table('rekap_harian as rh')
+                ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                ->select('rh.kode_penyakit', DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"), DB::raw('SUM(rh.jumlah_kasus) as count'))
+                ->where('p.kode_kc', $kodeKecamatan)
+                ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+        }
 
         if ($search) {
             $query->where('rh.kode_penyakit', 'LIKE', '%' . $search . '%');
@@ -620,20 +687,17 @@ class PenyakitRecapController extends Controller
             return response()->json(['trend' => [], 'labels' => $selectedLabels]);
         }
 
-        $monthExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%m', tanggal) AS INTEGER)" : "MONTH(tanggal)";
-        $yearExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%Y', tanggal) AS INTEGER)" : "YEAR(tanggal)";
+        $query = DB::table('rekap_bulanan as rh')
+            ->selectRaw("kode_penyakit, bulan as month, tahun as yr, SUM(jumlah_kasus) as count")
+            ->whereIn('kode_penyakit', $diseasesInput);
         
-        $query = DB::table('rekap_harian')
-            ->selectRaw("kode_penyakit, {$monthExpression} as month, {$yearExpression} as yr, SUM(jumlah_kasus) as count")
-            ->whereIn('kode_penyakit', $diseasesInput)
-            ->whereBetween('tanggal', [$startDate->toDateString(), $endDate->toDateString()])
-            ->groupBy('kode_penyakit', DB::raw($yearExpression), DB::raw($monthExpression));
+        $this->service->applyBulananDateFilter($query, $startDate, $endDate);
 
         if ($timeMode === 'custom_months' && !empty($selectedMonths)) {
-            $query->whereIn(DB::raw($monthExpression), $selectedMonths);
+            $query->whereIn('rh.bulan', $selectedMonths);
         }
 
-        $trendRaw = $query->get();
+        $trendRaw = $query->groupBy('kode_penyakit', 'rh.tahun', 'rh.bulan')->get();
 
         $diseaseNames = [];
         foreach ($diseasesInput as $kode) {
@@ -715,22 +779,50 @@ class PenyakitRecapController extends Controller
             $endDate = Carbon::create($year)->endOfYear();
         }
 
-        $buildQuery = function() use ($startDate, $endDate, $timeMode, $selectedMonths, $scope, $scopeValue) {
-            $query = DB::table('rekap_harian as rh')
-                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-                ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
-            
-            if ($timeMode === 'custom_months' && !empty($selectedMonths)) {
-                $monthExpression = DB::getDriverName() === 'sqlite' ? "CAST(strftime('%m', rh.tanggal) AS INTEGER)" : "MONTH(rh.tanggal)";
-                $query->whereIn(DB::raw($monthExpression), $selectedMonths);
+        $source = $this->service->resolveRekapSource($startDate, $endDate);
+        if ($timeMode === 'custom_months') {
+            $source = 'bulanan';
+        }
+
+        $buildQuery = function() use ($startDate, $endDate, $timeMode, $selectedMonths, $scope, $scopeValue, $source, $year) {
+            if ($source === 'tahunan') {
+                $query = DB::table('rekap_tahunan as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->whereBetween('rh.tahun', [$startDate->year, $endDate->year]);
+
+                if ($scope === 'puskesmas' && $scopeValue) {
+                    $query->where('rh.kode_puskesmas', $scopeValue);
+                } elseif ($scope === 'kecamatan' && $scopeValue) {
+                    $query->where('rh.kode_kecamatan', $scopeValue);
+                }
+            } elseif ($source === 'bulanan') {
+                $query = DB::table('rekap_bulanan as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag');
+
+                $this->service->applyBulananDateFilter($query, $startDate, $endDate);
+
+                if ($timeMode === 'custom_months' && !empty($selectedMonths)) {
+                    $query->whereIn('rh.bulan', $selectedMonths);
+                }
+
+                if ($scope === 'puskesmas' && $scopeValue) {
+                    $query->where('rh.kode_puskesmas', $scopeValue);
+                } elseif ($scope === 'kecamatan' && $scopeValue) {
+                    $query->where('rh.kode_kecamatan', $scopeValue);
+                }
+            } else {
+                $query = DB::table('rekap_harian as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->whereBetween('rh.tanggal', [$startDate->toDateString(), $endDate->toDateString()]);
+
+                if ($scope === 'puskesmas' && $scopeValue) {
+                    $query->where('rh.kode_puskesmas', $scopeValue);
+                } elseif ($scope === 'kecamatan' && $scopeValue) {
+                    $query->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                          ->where('p.kode_kc', $scopeValue);
+                }
             }
 
-            if ($scope === 'puskesmas' && $scopeValue) {
-                $query->where('rh.kode_puskesmas', $scopeValue);
-            } elseif ($scope === 'kecamatan' && $scopeValue) {
-                $query->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
-                      ->where('p.kode_kc', $scopeValue);
-            }
             return $query;
         };
 

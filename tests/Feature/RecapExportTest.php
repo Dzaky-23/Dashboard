@@ -114,6 +114,11 @@ beforeEach(function () {
             'updated_at' => now(),
         ],
     ]);
+
+    // Aggregate seeded test data into bulanan and tahunan tables for dynamic routing
+    $periodicService = app(\App\Services\RekapPeriodikService::class);
+    $periodicService->aggregateMonthlyByMonth(Carbon::parse('2026-05-01'));
+    $periodicService->aggregateYearlyByYear(2026);
 });
 
 function actingAsAdmin(): User
@@ -204,7 +209,7 @@ it('can trigger aggregation of all data using --all flag', function () {
         ],
     ]);
 
-    $this->artisan('rekap:aggregate', ['--all' => true])
+    $this->artisan('rekap:refresh-periodic', ['--all' => true])
         ->assertExitCode(0);
 
     // Verify database has records for both dates
@@ -316,6 +321,11 @@ it('supports exclude exceptions during export', function () {
             'updated_at' => now(),
         ],
     ]);
+
+    // Aggregate the newly seeded data for export test
+    $periodicService = app(\App\Services\RekapPeriodikService::class);
+    $periodicService->aggregateMonthlyByMonth(Carbon::parse('2026-05-01'));
+    $periodicService->aggregateYearlyByYear(2026);
 
     $response = $this->postJson(route('recap.export.dispatch'), [
         'from' => '2026-01-01',
