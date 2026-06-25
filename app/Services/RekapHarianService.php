@@ -86,6 +86,52 @@ class RekapHarianService
     /**
      * Query Top N Penyakit Umum (Keseluruhan Wilayah)
      */
+    public function resolveRekapSource(Carbon $from, Carbon $to): string
+    {
+        // Tahun penuh (1 Jan s.d. 31 Des)
+        if ($from->month === 1 && $from->day === 1 && $to->month === 12 && $to->day === 31) {
+            return 'tahunan';
+        }
+
+        // Bulan/Triwulan/Semester penuh (Tgl 1 s.d. Akhir Bulan)
+        if ($from->day === 1 && $to->day === $to->copy()->endOfMonth()->day) {
+            return 'bulanan';
+        }
+
+        return 'harian';
+    }
+
+    public function applyBulananDateFilter($query, Carbon $from, Carbon $to): void
+    {
+        $query->where(function($q) use ($from, $to) {
+            $fromYear = $from->year;
+            $fromMonth = $from->month;
+            $toYear = $to->year;
+            $toMonth = $to->month;
+
+            if ($fromYear === $toYear) {
+                $q->where('rh.tahun', $fromYear)
+                  ->whereBetween('rh.bulan', [$fromMonth, $toMonth]);
+            } else {
+                $q->where(function($sub) use ($fromYear, $fromMonth, $toYear, $toMonth) {
+                    $sub->where(function($q1) use ($fromYear, $fromMonth) {
+                        $q1->where('rh.tahun', $fromYear)->where('rh.bulan', '>=', $fromMonth);
+                    })->orWhere(function($q2) use ($toYear, $toMonth) {
+                        $q2->where('rh.tahun', $toYear)->where('rh.bulan', '<=', $toMonth);
+                    });
+                    if ($toYear - $fromYear > 1) {
+                        $sub->orWhere(function($q3) use ($fromYear, $toYear) {
+                            $q3->whereBetween('rh.tahun', [$fromYear + 1, $toYear - 1]);
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Query Top N Penyakit Umum (Keseluruhan Wilayah)
+     */
     public function queryTopUmum(
         Carbon $from,
         Carbon $to,
@@ -100,14 +146,36 @@ class RekapHarianService
         $cacheKey = $this->generateCacheKey('umum', $params);
 
         return Cache::remember($cacheKey, now()->addHours(6), function () use ($from, $to, $topN, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions) {
-            $query = DB::table('rekap_harian as rh')
-                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-                ->select([
-                    'rh.kode_penyakit',
-                    DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
-                    DB::raw("SUM(rh.jumlah_kasus) as total")
-                ])
-                ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            $source = $this->resolveRekapSource($from, $to);
+
+            if ($source === 'tahunan') {
+                $query = DB::table('rekap_tahunan as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as total")
+                    ])
+                    ->whereBetween('rh.tahun', [$from->year, $to->year]);
+            } elseif ($source === 'bulanan') {
+                $query = DB::table('rekap_bulanan as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as total")
+                    ]);
+                $this->applyBulananDateFilter($query, $from, $to);
+            } else {
+                $query = DB::table('rekap_harian as rh')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as total")
+                    ])
+                    ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            }
 
             $this->applyKodePenyakitFilters($query, 'rh.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
@@ -136,19 +204,49 @@ class RekapHarianService
         $cacheKey = $this->generateCacheKey('kecamatan', $params);
 
         return Cache::remember($cacheKey, now()->addHours(6), function () use ($from, $to, $topN, $kodeKc, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions) {
-            $subquery = DB::table('rekap_harian as rh')
-                ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
-                ->join('kecamatan as k', 'p.kode_kc', '=', 'k.kode_kc')
-                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-                ->select([
-                    'k.kode_kc',
-                    'k.kecamatan',
-                    'rh.kode_penyakit',
-                    DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
-                    DB::raw("SUM(rh.jumlah_kasus) as count"),
-                    DB::raw("ROW_NUMBER() OVER (PARTITION BY k.kode_kc ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
-                ])
-                ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            $source = $this->resolveRekapSource($from, $to);
+
+            if ($source === 'tahunan') {
+                $subquery = DB::table('rekap_tahunan as rh')
+                    ->join('kecamatan as k', 'rh.kode_kecamatan', '=', 'k.kode_kc')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'k.kode_kc',
+                        'k.kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY k.kode_kc ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ])
+                    ->whereBetween('rh.tahun', [$from->year, $to->year]);
+            } elseif ($source === 'bulanan') {
+                $subquery = DB::table('rekap_bulanan as rh')
+                    ->join('kecamatan as k', 'rh.kode_kecamatan', '=', 'k.kode_kc')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'k.kode_kc',
+                        'k.kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY k.kode_kc ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ]);
+                $this->applyBulananDateFilter($subquery, $from, $to);
+            } else {
+                $subquery = DB::table('rekap_harian as rh')
+                    ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                    ->join('kecamatan as k', 'p.kode_kc', '=', 'k.kode_kc')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'k.kode_kc',
+                        'k.kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY k.kode_kc ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ])
+                    ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            }
 
             if ($kodeKc !== null && count($kodeKc) > 0) {
                 $subquery->whereIn('k.kode_kc', $kodeKc);
@@ -185,19 +283,51 @@ class RekapHarianService
         $cacheKey = $this->generateCacheKey('puskesmas', $params);
 
         return Cache::remember($cacheKey, now()->addHours(6), function () use ($from, $to, $topN, $kodeP, $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions) {
-            $subquery = DB::table('rekap_harian as rh')
-                ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
-                ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
-                ->select([
-                    'p.kode_p as kpusk',
-                    'p.nama as nama_puskesmas',
-                    'p.kode_kc as kode_kecamatan',
-                    'rh.kode_penyakit',
-                    DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
-                    DB::raw("SUM(rh.jumlah_kasus) as count"),
-                    DB::raw("ROW_NUMBER() OVER (PARTITION BY p.kode_p ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
-                ])
-                ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            $source = $this->resolveRekapSource($from, $to);
+
+            if ($source === 'tahunan') {
+                $subquery = DB::table('rekap_tahunan as rh')
+                    ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'p.kode_p as kpusk',
+                        'p.nama as nama_puskesmas',
+                        'rh.kode_kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY p.kode_p ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ])
+                    ->whereBetween('rh.tahun', [$from->year, $to->year]);
+            } elseif ($source === 'bulanan') {
+                $subquery = DB::table('rekap_bulanan as rh')
+                    ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'p.kode_p as kpusk',
+                        'p.nama as nama_puskesmas',
+                        'rh.kode_kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY p.kode_p ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ]);
+                $this->applyBulananDateFilter($subquery, $from, $to);
+            } else {
+                $subquery = DB::table('rekap_harian as rh')
+                    ->join('puskesmas as p', 'rh.kode_puskesmas', '=', 'p.kode_p')
+                    ->leftJoin('bpjs_ref_icd as icd', 'rh.kode_penyakit', '=', 'icd.kdDiag')
+                    ->select([
+                        'p.kode_p as kpusk',
+                        'p.nama as nama_puskesmas',
+                        'p.kode_kc as kode_kecamatan',
+                        'rh.kode_penyakit',
+                        DB::raw("COALESCE(NULLIF(icd.nmDiag, ''), rh.kode_penyakit) as nama_penyakit"),
+                        DB::raw("SUM(rh.jumlah_kasus) as count"),
+                        DB::raw("ROW_NUMBER() OVER (PARTITION BY p.kode_p ORDER BY SUM(rh.jumlah_kasus) DESC) as rnk")
+                    ])
+                    ->whereBetween('rh.tanggal', [$from->toDateString(), $to->toDateString()]);
+            }
 
             if ($kodeP !== null && count($kodeP) > 0) {
                 $subquery->whereIn('p.kode_p', $kodeP);
@@ -205,7 +335,11 @@ class RekapHarianService
 
             $this->applyKodePenyakitFilters($subquery, 'rh.kode_penyakit', $includePrefixes, $excludePrefixes, $includeCodes, $excludeCodes, $excludeExceptions);
 
-            $subquery->groupBy('p.kode_p', 'p.nama', 'p.kode_kc', 'rh.kode_penyakit', 'icd.nmDiag');
+            if ($source === 'tahunan' || $source === 'bulanan') {
+                $subquery->groupBy('p.kode_p', 'p.nama', 'rh.kode_kecamatan', 'rh.kode_penyakit', 'icd.nmDiag');
+            } else {
+                $subquery->groupBy('p.kode_p', 'p.nama', 'p.kode_kc', 'rh.kode_penyakit', 'icd.nmDiag');
+            }
 
             return DB::query()
                 ->fromSub($subquery, 'ranked')

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\JobStatus;
 use App\Services\RekapHarianService;
+use App\Services\RekapPeriodikService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,7 +26,7 @@ class AggregateRekapJob implements ShouldQueue
         $this->month = $month;
     }
 
-    public function handle(RekapHarianService $service): void
+    public function handle(RekapHarianService $service, RekapPeriodikService $periodicService): void
     {
         $jobStatus = JobStatus::find($this->jobId);
         if (!$jobStatus) {
@@ -37,7 +38,12 @@ class AggregateRekapJob implements ShouldQueue
 
         try {
             $monthCarbon = Carbon::parse($this->month . '-01');
+
+            // Jalankan seluruh pipeline untuk bulan ini
             $service->aggregateByMonth($monthCarbon);
+            $periodicService->aggregateMonthlyByMonth($monthCarbon);
+            $periodicService->aggregateYearlyByYear($monthCarbon->year);
+            $periodicService->invalidateCache();
 
             $jobStatus->update(['status' => 'done']);
         } catch (\Exception $e) {
