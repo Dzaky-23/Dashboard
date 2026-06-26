@@ -883,8 +883,9 @@
                         return option ? option.name : code;
                     },
                     globalChartColor(index) {
-                        const colors = ['bg-red-900', 'bg-red-800', 'bg-red-700', 'bg-red-600', 'bg-red-600', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500', 'bg-red-500'];
-                        return colors[Math.min(index, colors.length - 1)];
+                        const colors = ['#500000', '#780000', '#A00000', '#C80303', '#EB1313'];
+                        const colorIndex = Math.min(Math.floor(index / 2), 4);
+                        return colors[colorIndex];
                     },
                     globalChartWidth(total) {
                         const max = this.globalChartMax || 1;
