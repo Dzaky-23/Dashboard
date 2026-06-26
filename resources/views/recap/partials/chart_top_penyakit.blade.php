@@ -20,15 +20,9 @@
                     @php
                         $percentage = ($maxChartWidth > 0 ? ($item->count / $maxChartWidth) * 100 : 0);
                         $widthPercentage = max($percentage, 8);
-                        $totalItems = count($rekapChartData);
-                        $third = max(1, ceil($totalItems / 3));
-                        if ($index < $third) {
-                            $color = 'bg-red-900';
-                        } elseif ($index < $third * 2) {
-                            $color = 'bg-red-700';
-                        } else {
-                            $color = 'bg-red-500';
-                        }
+                        $hexColors = ['#500000', '#780000', '#A00000', '#C80303', '#EB1313'];
+                        $colorIndex = min(floor($index / 2), 4);
+                        $color = $hexColors[$colorIndex];
                     @endphp
                     <div class="flex items-center gap-4 group">
                         <div class="w-16 md:w-20 flex-shrink-0 text-right">
@@ -36,7 +30,7 @@
                         </div>
                         <div class="flex-grow flex items-center gap-3">
                             <div class="w-full bg-slate-100 rounded-md h-7 overflow-hidden flex items-center shadow-inner">
-                                <div class="{{ $color }} hover:opacity-80 h-full rounded-md transition-all duration-1000 ease-out" style="width: {{ max($widthPercentage, 1) }}%"></div>
+                                <div class="hover:opacity-80 h-full rounded-md transition-all duration-1000 ease-out" style="background-color: {{ $color }}; width: {{ max($widthPercentage, 1) }}%"></div>
                             </div>
                             <span class="text-xs md:text-sm font-semibold text-slate-600 w-12">{{ number_format($item->count) }}</span>
                         </div>

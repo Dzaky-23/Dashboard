@@ -52,7 +52,7 @@
                         <!-- Bar Track -->
                         <div class="flex-grow h-6 md:h-8 bg-slate-100/50 rounded-full p-1 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.05),inset_-2px_-2px_6px_rgba(255,255,255,0.8)] border border-white flex flex-row justify-start">
                             <!-- Colored Filled Bar -->
-                            <div class="h-full rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" :class="globalChartColor(index)" :style="`width: ${globalChartWidth(item.total)}`">
+                            <div class="h-full rounded-full relative transition-[width] duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-[0_2px_5px_rgba(0,0,0,0.1)] group-hover:brightness-110 flex items-center justify-end pr-2" :style="`background-color: ${globalChartColor(index)}; width: ${globalChartWidth(item.total)}`">
                                 <!-- Text Inside Bar for Data (Optional, hiding it on very small screens or keeping it simple, let's keep it visible inside the bar right end!) -->
                                 <span class="text-[9px] md:text-[10px] font-bold text-white/90 truncate" x-text="formatNumber(item.total)"></span>
                                 
