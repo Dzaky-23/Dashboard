@@ -13,7 +13,8 @@ Artisan::command('recap-top:build {--reset}', function () {
 })->purpose('Membangun ulang tabel rekap (deprecated).');
 
 Schedule::command('rekap:refresh-periodic')
-    ->monthlyOn(3, '02:00')
+    // ->monthlyOn(3, '02:00')
+    ->dailyAt('11:26')
     ->withoutOverlapping()
     ->onFailure(function () {
         Illuminate\Support\Facades\Log::error('Refresh periodik rekap gagal.');

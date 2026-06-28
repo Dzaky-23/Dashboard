@@ -56,7 +56,7 @@ class PenyakitRecapController extends Controller
 
         if ($availableYears->isEmpty()) {
             $yearExpression = DB::getDriverName() === 'sqlite' ? "strftime('%Y', tanggal)" : "YEAR(tanggal)";
-            $availableYears = DB::table('lb1_penta')
+            $availableYears = DB::table('lb1_penta_clean')
                 ->selectRaw("{$yearExpression} as year")
                 ->whereNotNull('tanggal')
                 ->groupBy('year')

@@ -29,7 +29,7 @@ class RekapPenyakitController extends Controller
             ], 201);
         }
 
-        $data = DB::table('lb1_penta as h')
+        $data = DB::table('lb1_penta_clean as h')
             ->leftJoin('bpjs_ref_icd as icd', 'h.diagnosa', '=', 'icd.kdDiag')
             ->whereNotNull('h.tanggal')
             ->whereBetween('h.tanggal', [$mulai->toDateString(), $sampai->toDateString()])
