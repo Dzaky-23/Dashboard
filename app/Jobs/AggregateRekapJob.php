@@ -39,6 +39,9 @@ class AggregateRekapJob implements ShouldQueue
         try {
             $monthCarbon = Carbon::parse($this->month . '-01');
 
+            // Run incremental data cleaning first
+            \Illuminate\Support\Facades\Artisan::call('rekap:clean-penta');
+
             // Jalankan seluruh pipeline untuk bulan ini
             $service->aggregateByMonth($monthCarbon);
             $periodicService->aggregateMonthlyByMonth($monthCarbon);

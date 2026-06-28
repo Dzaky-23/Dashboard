@@ -19,18 +19,29 @@ class RekapAggregate extends Command
 
     public function handle(RekapHarianService $service)
     {
+        DB::connection()->disableQueryLog();
+
         try {
             $bulanOpt = $this->option('bulan');
             $fromOpt = $this->option('from');
             $toOpt = $this->option('to');
             $allOpt = $this->option('all');
 
+            // Run data cleaning first
             if ($allOpt) {
-                $minDateStr = \Illuminate\Support\Facades\DB::table('lb1_penta')->min('tanggal');
-                $maxDateStr = \Illuminate\Support\Facades\DB::table('lb1_penta')->max('tanggal');
+                $this->info('Running full data cleaning...');
+                $this->call('rekap:clean-penta', ['--all' => true]);
+            } else {
+                $this->info('Running incremental data cleaning...');
+                $this->call('rekap:clean-penta');
+            }
+
+            if ($allOpt) {
+                $minDateStr = \Illuminate\Support\Facades\DB::table('lb1_penta_clean')->min('tanggal');
+                $maxDateStr = \Illuminate\Support\Facades\DB::table('lb1_penta_clean')->max('tanggal');
 
                 if (!$minDateStr || !$maxDateStr) {
-                    $this->info('Tidak ada data di tabel lb1_penta.');
+                    $this->info('Tidak ada data di tabel lb1_penta_clean.');
                     return 0;
                 }
 

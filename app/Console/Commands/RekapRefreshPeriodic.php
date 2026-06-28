@@ -22,6 +22,8 @@ class RekapRefreshPeriodic extends Command
 
     public function handle(RekapHarianService $harianService, RekapPeriodikService $periodicService)
     {
+        DB::connection()->disableQueryLog();
+
         $bulanOpt = $this->option('bulan');
         $fromOpt = $this->option('from');
         $toOpt = $this->option('to');
@@ -40,14 +42,23 @@ class RekapRefreshPeriodic extends Command
         ]);
 
         try {
+            // Run data cleaning first
+            if ($allOpt) {
+                $this->info('Running full data cleaning...');
+                $this->call('rekap:clean-penta', ['--all' => true]);
+            } else {
+                $this->info('Running incremental data cleaning...');
+                $this->call('rekap:clean-penta');
+            }
+
             $months = [];
 
             if ($allOpt) {
-                $minDate = DB::table('lb1_penta')->min('tanggal');
-                $maxDate = DB::table('lb1_penta')->max('tanggal');
+                $minDate = DB::table('lb1_penta_clean')->min('tanggal');
+                $maxDate = DB::table('lb1_penta_clean')->max('tanggal');
 
                 if (!$minDate || !$maxDate) {
-                    $this->info('Tidak ada data di tabel lb1_penta.');
+                    $this->info('Tidak ada data di tabel lb1_penta_clean.');
                     $jobStatus->update(['status' => 'done']);
                     return 0;
                 }

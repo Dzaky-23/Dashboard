@@ -144,6 +144,7 @@ it('can trigger aggregation manually via UI', function () {
     Lb1Penta::query()->insert([
         [
             'tanggal' => '2026-04-15',
+            'nik' => '1234567890123456',
             'kpusk' => 'P001',
             'diagnosa' => 'A01',
             'status' => 'Baru',
@@ -153,6 +154,7 @@ it('can trigger aggregation manually via UI', function () {
         ],
         [
             'tanggal' => '2026-04-15',
+            'nik' => '1234567890123456',
             'kpusk' => 'P001',
             'diagnosa' => 'A01',
             'status' => 'Baru',
@@ -191,6 +193,7 @@ it('can trigger aggregation of all data using --all flag', function () {
     Lb1Penta::query()->insert([
         [
             'tanggal' => '2024-01-15',
+            'nik' => '1234567890123456',
             'kpusk' => 'P001',
             'diagnosa' => 'A01',
             'status' => 'Baru',
@@ -200,6 +203,7 @@ it('can trigger aggregation of all data using --all flag', function () {
         ],
         [
             'tanggal' => '2026-12-15',
+            'nik' => '1234567890123456',
             'kpusk' => 'P001',
             'diagnosa' => 'A01',
             'status' => 'Baru',

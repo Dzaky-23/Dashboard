@@ -28,7 +28,7 @@ class RekapHarianService
                         COUNT(*) AS jumlah_kasus,
                         datetime('now') AS created_at,
                         datetime('now') AS updated_at
-                    FROM lb1_penta
+                    FROM lb1_penta_clean
                     WHERE tanggal BETWEEN ? AND ?
                       AND kpusk IS NOT NULL AND kpusk <> ''
                       AND diagnosa IS NOT NULL AND diagnosa <> ''
@@ -45,7 +45,7 @@ class RekapHarianService
                         COUNT(*) AS jumlah_kasus,
                         NOW() AS created_at,
                         NOW() AS updated_at
-                    FROM lb1_penta
+                    FROM lb1_penta_clean
                     WHERE tanggal BETWEEN ? AND ?
                       AND kpusk IS NOT NULL AND kpusk <> ''
                       AND diagnosa IS NOT NULL AND diagnosa <> ''
